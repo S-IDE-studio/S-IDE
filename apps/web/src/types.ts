@@ -33,6 +33,12 @@ export interface TerminalSession {
   title: string;
 }
 
+export interface Workspace {
+  id: string;
+  name: string;
+  path: string;
+}
+
 export interface DeckState {
   files: EditorFile[];
   activeFileId: string | null;

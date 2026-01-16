@@ -1,7 +1,12 @@
-import type { Deck } from '../types';
+interface DeckListItem {
+  id: string;
+  name: string;
+  root: string;
+  workspaceName: string;
+}
 
 interface DeckListProps {
-  decks: Deck[];
+  decks: DeckListItem[];
   activeDeckId: string | null;
   onSelect: (deckId: string) => void;
   onCreate: () => void;
@@ -18,10 +23,10 @@ export function DeckList({
       <div className="panel-header">
         <div>
           <div className="panel-title">デッキ</div>
-          <div className="panel-subtitle">固定ルート・重複OK</div>
+          <div className="panel-subtitle">同じワークスペースで複数作成可能</div>
         </div>
         <button type="button" className="chip" onClick={onCreate}>
-          追加
+          デッキ作成
         </button>
       </div>
       <div className="panel-body">
@@ -35,6 +40,7 @@ export function DeckList({
             onClick={() => onSelect(deck.id)}
           >
             <div className="deck-name">{deck.name}</div>
+            <div className="deck-root">{deck.workspaceName}</div>
             <div className="deck-root">{deck.root}</div>
           </button>
         ))}
