@@ -8,7 +8,7 @@ import express from 'express';
 import { WebSocketServer } from 'ws';
 import { spawn } from 'node-pty';
 
-const DEFAULT_ROOT = process.env.DEFAULT_ROOT || 'C:/workspace';
+const DEFAULT_ROOT = process.env.DEFAULT_ROOT || process.cwd();
 const PORT = Number(process.env.PORT || 8787);
 
 const app = express();
@@ -128,6 +128,10 @@ app.post('/api/workspaces', (req, res) => {
   }
 });
 
+app.get('/api/config', (req, res) => {
+  res.json({ defaultRoot: normalizeWorkspacePath(DEFAULT_ROOT) });
+});
+
 app.get('/api/decks', (req, res) => {
   res.json(Array.from(decks.values()));
 });
@@ -166,6 +170,42 @@ app.get('/api/files', async (req, res) => {
     }
     const entries = await fs.readdir(target, { withFileTypes: true });
     const normalizedBase = requestedPath.replace(/\\/g, '/');
+    const mapped = entries.map((entry) => {
+      const entryPath = normalizedBase
+        ? `${normalizedBase}/${entry.name}`
+        : entry.name;
+      return {
+        name: entry.name,
+        path: entryPath,
+        type: entry.isDirectory() ? 'dir' : 'file'
+      };
+    });
+    mapped.sort((a, b) => {
+      if (a.type !== b.type) {
+        return a.type === 'dir' ? -1 : 1;
+      }
+      return a.name.localeCompare(b.name);
+    });
+    res.json(mapped);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+app.get('/api/preview', async (req, res) => {
+  try {
+    const rootInput = req.query.path || DEFAULT_ROOT;
+    const requestedPath = req.query.subpath || '';
+    const rootPath = normalizeWorkspacePath(rootInput);
+    const target = resolveSafePath(rootPath, requestedPath);
+    const stats = await fs.stat(target);
+    if (!stats.isDirectory()) {
+      const error = new Error('Path is not a directory');
+      error.status = 400;
+      throw error;
+    }
+    const entries = await fs.readdir(target, { withFileTypes: true });
+    const normalizedBase = String(requestedPath || '').replace(/\\/g, '/');
     const mapped = entries.map((entry) => {
       const entryPath = normalizedBase
         ? `${normalizedBase}/${entry.name}`

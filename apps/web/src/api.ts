@@ -23,6 +23,10 @@ export function listWorkspaces(): Promise<Workspace[]> {
   return request<Workspace[]>('/api/workspaces');
 }
 
+export function getConfig(): Promise<{ defaultRoot?: string }> {
+  return request<{ defaultRoot?: string }>('/api/config');
+}
+
 export function createWorkspace(path: string): Promise<Workspace> {
   return request<Workspace>('/api/workspaces', {
     method: 'POST',
@@ -49,6 +53,14 @@ export function listFiles(
 ): Promise<FileSystemEntry[]> {
   const query = new URLSearchParams({ workspaceId, path });
   return request<FileSystemEntry[]>(`/api/files?${query.toString()}`);
+}
+
+export function previewFiles(
+  rootPath: string,
+  subpath = ''
+): Promise<FileSystemEntry[]> {
+  const query = new URLSearchParams({ path: rootPath, subpath });
+  return request<FileSystemEntry[]>(`/api/preview?${query.toString()}`);
 }
 
 export function readFile(

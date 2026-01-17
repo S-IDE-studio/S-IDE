@@ -9,6 +9,9 @@
   --ink: #111111;
   --muted: #555555;
   --shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
 }
 
 * {
@@ -46,7 +49,7 @@ body {
   background: var(--panel);
   color: var(--ink);
   padding: 12px;
-  border-radius: 24px;
+  border-radius: var(--radius-md);
   height: 52px;
   width: 52px;
   cursor: pointer;
@@ -80,7 +83,7 @@ body {
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 24px;
+  border-radius: var(--radius-lg);
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -116,7 +119,7 @@ body {
 .primary-button,
 .ghost-button {
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   font-family: inherit;
   cursor: pointer;
   transition: background 150ms ease, box-shadow 150ms ease, transform 150ms ease;
@@ -127,6 +130,7 @@ body {
   color: var(--ink);
   padding: 8px 12px;
   font-size: 12px;
+  border-radius: var(--radius-sm);
 }
 
 .chip:disabled {
@@ -156,7 +160,7 @@ body {
   position: absolute;
   inset: 0;
   background: var(--bg);
-  border-radius: 24px;
+  border-radius: var(--radius-lg);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 12px;
@@ -176,6 +180,14 @@ body {
   font-size: 12px;
   color: var(--muted);
   font-family: 'JetBrains Mono', monospace;
+  max-width: 70%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-meta .workspace-path {
+  margin-top: 0;
 }
 
 .workspace-editor-grid {
@@ -193,7 +205,7 @@ body {
 
 .field input {
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-sm);
   padding: 6px 8px;
   font-size: 13px;
   font-family: 'JetBrains Mono', monospace;
@@ -235,11 +247,13 @@ body {
 .modal {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 24px;
+  border-radius: var(--radius-lg);
   padding: 16px;
   width: min(420px, 92vw);
   display: grid;
   gap: 12px;
+  max-height: 80vh;
+  overflow: auto;
 }
 
 .modal-title {
@@ -253,11 +267,21 @@ body {
   gap: 8px;
 }
 
+.modal-explorer {
+  height: 280px;
+}
+
+.modal-explorer .panel {
+  height: 100%;
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+
 .workspace-item {
   display: grid;
   gap: 8px;
   padding: 10px;
-  border-radius: 20px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   margin-bottom: 10px;
   background: var(--panel);
@@ -293,7 +317,7 @@ body {
   width: 100%;
   text-align: left;
   padding: 10px 12px;
-  border-radius: 20px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--panel);
   color: var(--ink);
@@ -319,6 +343,7 @@ body {
   color: var(--muted);
   margin-top: 4px;
 }
+
 
 .tree-body {
   overflow-y: auto;
@@ -372,7 +397,7 @@ body {
 }
 
 .editor-pane .panel-body {
-  border-radius: 18px;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
@@ -400,7 +425,7 @@ body {
   background: var(--panel);
   color: var(--muted);
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   cursor: pointer;
   transition: background 150ms ease, color 150ms ease;
@@ -426,7 +451,7 @@ body {
 
 .terminal-view {
   border: 1px solid var(--border);
-  border-radius: 24px;
+  border-radius: var(--radius-lg);
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -460,7 +485,7 @@ body {
 
 .terminal-tile {
   border: 1px solid #2a2a2a;
-  border-radius: 24px;
+  border-radius: var(--radius-lg);
   background: #050505;
   color: #ffffff;
   min-width: 320px;
@@ -482,7 +507,7 @@ body {
   font-size: 12px;
   background: #111111;
   border-bottom: 1px solid #222222;
-  border-radius: 24px 24px 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
 .terminal-tile-body {
@@ -509,7 +534,7 @@ input:focus-visible {
   right: 20px;
   bottom: 20px;
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   font-size: 12px;
   background: var(--bg-soft);
   border: 1px solid var(--border);

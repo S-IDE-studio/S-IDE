@@ -9,10 +9,12 @@ import {
   createDeck as apiCreateDeck,
   createTerminal as apiCreateTerminal,
   createWorkspace as apiCreateWorkspace,
+  getConfig,
   getWsBase,
   listDecks,
   listFiles,
   listWorkspaces,
+  previewFiles,
   readFile,
   writeFile
 } from './api';
@@ -27,8 +29,15 @@ import type {
 } from './types';
 
 type AppView = 'workspace' | 'terminal';
+type WorkspaceMode = 'list' | 'editor';
+type UrlState = {
+  view: AppView;
+  workspaceId: string | null;
+  deckId: string | null;
+  workspaceMode: WorkspaceMode;
+};
 
-const DEFAULT_ROOT = import.meta.env.VITE_DEFAULT_ROOT || 'C:/workspace';
+const DEFAULT_ROOT_FALLBACK = import.meta.env.VITE_DEFAULT_ROOT || '';
 const SAVED_MESSAGE = '\u4fdd\u5b58\u3057\u307e\u3057\u305f\u3002';
 
 const LANGUAGE_BY_EXTENSION: Record<string, string> = {
@@ -85,21 +94,52 @@ const normalizeWorkspacePath = (value: string): string =>
     .replace(/\\/g, '/')
     .toLowerCase();
 
+const parseUrlState = (): UrlState => {
+  if (typeof window === 'undefined') {
+    return {
+      view: 'terminal',
+      workspaceId: null,
+      deckId: null,
+      workspaceMode: 'list'
+    };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const viewParam = params.get('view');
+  const modeParam = params.get('mode');
+  return {
+    view: viewParam === 'workspace' ? 'workspace' : 'terminal',
+    workspaceId: params.get('workspace'),
+    deckId: params.get('deck'),
+    workspaceMode: modeParam === 'editor' ? 'editor' : 'list'
+  };
+};
+
 export default function App() {
-  const [view, setView] = useState<AppView>('terminal');
-  const [workspaceMode, setWorkspaceMode] = useState<'list' | 'editor'>('list');
+  const initialUrlState = parseUrlState();
+  const [view, setView] = useState<AppView>(initialUrlState.view);
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(
+    initialUrlState.workspaceMode
+  );
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(
+    initialUrlState.workspaceId ?? null
+  );
+  const [defaultRoot, setDefaultRoot] = useState(DEFAULT_ROOT_FALLBACK);
   const [workspaceStates, setWorkspaceStates] = useState<
     Record<string, WorkspaceState>
   >({});
   const [decks, setDecks] = useState<Deck[]>([]);
-  const [activeDeckId, setActiveDeckId] = useState<string | null>(null);
+  const [activeDeckId, setActiveDeckId] = useState<string | null>(
+    initialUrlState.deckId ?? null
+  );
   const [deckStates, setDeckStates] = useState<Record<string, DeckState>>({});
   const [statusMessage, setStatusMessage] = useState('');
   const [savingFileId, setSavingFileId] = useState<string | null>(null);
   const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
   const [workspacePathDraft, setWorkspacePathDraft] = useState('');
+  const [previewTree, setPreviewTree] = useState<FileTreeNode[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   const defaultWorkspaceState = useMemo(
     () => createEmptyWorkspaceState(),
@@ -115,6 +155,7 @@ export default function App() {
     ? deckStates[activeDeckId] || defaultDeckState
     : defaultDeckState;
   const wsBase = getWsBase();
+  const previewRoot = workspacePathDraft.trim() || defaultRoot;
 
   const decksForWorkspace = activeWorkspaceId
     ? decks.filter((deck) => deck.workspaceId === activeWorkspaceId)
@@ -147,11 +188,62 @@ export default function App() {
 
   useEffect(() => {
     let alive = true;
+    getConfig()
+      .then((config) => {
+        if (!alive) return;
+        if (config?.defaultRoot) {
+          setDefaultRoot(config.defaultRoot);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const next = parseUrlState();
+      setView(next.view);
+      setActiveWorkspaceId(next.workspaceId ?? null);
+      setActiveDeckId(next.deckId ?? null);
+      setWorkspaceMode(next.workspaceMode);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    params.set('view', view);
+    if (activeWorkspaceId) {
+      params.set('workspace', activeWorkspaceId);
+    }
+    if (activeDeckId) {
+      params.set('deck', activeDeckId);
+    }
+    if (view === 'workspace' && workspaceMode === 'editor' && activeWorkspaceId) {
+      params.set('mode', 'editor');
+    }
+    const query = params.toString();
+    const nextUrl = query
+      ? `${window.location.pathname}?${query}`
+      : window.location.pathname;
+    window.history.replaceState(null, '', nextUrl);
+  }, [view, activeWorkspaceId, activeDeckId, workspaceMode]);
+
+  useEffect(() => {
+    let alive = true;
     listWorkspaces()
       .then((data) => {
         if (!alive) return;
         setWorkspaces(data);
-        setActiveWorkspaceId((prev) => prev ?? data[0]?.id ?? null);
+        setActiveWorkspaceId((prev) => {
+          if (prev && data.some((workspace) => workspace.id === prev)) {
+            return prev;
+          }
+          return data[0]?.id ?? null;
+        });
         setWorkspaceStates((prev) => {
           const next = { ...prev };
           data.forEach((workspace) => {
@@ -202,6 +294,12 @@ export default function App() {
   }, [statusMessage]);
 
   useEffect(() => {
+    if (workspaceMode === 'editor' && !activeWorkspaceId) {
+      setWorkspaceMode('list');
+    }
+  }, [workspaceMode, activeWorkspaceId]);
+
+  useEffect(() => {
     if (!activeWorkspaceId) {
       setActiveDeckId(null);
       return;
@@ -244,9 +342,42 @@ export default function App() {
       });
   }, [activeWorkspaceId, updateWorkspaceState, workspaceStates]);
 
+  useEffect(() => {
+    if (!isWorkspaceModalOpen) {
+      setPreviewTree([]);
+      setPreviewLoading(false);
+      setPreviewError(null);
+      return;
+    }
+    let alive = true;
+    setPreviewLoading(true);
+    setPreviewError(null);
+    previewFiles(previewRoot, '')
+      .then((entries) => {
+        if (!alive) return;
+        setPreviewTree(toTreeNodes(entries));
+        setPreviewLoading(false);
+      })
+      .catch((error: unknown) => {
+        if (!alive) return;
+        setPreviewError(getErrorMessage(error));
+        setPreviewLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [isWorkspaceModalOpen, previewRoot]);
+
   const handleCreateWorkspace = async (path: string) => {
-    const trimmedPath = path.trim() || DEFAULT_ROOT;
-    const normalized = normalizeWorkspacePath(trimmedPath);
+    const trimmedPath = path.trim();
+    const resolvedPath = trimmedPath || defaultRoot;
+    if (!resolvedPath) {
+      setStatusMessage(
+        '\u30d1\u30b9\u3092\u5165\u529b\u3057\u3066\u304f\u3060\u3055\u3044\u3002'
+      );
+      return null;
+    }
+    const normalized = normalizeWorkspacePath(resolvedPath);
     const exists = workspaces.some(
       (workspace) => normalizeWorkspacePath(workspace.path) === normalized
     );
@@ -257,7 +388,7 @@ export default function App() {
       return null;
     }
     try {
-      const workspace = await apiCreateWorkspace(trimmedPath);
+      const workspace = await apiCreateWorkspace(resolvedPath);
       setWorkspaces((prev) => [...prev, workspace]);
       setActiveWorkspaceId(workspace.id);
       setWorkspaceStates((prev) => ({
@@ -339,6 +470,69 @@ export default function App() {
       }
       return node;
     });
+
+  const handlePreviewRefresh = () => {
+    if (!isWorkspaceModalOpen) return;
+    setPreviewLoading(true);
+    setPreviewError(null);
+    previewFiles(previewRoot, '')
+      .then((entries) => {
+        setPreviewTree(toTreeNodes(entries));
+        setPreviewLoading(false);
+      })
+      .catch((error: unknown) => {
+        setPreviewError(getErrorMessage(error));
+        setPreviewLoading(false);
+      });
+  };
+
+  const handlePreviewToggleDir = (node: FileTreeNode) => {
+    if (node.type !== 'dir') return;
+    if (node.expanded) {
+      setPreviewTree((prev) =>
+        updateTreeNode(prev, node.path, (item) => ({
+          ...item,
+          expanded: false
+        }))
+      );
+      return;
+    }
+    if (node.children && node.children.length > 0) {
+      setPreviewTree((prev) =>
+        updateTreeNode(prev, node.path, (item) => ({
+          ...item,
+          expanded: true
+        }))
+      );
+      return;
+    }
+    setPreviewTree((prev) =>
+      updateTreeNode(prev, node.path, (item) => ({
+        ...item,
+        loading: true
+      }))
+    );
+    previewFiles(previewRoot, node.path)
+      .then((entries) => {
+        setPreviewTree((prev) =>
+          updateTreeNode(prev, node.path, (item) => ({
+            ...item,
+            expanded: true,
+            loading: false,
+            children: toTreeNodes(entries)
+          }))
+        );
+      })
+      .catch((error: unknown) => {
+        setPreviewError(getErrorMessage(error));
+        setPreviewTree((prev) =>
+          updateTreeNode(prev, node.path, (item) => ({
+            ...item,
+            loading: false
+          }))
+        );
+      });
+  };
 
   const handleToggleDir = (node: FileTreeNode) => {
     if (!activeWorkspaceId || node.type !== 'dir') return;
@@ -559,12 +753,14 @@ export default function App() {
                     {'\u4e00\u89a7\u306b\u623b\u308b'}
                   </button>
                   <div className="workspace-meta">
-                    <span>{activeWorkspace?.path}</span>
+                    {activeWorkspace ? (
+                      <span className="workspace-path">{activeWorkspace.path}</span>
+                    ) : null}
                   </div>
                 </div>
                 <div className="workspace-editor-grid">
                   <FileTree
-                    root={activeWorkspace?.path || DEFAULT_ROOT}
+                      root={activeWorkspace?.path || defaultRoot || ''}
                     entries={activeWorkspaceState.tree}
                     loading={activeWorkspaceState.treeLoading}
                     error={activeWorkspaceState.treeError}
@@ -600,12 +796,23 @@ export default function App() {
                     <input
                       type="text"
                       value={workspacePathDraft}
-                      placeholder={DEFAULT_ROOT}
+                      placeholder={defaultRoot || ''}
                       onChange={(event) =>
                         setWorkspacePathDraft(event.target.value)
                       }
                     />
                   </label>
+                  <div className="modal-explorer">
+                    <FileTree
+                      root={previewRoot}
+                      entries={previewTree}
+                      loading={previewLoading}
+                      error={previewError}
+                      onToggleDir={handlePreviewToggleDir}
+                      onOpenFile={() => undefined}
+                      onRefresh={handlePreviewRefresh}
+                    />
+                  </div>
                   <div className="modal-actions">
                     <button
                       type="button"
