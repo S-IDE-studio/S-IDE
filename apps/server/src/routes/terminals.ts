@@ -34,7 +34,33 @@ export function createTerminalRouter(
 
   function createTerminalSession(deck: Deck, title?: string, command?: string): TerminalSession {
     const id = crypto.randomUUID();
-    const shell = command || getDefaultShell();
+
+    // Determine shell and arguments
+    let shell: string;
+    let shellArgs: string[] = [];
+
+    if (command) {
+      // Run custom command through shell
+      const defaultShell = getDefaultShell();
+      if (process.platform === 'win32') {
+        // Windows: use powershell to run the command
+        shell = defaultShell; // powershell.exe or cmd.exe
+        if (defaultShell.toLowerCase().includes('powershell')) {
+          shellArgs = ['-NoExit', '-Command', command];
+        } else {
+          // cmd.exe
+          shellArgs = ['/K', command];
+        }
+      } else {
+        // Unix: use shell with -c
+        shell = defaultShell; // bash, zsh, etc.
+        shellArgs = ['-c', command];
+      }
+    } else {
+      // Default shell with no arguments
+      shell = getDefaultShell();
+    }
+
     const env: Record<string, string> = {};
 
     // Copy environment variables safely
@@ -79,10 +105,14 @@ export function createTerminalRouter(
       }
 
       const spawnStart = Date.now();
-      term = spawn(shell, [], spawnOptions);
+      term = spawn(shell, shellArgs, spawnOptions);
       const spawnTime = Date.now() - spawnStart;
 
-      console.log(`[TERMINAL] Created terminal ${id} with TERM=${env.TERM}, COLORTERM=${env.COLORTERM}, TERM_PROGRAM=${env.TERM_PROGRAM}`);
+      if (command) {
+        console.log(`[TERMINAL] Created terminal ${id} with command="${command}" using shell=${shell} args=${JSON.stringify(shellArgs)}`);
+      } else {
+        console.log(`[TERMINAL] Created terminal ${id} with TERM=${env.TERM}, COLORTERM=${env.COLORTERM}, TERM_PROGRAM=${env.TERM_PROGRAM}`);
+      }
       if (spawnTime > 100) {
         console.log(`[PERF] Terminal spawn took ${spawnTime}ms for deck ${deck.id}`);
       }
