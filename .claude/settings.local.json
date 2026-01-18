@@ -5,7 +5,10 @@
       "Bash(npm run build:*)",
       "Bash(npx tsc:*)",
       "WebSearch",
-      "WebFetch(domain:xtermjs.org)"
+      "WebFetch(domain:xtermjs.org)",
+      "Bash(npm run serve:*)",
+      "Bash(timeout 5 tail:*)",
+      "Bash(npm run build:web:*)"
     ],
     "deny": [],
     "ask": []

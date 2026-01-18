@@ -31,6 +31,7 @@ export function TerminalTile({
 }: TerminalTileProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const webglAddonRef = useRef<WebglAddon | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -73,6 +74,27 @@ export function TerminalTile({
 
     fitAddonRef.current = fitAddon;
     term.open(containerRef.current);
+
+    // Load WebGL addon for better rendering performance (may fail on some systems)
+    // IMPORTANT: Must be loaded AFTER term.open() to ensure terminal is initialized
+    try {
+      const webglAddon = new WebglAddon();
+      term.loadAddon(webglAddon);
+      webglAddonRef.current = webglAddon;
+      // Set up context loss handler only after successful load
+      webglAddon.onContextLoss(() => {
+        console.warn('[WebGL] Context lost, disposing addon');
+        try {
+          webglAddon.dispose();
+          webglAddonRef.current = null;
+        } catch (err) {
+          console.error('[WebGL] Error disposing after context loss:', err);
+        }
+      });
+    } catch (error) {
+      console.warn('[WebGL] Failed to load WebGL addon, using canvas renderer:', error);
+      webglAddonRef.current = null;
+    }
 
     // Register terminal query handlers to prevent TUI apps from hanging
     const sendResponse = (response: string) => {
@@ -380,17 +402,6 @@ export function TerminalTile({
       return false;
     });
 
-    // Load WebGL addon for better rendering performance (may fail on some systems)
-    try {
-      const webglAddon = new WebglAddon();
-      webglAddon.onContextLoss(() => {
-        webglAddon.dispose();
-      });
-      term.loadAddon(webglAddon);
-    } catch {
-      console.warn('WebGL addon failed to load, using canvas renderer');
-    }
-
     fitAddon.fit();
     term.write(`${TEXT_BOOT}${session.title}\r\n\r\n`);
 
@@ -438,6 +449,17 @@ export function TerminalTile({
       dataDisposable.dispose();
       socket.close();
       socketRef.current = null;
+
+      // Dispose WebGL addon first to avoid disposal errors
+      if (webglAddonRef.current) {
+        try {
+          webglAddonRef.current.dispose();
+        } catch (err) {
+          console.error('[WebGL] Error disposing addon during cleanup:', err);
+        }
+        webglAddonRef.current = null;
+      }
+
       fitAddonRef.current = null;
       term.dispose();
     };

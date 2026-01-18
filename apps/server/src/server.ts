@@ -32,6 +32,7 @@ import { createDeckRouter } from './routes/decks.js';
 import { createFileRouter } from './routes/files.js';
 import { createTerminalRouter } from './routes/terminals.js';
 import { createGitRouter } from './routes/git.js';
+import { createSettingsRouter } from './routes/settings.js';
 import { setupWebSocketServer, setupTerminalCleanup } from './websocket.js';
 
 // Request ID and logging middleware
@@ -108,6 +109,7 @@ export function createServer() {
   });
 
   // Mount routers
+  app.route('/api/settings', createSettingsRouter());
   app.route('/api/workspaces', createWorkspaceRouter(db, workspaces, workspacePathIndex));
   app.route('/api/decks', createDeckRouter(db, workspaces, decks));
   app.route('/api/terminals', createTerminalRouter(decks, terminals));

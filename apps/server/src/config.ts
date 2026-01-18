@@ -3,11 +3,31 @@ import fsSync from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const SETTINGS_FILE = path.join(__dirname, '..', '..', 'settings.json');
+
+// Load settings from file if exists
+interface Settings {
+  port?: number;
+  basicAuthEnabled?: boolean;
+  basicAuthUser?: string;
+  basicAuthPassword?: string;
+}
+
+let fileSettings: Settings = {};
+try {
+  const settingsData = fsSync.readFileSync(SETTINGS_FILE, 'utf-8');
+  fileSettings = JSON.parse(settingsData) as Settings;
+  console.log('[CONFIG] Loaded settings from file');
+} catch {
+  // No settings file, use environment variables
+}
+
 export const DEFAULT_ROOT = process.env.DEFAULT_ROOT || os.homedir();
-export const PORT = Number(process.env.PORT || 8787);
+export const PORT = Number(process.env.PORT || fileSettings.port || 8787);
 export const HOST = process.env.HOST || '0.0.0.0';
-export const BASIC_AUTH_USER = process.env.BASIC_AUTH_USER;
-export const BASIC_AUTH_PASSWORD = process.env.BASIC_AUTH_PASSWORD;
+export const BASIC_AUTH_USER = process.env.BASIC_AUTH_USER || (fileSettings.basicAuthEnabled ? fileSettings.basicAuthUser : undefined);
+export const BASIC_AUTH_PASSWORD = process.env.BASIC_AUTH_PASSWORD || (fileSettings.basicAuthEnabled ? fileSettings.basicAuthPassword : undefined);
 export const CORS_ORIGIN = process.env.CORS_ORIGIN;
 export const NODE_ENV = process.env.NODE_ENV || 'development';
 export const MAX_FILE_SIZE = Number(process.env.MAX_FILE_SIZE || 10 * 1024 * 1024);
@@ -18,7 +38,6 @@ export const WS_RATE_LIMIT_MAX_MESSAGES = 100;
 export const MAX_REQUEST_BODY_SIZE = Number(process.env.MAX_REQUEST_BODY_SIZE || 1024 * 1024); // 1MB default
 export const TRUST_PROXY = process.env.TRUST_PROXY === 'true'; // Only trust proxy headers if explicitly enabled
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const distDir = path.resolve(__dirname, '..', '..', 'web', 'dist');
 export const hasStatic = fsSync.existsSync(distDir);
 export const dataDir = path.resolve(__dirname, '..', '..', 'data');

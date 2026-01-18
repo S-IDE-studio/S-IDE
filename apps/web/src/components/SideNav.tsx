@@ -6,13 +6,15 @@ interface SideNavProps {
   onSelect: (view: AppView) => void;
   theme: ThemeMode;
   onToggleTheme: () => void;
+  onOpenSettings: () => void;
 }
 
 export function SideNav({
   activeView,
   onSelect,
   theme,
-  onToggleTheme
+  onToggleTheme,
+  onOpenSettings
 }: SideNavProps) {
   return (
     <nav className="activity-bar">
@@ -63,6 +65,7 @@ export function SideNav({
         <button
           type="button"
           className="activity-bar-item"
+          onClick={onOpenSettings}
           aria-label="Settings"
           title="Settings"
         >

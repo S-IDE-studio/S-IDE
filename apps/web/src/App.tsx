@@ -4,6 +4,7 @@ import { DeckModal } from './components/DeckModal';
 import { DiffViewer } from './components/DiffViewer';
 import { EditorPane } from './components/EditorPane';
 import { FileTree } from './components/FileTree';
+import { SettingsModal } from './components/SettingsModal';
 import { SideNav } from './components/SideNav';
 import { SourceControl } from './components/SourceControl';
 import { StatusMessage } from './components/StatusMessage';
@@ -43,6 +44,7 @@ export default function App() {
   const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
   const [isDeckModalOpen, setIsDeckModalOpen] = useState(false);
   const [isDeckDrawerOpen, setIsDeckDrawerOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [sidebarPanel, setSidebarPanel] = useState<SidebarPanel>('files');
 
   const { workspaceStates, setWorkspaceStates, updateWorkspaceState, initializeWorkspaceStates } =
@@ -226,6 +228,32 @@ export default function App() {
 
   const handleToggleTheme = useCallback(() => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  }, []);
+
+  const handleSaveSettings = useCallback(async (settings: { port: number; basicAuthEnabled: boolean; basicAuthUser: string; basicAuthPassword: string }) => {
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || 'Failed to save settings');
+      }
+
+      const result = await response.json();
+      setStatusMessage('設定を保存しました。ブラウザをリロードしてください。');
+
+      // Reload after 2 seconds to apply settings
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } catch (error: unknown) {
+      console.error('Failed to save settings:', error);
+      throw error;
+    }
   }, []);
 
   const handleSelectWorkspace = useCallback(
@@ -497,6 +525,7 @@ export default function App() {
         onSelect={setView}
         theme={theme}
         onToggleTheme={handleToggleTheme}
+        onOpenSettings={() => setIsSettingsModalOpen(true)}
       />
       <main className="main">
         {view === 'workspace' && workspaceView}
@@ -514,6 +543,11 @@ export default function App() {
         workspaces={workspaces}
         onSubmit={handleSubmitDeck}
         onClose={() => setIsDeckModalOpen(false)}
+      />
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        onSave={handleSaveSettings}
       />
     </div>
   );
