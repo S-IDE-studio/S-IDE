@@ -474,7 +474,7 @@ export default function App() {
   ) : null;
 
   const workspaceView = (
-    <div className="workspace-view">
+    <div className={`workspace-view ${workspaceMode === 'editor' ? 'has-editor' : ''}`}>
       {workspaceMode === 'list' ? (
         <>
           <div className="workspace-start">

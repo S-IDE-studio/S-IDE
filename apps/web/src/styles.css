@@ -73,8 +73,8 @@ textarea {
 .app {
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr);
-  min-height: 100vh;
+  grid-template-rows: minmax(0, 1fr) 24px; /* Main content + status bar */
+  height: 100vh;
 }
 
 /* Unified Layout */
@@ -82,15 +82,20 @@ textarea {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  height: 100%;
+  flex: 1;
 }
 
 .unified-terminal-section {
-  flex: 0 0 45%;
-  min-height: 200px;
+  flex: 1;
+  min-height: 250px;
   display: flex;
   flex-direction: column;
   border-top: 1px solid var(--border-dim);
+}
+
+.workspace-view.has-editor + .unified-terminal-section {
+  flex: 1;
+  min-height: 40%;
 }
 
 /* ========================================
@@ -301,8 +306,7 @@ textarea {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--bg);
-  padding-bottom: 24px; /* Space for fixed status bar */
+  overflow: hidden;
 }
 
 /* ========================================
@@ -375,11 +379,15 @@ textarea {
    ======================================== */
 
 .workspace-view {
-  flex: 1;
+  flex: 0 0 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
   padding: 20px;
+}
+
+.workspace-view.has-editor {
+  flex: 1;
 }
 
 .workspace-start {
@@ -395,7 +403,7 @@ textarea {
 
 .workspace-editor-overlay {
   flex: 1;
-  min-height: 0;
+  min-height: 200px;
   background: var(--bg);
   display: grid;
   grid-template-rows: 35px minmax(0, 1fr);
