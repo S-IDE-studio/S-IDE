@@ -12,6 +12,7 @@ import { TerminalPane } from './components/TerminalPane';
 import { WorkspaceList } from './components/WorkspaceList';
 import { WorkspaceModal } from './components/WorkspaceModal';
 import { GlobalStatusBar } from './components/GlobalStatusBar';
+import { AIWorkflowPanel } from './components/AIWorkflowPanel';
 import { getConfig, getWsBase } from './api';
 import { useWorkspaceState } from './hooks/useWorkspaceState';
 import { useDeckState } from './hooks/useDeckState';
@@ -442,14 +443,7 @@ export default function App() {
                 onLoadLogs={handleLoadLogs}
               />
             ) : sidebarPanel === 'ai' ? (
-              <div className="ai-workspace-placeholder">
-                <div className="empty-state">AI Workflow</div>
-                <div className="panel-body">
-                  <p style={{ padding: '12px', color: 'var(--muted)' }}>
-                    AI workflow configuration coming soon...
-                  </p>
-                </div>
-              </div>
+              <AIWorkflowPanel workspaceId={editorWorkspaceId} />
             ) : null}
           </div>
         </div>

@@ -580,6 +580,54 @@ textarea {
   font-weight: 600;
 }
 
+/* AI Workflow Panel */
+.ai-workflow-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.ai-workflow-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 4px 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border-dim);
+}
+
+.ai-workflow-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 4px 4px 0 0;
+  color: var(--ink-dim);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.ai-workflow-tab:hover {
+  background: var(--bg-soft);
+  color: var(--ink);
+}
+
+.ai-workflow-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.ai-workflow-content {
+  flex: 1;
+  overflow: auto;
+}
+
 /* ========================================
    Panel (Generic Container)
    ======================================== */
