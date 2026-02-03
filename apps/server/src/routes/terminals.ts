@@ -7,9 +7,37 @@ import { TERMINAL_BUFFER_LIMIT } from '../config.js';
 import { createHttpError, handleError, readJson } from '../utils/error.js';
 import { getDefaultShell } from '../utils/shell.js';
 import { saveTerminal, deleteTerminal as deleteTerminalFromDb, type PersistedTerminal } from '../utils/database.js';
+import type { WebSocket as WebSocketType } from 'ws';
 
 // Track terminal index per deck for unique naming
 const deckTerminalCounters = new Map<string, number>();
+
+// Maximum command length to prevent abuse
+const MAX_COMMAND_LENGTH = 10000;
+
+// Dangerous characters/patterns that could lead to command injection
+// Note: We allow shell metacharacters since commands run through a shell intentionally
+// But we restrict obviously dangerous patterns
+const DANGEROUS_COMMAND_PATTERNS = [
+  /\x00/, // Null bytes
+  // Control characters (except tab, newline, carriage return)
+  /[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/,
+];
+
+/**
+ * Validate terminal command to prevent obvious injection attacks
+ */
+function validateCommand(command: string): void {
+  if (command.length > MAX_COMMAND_LENGTH) {
+    throw createHttpError(`Command too long (max: ${MAX_COMMAND_LENGTH} characters)`, 400);
+  }
+
+  for (const pattern of DANGEROUS_COMMAND_PATTERNS) {
+    if (pattern.test(command)) {
+      throw createHttpError('Invalid characters in command', 400);
+    }
+  }
+}
 
 export function createTerminalRouter(
   db: DatabaseSync,
@@ -230,7 +258,7 @@ export function createTerminalRouter(
           }
 
           // Send data to all connected websockets as UTF-8 string
-          const deadSockets = new Set<WebSocket>();
+          const deadSockets = new Set<WebSocketType>();
           session.sockets.forEach((socket) => {
             try {
               if (socket.readyState === 1) {
@@ -327,6 +355,12 @@ export function createTerminalRouter(
       if (!deck) {
         throw createHttpError('Deck not found', 404);
       }
+
+      // Validate command if provided
+      if (body?.command !== undefined) {
+        validateCommand(body.command);
+      }
+
       const session = createTerminalSession(deck, body?.title, body?.command);
       return c.json({ id: session.id, title: session.title }, 201);
     } catch (error) {
@@ -394,6 +428,12 @@ export function createTerminalRouter(
 
       try {
         console.log(`[TERMINAL] Restoring terminal ${persisted.id} (${persisted.title}) for deck ${persisted.deckId}`);
+
+        // Validate command if present
+        if (persisted.command) {
+          validateCommand(persisted.command);
+        }
+
         createTerminalSession(deck, persisted.title, persisted.command || undefined, {
           id: persisted.id,
           initialBuffer: persisted.buffer,

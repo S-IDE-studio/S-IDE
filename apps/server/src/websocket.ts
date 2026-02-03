@@ -8,6 +8,12 @@ import { PORT, TRUST_PROXY } from './config.js';
 import { logSecurityEvent } from './middleware/security.js';
 import { verifyWebSocketAuth } from './middleware/auth.js';
 
+// Type for WebSocket data messages
+type WebSocketData = Buffer & { isBinary: boolean };
+
+// Type for error callback
+type ErrorCallback = (error: Error) => void;
+
 const MIN_TERMINAL_SIZE = 1;
 const MAX_TERMINAL_SIZE = 500;
 const MAX_MESSAGE_SIZE = 64 * 1024; // 64KB max message size
@@ -105,12 +111,12 @@ export function setupWebSocketServer(
 ): WebSocketServer {
   const wss = new WebSocketServer({ server });
 
-  wss.on('connection', (socket: WebSocket, req) => {
+  wss.on('connection', (socket: WebSocket, req: IncomingMessage) => {
     const socketId = crypto.randomUUID();
     const clientIP = getClientIP(req);
 
     // Add error handler for socket
-    socket.on('error', (error) => {
+    socket.on('error', (error: Error) => {
       console.error(`WebSocket error for socket ${socketId}:`, error.message);
       try {
         socket.close(1011, 'Internal error');
@@ -164,7 +170,7 @@ export function setupWebSocketServer(
       }
     }
 
-    socket.on('message', (data) => {
+    socket.on('message', (data: Buffer, isBinary: boolean) => {
       try {
         // Convert to string
         const message = data.toString('utf8');
@@ -240,7 +246,7 @@ export function setupWebSocketServer(
       }
     });
 
-    socket.on('close', (code, reason) => {
+    socket.on('close', (code: number, reason: Buffer) => {
       console.log(`[WS] Socket ${socketId} closed for terminal ${id}: code=${code}, reason=${reason?.toString() || 'none'}`);
       session.sockets.delete(socket);
       session.lastActive = Date.now();
@@ -248,7 +254,7 @@ export function setupWebSocketServer(
     });
   });
 
-  wss.on('error', (error) => {
+  wss.on('error', (error: Error) => {
     console.error('WebSocket server error:', error);
   });
 

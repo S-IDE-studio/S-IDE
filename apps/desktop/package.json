@@ -11,12 +11,13 @@
     "build": "node scripts/prepare.cjs && electron-builder --win --x64"
   },
   "dependencies": {
-    "@hono/node-server": "^1.12.2",
+    "@deck-ide/shared": "file:../../packages/shared",
+    "@hono/node-server": "^1.13.0",
     "electron-updater": "^6.1.7",
-    "hono": "^4.5.10",
+    "hono": "^4.6.0",
     "node-pty": "^1.0.0",
     "simple-git": "^3.27.0",
-    "ws": "^8.17.0"
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "electron": "40.0.0",
@@ -39,8 +40,7 @@
     "asarUnpack": [
       "**/node-pty/**",
       "server/**/*",
-      "web/**/*",
-      "node_modules/**/*"
+      "web/dist/**/*"
     ],
     "extraResources": [
       {

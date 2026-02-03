@@ -4,15 +4,18 @@
     "lib": ["ES2022"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "rootDir": "src",
-    "outDir": "dist",
     "strict": true,
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "esModuleInterop": true,
-    "types": ["node"],
-    "noEmit": false
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "../../../.claude/**", "../../.claude/**", ".claude/**"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    ".claude"
+  ]
 }

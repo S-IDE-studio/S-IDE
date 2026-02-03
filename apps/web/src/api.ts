@@ -20,9 +20,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     throw new Error(message || `Request failed (${response.status})`);
   }
   if (response.status === HTTP_STATUS_NO_CONTENT) {
-    return null as T;
+    return undefined as unknown as T;
   }
-  return response.json() as Promise<T>;
+  // Type assertion is safe here because we validate the response status
+  // and the caller is responsible for providing the correct type parameter
+  const data = await response.json();
+  return data as T;
 }
 
 const CONTENT_TYPE_JSON = 'application/json';

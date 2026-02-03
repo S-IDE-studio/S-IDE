@@ -304,7 +304,7 @@ export function createGitRouter(workspaces: Map<string, Workspace>) {
 
       // If repoPath is specified, get status for that specific repo
       if (repoPath !== undefined) {
-        const fullRepoPath = repoPath ? nodePath.join(workspace.path, repoPath) : workspace.path;
+        const fullRepoPath = repoPath ? await resolveSafePath(workspace.path, repoPath) : workspace.path;
         const git = simpleGit(fullRepoPath);
 
         const isRepo = await isGitRepository(git);
@@ -365,7 +365,7 @@ export function createGitRouter(workspaces: Map<string, Workspace>) {
       // Get info for each repo
       const repos: GitRepoInfo[] = [];
       for (const repoPath of repoPaths) {
-        const fullPath = repoPath ? nodePath.join(workspace.path, repoPath) : workspace.path;
+        const fullPath = repoPath ? await resolveSafePath(workspace.path, repoPath) : workspace.path;
         const git = simpleGit(fullPath);
 
         try {
@@ -404,7 +404,7 @@ export function createGitRouter(workspaces: Map<string, Workspace>) {
       const allFiles: (GitFileStatus & { repoPath: string })[] = [];
 
       for (const repoPath of repoPaths) {
-        const fullPath = repoPath ? nodePath.join(workspace.path, repoPath) : workspace.path;
+        const fullPath = repoPath ? await resolveSafePath(workspace.path, repoPath) : workspace.path;
         const git = simpleGit(fullPath);
 
         try {
@@ -452,7 +452,7 @@ export function createGitRouter(workspaces: Map<string, Workspace>) {
       const paths = validateGitPaths(body.paths);
       const workspace = requireWorkspace(workspaces, body.workspaceId);
       const repoFullPath = body.repoPath
-        ? nodePath.join(workspace.path, body.repoPath)
+        ? await resolveSafePath(workspace.path, body.repoPath)
         : workspace.path;
       const git = simpleGit(repoFullPath);
 
@@ -475,7 +475,7 @@ export function createGitRouter(workspaces: Map<string, Workspace>) {
       const paths = validateGitPaths(body.paths);
       const workspace = requireWorkspace(workspaces, body.workspaceId);
       const repoFullPath = body.repoPath
-        ? nodePath.join(workspace.path, body.repoPath)
+        ? await resolveSafePath(workspace.path, body.repoPath)
         : workspace.path;
       const git = simpleGit(repoFullPath);
 
@@ -498,7 +498,7 @@ export function createGitRouter(workspaces: Map<string, Workspace>) {
       const message = validateCommitMessage(body.message);
       const workspace = requireWorkspace(workspaces, body.workspaceId);
       const repoFullPath = body.repoPath
-        ? nodePath.join(workspace.path, body.repoPath)
+        ? await resolveSafePath(workspace.path, body.repoPath)
         : workspace.path;
       const git = simpleGit(repoFullPath);
 
@@ -529,7 +529,7 @@ export function createGitRouter(workspaces: Map<string, Workspace>) {
       const paths = validateGitPaths(body.paths);
       const workspace = requireWorkspace(workspaces, body.workspaceId);
       const repoFullPath = body.repoPath
-        ? nodePath.join(workspace.path, body.repoPath)
+        ? await resolveSafePath(workspace.path, body.repoPath)
         : workspace.path;
       const git = simpleGit(repoFullPath);
 
@@ -588,7 +588,7 @@ export function createGitRouter(workspaces: Map<string, Workspace>) {
 
       const workspace = requireWorkspace(workspaces, workspaceId);
       const repoFullPath = repoPath
-        ? nodePath.join(workspace.path, repoPath)
+        ? await resolveSafePath(workspace.path, repoPath)
         : workspace.path;
       const git = simpleGit(repoFullPath);
 
@@ -632,7 +632,7 @@ export function createGitRouter(workspaces: Map<string, Workspace>) {
 
       const workspace = requireWorkspace(workspaces, body.workspaceId);
       const repoFullPath = body.repoPath
-        ? nodePath.join(workspace.path, body.repoPath)
+        ? await resolveSafePath(workspace.path, body.repoPath)
         : workspace.path;
       const git = simpleGit(repoFullPath);
 
@@ -672,7 +672,7 @@ export function createGitRouter(workspaces: Map<string, Workspace>) {
 
       const workspace = requireWorkspace(workspaces, body.workspaceId);
       const repoFullPath = body.repoPath
-        ? nodePath.join(workspace.path, body.repoPath)
+        ? await resolveSafePath(workspace.path, body.repoPath)
         : workspace.path;
       const git = simpleGit(repoFullPath);
 
@@ -707,7 +707,7 @@ export function createGitRouter(workspaces: Map<string, Workspace>) {
 
       const workspace = requireWorkspace(workspaces, body.workspaceId);
       const repoFullPath = body.repoPath
-        ? nodePath.join(workspace.path, body.repoPath)
+        ? await resolveSafePath(workspace.path, body.repoPath)
         : workspace.path;
       const git = simpleGit(repoFullPath);
 
@@ -730,7 +730,7 @@ export function createGitRouter(workspaces: Map<string, Workspace>) {
 
       const workspace = requireWorkspace(workspaces, workspaceId);
       const repoFullPath = repoPath
-        ? nodePath.join(workspace.path, repoPath)
+        ? await resolveSafePath(workspace.path, repoPath)
         : workspace.path;
       const git = simpleGit(repoFullPath);
 
@@ -765,7 +765,7 @@ export function createGitRouter(workspaces: Map<string, Workspace>) {
 
       const workspace = requireWorkspace(workspaces, workspaceId);
       const repoFullPath = repoPath
-        ? nodePath.join(workspace.path, repoPath)
+        ? await resolveSafePath(workspace.path, repoPath)
         : workspace.path;
       const git = simpleGit(repoFullPath);
 
@@ -801,7 +801,7 @@ export function createGitRouter(workspaces: Map<string, Workspace>) {
 
       const workspace = requireWorkspace(workspaces, workspaceId);
       const repoFullPath = repoPath
-        ? nodePath.join(workspace.path, repoPath)
+        ? await resolveSafePath(workspace.path, repoPath)
         : workspace.path;
       const git = simpleGit(repoFullPath);
 
@@ -842,13 +842,14 @@ export function createGitRouter(workspaces: Map<string, Workspace>) {
         throw createHttpError('Invalid branch name', 400);
       }
       // Prevent injection via branch names
-      if (/[;&|`$<>\\]/.test(branchName)) {
+      const DANGEROUS_BRANCH_CHARS = /[\x00-\x1F\x7F;&|`$()<>\\~^:?*\[\]@{}\s]/;
+      if (DANGEROUS_BRANCH_CHARS.test(branchName)) {
         throw createHttpError('Invalid characters in branch name', 400);
       }
 
       const workspace = requireWorkspace(workspaces, body.workspaceId);
       const repoFullPath = body.repoPath
-        ? nodePath.join(workspace.path, body.repoPath)
+        ? await resolveSafePath(workspace.path, body.repoPath)
         : workspace.path;
       const git = simpleGit(repoFullPath);
 
@@ -877,7 +878,8 @@ export function createGitRouter(workspaces: Map<string, Workspace>) {
         throw createHttpError('Invalid branch name', 400);
       }
       // Prevent injection via branch names and validate format
-      if (/[;&|`$<>\\~^:?*\[\]@{}\s]/.test(branchName)) {
+      const DANGEROUS_BRANCH_CHARS = /[\x00-\x1F\x7F;&|`$()<>\\~^:?*\[\]@{}\s]/;
+      if (DANGEROUS_BRANCH_CHARS.test(branchName)) {
         throw createHttpError('Invalid characters in branch name', 400);
       }
       if (branchName.startsWith('-') || branchName.startsWith('.') || branchName.endsWith('.') || branchName.endsWith('/')) {
@@ -886,7 +888,7 @@ export function createGitRouter(workspaces: Map<string, Workspace>) {
 
       const workspace = requireWorkspace(workspaces, body.workspaceId);
       const repoFullPath = body.repoPath
-        ? nodePath.join(workspace.path, body.repoPath)
+        ? await resolveSafePath(workspace.path, body.repoPath)
         : workspace.path;
       const git = simpleGit(repoFullPath);
 
@@ -919,7 +921,7 @@ export function createGitRouter(workspaces: Map<string, Workspace>) {
 
       const workspace = requireWorkspace(workspaces, workspaceId);
       const repoFullPath = repoPath
-        ? nodePath.join(workspace.path, repoPath)
+        ? await resolveSafePath(workspace.path, repoPath)
         : workspace.path;
       const git = simpleGit(repoFullPath);
 

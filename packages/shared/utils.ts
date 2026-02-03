@@ -2,12 +2,14 @@
 
 /**
  * Get a workspace key for indexing (handles case-insensitivity on Windows)
+ * Note: For Node.js environments, use utils-node.ts for proper platform detection.
+ * This browser version has limited platform detection capabilities.
  * @param workspacePath - Workspace path
  * @returns Normalized key for indexing
  */
 export function getWorkspaceKey(workspacePath: string): string {
   const normalized = workspacePath.replace(/[\\/]+$/, '');
-  // In browser, we can't detect platform, so we normalize to lowercase
+  // In browser, we can't reliably detect platform, so we normalize to lowercase as fallback
   const platform = typeof process !== 'undefined' ? process.platform : 'unknown';
   return platform === 'win32' ? normalized.toLowerCase() : normalized;
 }
@@ -28,8 +30,7 @@ export function getWorkspaceName(workspacePath: string, fallbackIndex: number): 
 
 /**
  * Normalize a workspace path to an absolute path
- * Note: This function requires Node.js path module
- * For browser usage, import from utils-node.ts instead
+ * Note: For Node.js usage, import from utils-node.ts for proper path resolution using Node.js path module.
  * @param inputPath - Input path (can be relative or absolute)
  * @param defaultPath - Default path to use if inputPath is empty
  * @returns Normalized absolute path
@@ -42,14 +43,16 @@ export function normalizeWorkspacePath(inputPath: string, defaultPath: string): 
 
 /**
  * Get file extension from a path
- * @param filePath - File path
+ * Handles query strings and URLs correctly
+ * @param filePath - File path (may contain query strings or URLs)
  * @returns File extension (without dot) or empty string
  */
 export function getFileExtension(filePath: string): string {
-  const lastDot = filePath.lastIndexOf('.');
-  if (lastDot === -1 || lastDot === 0) return '';
-  const ext = filePath.slice(lastDot + 1);
-  return ext.toLowerCase();
+  const cleanPath = filePath.split(/[?#]/)[0];
+  const lastSlash = cleanPath.lastIndexOf('/');
+  const lastDot = cleanPath.lastIndexOf('.');
+  if (lastDot === -1 || lastDot <= lastSlash || lastDot === cleanPath.length - 1) return '';
+  return cleanPath.slice(lastDot + 1).toLowerCase();
 }
 
 /**
@@ -101,6 +104,22 @@ export function getLanguageFromPath(filePath: string): string {
     'dart': 'dart',
     'lua': 'lua',
     'dockerfile': 'dockerfile',
+    // Additional extensions
+    'tsv': 'plaintext',
+    'csv': 'plaintext',
+    'ini': 'ini',
+    'cfg': 'ini',
+    'cmake': 'cmake',
+    'nim': 'nim',
+    'ex': 'elixir',
+    'exs': 'elixir',
+    'erl': 'erlang',
+    'hrl': 'erlang',
+    'fs': 'fsharp',
+    'fsi': 'fsharp',
+    'fsx': 'fsharp',
+    'cs': 'csharp',
+    'vb': 'vb',
   };
 
   return languageMap[ext] || 'plaintext';
@@ -116,9 +135,11 @@ export function normalizePathSeparators(inputPath: string): string {
 }
 
 /**
- * Check if a path is a hidden file or directory (starts with .)
- * @param name - File or directory name
- * @returns True if hidden
+ * Check if a file or directory name is hidden (starts with .)
+ * Note: This is a simple check for Unix-style hidden files (names starting with dot).
+ * On Windows, files marked as hidden via attributes won't be detected by this function.
+ * @param name - File or directory name (not full path)
+ * @returns True if the name indicates a hidden file/directory
  */
 export function isHidden(name: string): boolean {
   return name.startsWith('.');
@@ -137,15 +158,32 @@ export function getErrorMessage(error: unknown): string {
 }
 
 /**
- * Create an HTTP error with status code
+ * HTTP Error class with status code
+ */
+export class HttpError extends Error {
+  status: number;
+
+  /**
+   * Create an HTTP error with status code
+   * @param message - Error message
+   * @param status - HTTP status code
+   */
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'HttpError';
+    this.status = status;
+  }
+}
+
+/**
+ * Create an HTTP error with status code (legacy function for backwards compatibility)
  * @param message - Error message
  * @param status - HTTP status code
- * @returns Error object with status property
+ * @returns HttpError instance
+ * @deprecated Use HttpError class directly
  */
-export function createHttpError(message: string, status: number): Error & { status: number } {
-  const error = new Error(message) as Error & { status: number };
-  error.status = status;
-  return error;
+export function createHttpError(message: string, status: number): HttpError {
+  return new HttpError(message, status);
 }
 
 /**
@@ -163,8 +201,12 @@ export function truncate(str: string, maxLength: number): string {
  * Generate a short ID from a UUID (first 8 characters)
  * @param uuid - Full UUID
  * @returns Short ID
+ * @throws Error if uuid is invalid (less than 8 characters)
  */
 export function shortId(uuid: string): string {
+  if (!uuid || typeof uuid !== 'string' || uuid.length < 8) {
+    throw new Error('Invalid UUID: must be at least 8 characters');
+  }
   return uuid.slice(0, 8);
 }
 
@@ -174,20 +216,23 @@ export function shortId(uuid: string): string {
  * @returns Formatted file size string
  */
 export function formatFileSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) {
+    return 'Invalid size';
+  }
   if (bytes === 0) return '0 B';
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 }
 
 /**
  * Sort file system entries (directories first, then alphabetically)
  * @param entries - Array of file system entries
- * @returns Sorted array
+ * @returns Sorted array (new array, input is not mutated)
  */
 export function sortFileEntries<T extends { name: string; type: 'file' | 'dir' }>(entries: T[]): T[] {
-  return entries.sort((a, b) => {
+  return [...entries].sort((a, b) => {
     if (a.type !== b.type) {
       return a.type === 'dir' ? -1 : 1;
     }

@@ -29,6 +29,7 @@ export const useDecks = ({
   const [decks, setDecks] = useState<Deck[]>([]);
   const [activeDeckIds, setActiveDeckIds] = useState<string[]>(initialDeckIds ?? []);
   const [terminalGroups, setTerminalGroups] = useState<TerminalGroup[]>([]);
+  const [creatingTerminalDeckIds, setCreatingTerminalDeckIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let alive = true;
@@ -117,6 +118,8 @@ export const useDecks = ({
 
   const handleCreateTerminal = useCallback(
     async (deckId: string, terminalsCount: number, command?: string, customTitle?: string) => {
+      // Set loading state
+      setCreatingTerminalDeckIds((prev) => new Set(prev).add(deckId));
       try {
         const index = terminalsCount + 1;
         const title = customTitle || `ターミナル ${index}`;
@@ -136,6 +139,13 @@ export const useDecks = ({
         setStatusMessage(
           `ターミナルを起動できませんでした: ${getErrorMessage(error)}`
         );
+      } finally {
+        // Clear loading state
+        setCreatingTerminalDeckIds((prev) => {
+          const next = new Set(prev);
+          next.delete(deckId);
+          return next;
+        });
       }
     },
     [updateDeckState, setStatusMessage]
@@ -263,6 +273,7 @@ export const useDecks = ({
     handleToggleGroupCollapsed,
     handleAssignTerminalToGroup,
     handleUpdateTerminalColor,
-    handleUpdateTerminalTags
+    handleUpdateTerminalTags,
+    creatingTerminalDeckIds
   };
 };

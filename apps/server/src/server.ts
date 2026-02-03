@@ -127,8 +127,13 @@ export function createServer() {
 
   // WebSocket token endpoint (for authenticated WebSocket connections)
   app.get('/api/ws-token', (c) => {
+    // Get client IP for token binding
+    const ip = c.req.header('x-forwarded-for')?.split(',')[0]?.trim()
+      || c.req.header('x-real-ip')
+      || c.req.header('cf-connecting-ip')
+      || 'unknown';
     return c.json({
-      token: generateWsToken(),
+      token: generateWsToken(ip),
       authEnabled: isBasicAuthEnabled()
     });
   });

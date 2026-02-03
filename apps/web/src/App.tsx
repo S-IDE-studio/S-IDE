@@ -22,6 +22,7 @@ import { useDecks } from './hooks/useDecks';
 import { useFileOperations } from './hooks/useFileOperations';
 import { useGitState } from './hooks/useGitState';
 import type { AppView, WorkspaceMode, SidebarPanel } from './types';
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import {
   DEFAULT_ROOT_FALLBACK,
   SAVED_MESSAGE_TIMEOUT,
@@ -70,7 +71,8 @@ export default function App() {
     handleDeleteTerminal,
     handleToggleGroupCollapsed,
     handleDeleteGroup,
-    handleUpdateGroup
+    handleUpdateGroup,
+    creatingTerminalDeckIds
   } = useDecks({
     setStatusMessage,
     initializeDeckStates,
@@ -364,6 +366,36 @@ export default function App() {
     });
   }, [setActiveDeckIds]);
 
+  // Keyboard navigation for deck tabs
+  const handleDeckTabKeyDown = useCallback((e: ReactKeyboardEvent, deckId: string, index: number) => {
+    // Only handle arrow keys when not modified with ctrl/cmd/alt
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      const direction = e.key === 'ArrowLeft' ? -1 : 1;
+      const newIndex = index + direction;
+
+      // Find the deck at the new index
+      if (newIndex >= 0 && newIndex < decks.length) {
+        const targetDeckId = decks[newIndex].id;
+        // Focus the new tab but don't change selection (just move focus)
+        const targetTab = e.currentTarget.parentElement?.children[newIndex + 1] as HTMLElement;
+        targetTab?.focus();
+      }
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      // Move to first tab
+      const firstTab = e.currentTarget.parentElement?.children[1] as HTMLElement;
+      firstTab?.focus();
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      // Move to last tab
+      const lastTab = e.currentTarget.parentElement?.children[decks.length] as HTMLElement;
+      lastTab?.focus();
+    }
+  }, [decks]);
+
 
   const gitChangeCount = gitState.status?.files.length ?? 0;
 
@@ -517,14 +549,18 @@ export default function App() {
     <div className="unified-terminal-section">
       <div className="terminal-topbar">
         <div className="topbar-left">
-          <div className="deck-tabs">
-            {decks.map((deck) => (
+          <div className="deck-tabs" role="tablist">
+            {decks.map((deck, index) => (
               <button
                 key={deck.id}
                 type="button"
                 className={`deck-tab ${activeDeckIds.includes(deck.id) ? 'active' : ''}`}
                 onClick={(e) => handleToggleDeck(deck.id, e.shiftKey)}
+                onKeyDown={(e) => handleDeckTabKeyDown(e, deck.id, index)}
                 title={`${workspaceById.get(deck.workspaceId)?.path || deck.root}\nShift+クリックで分割表示`}
+                role="tab"
+                aria-selected={activeDeckIds.includes(deck.id)}
+                tabIndex={activeDeckIds.includes(deck.id) ? 0 : -1}
               >
                 {deck.name}
               </button>
@@ -534,6 +570,7 @@ export default function App() {
               className="deck-tab deck-tab-add"
               onClick={handleOpenDeckModal}
               title="デッキ作成"
+              aria-label="デッキ作成"
             >
               +
             </button>
@@ -603,6 +640,7 @@ export default function App() {
                     }
                   }}
                   onCreateTerminal={() => handleNewTerminalForDeck(deckId)}
+                  isCreatingTerminal={creatingTerminalDeckIds.has(deckId)}
                 />
               </div>
             );

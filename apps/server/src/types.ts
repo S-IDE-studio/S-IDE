@@ -1,6 +1,9 @@
 // Re-export shared types
 export type { Workspace, Deck } from '@deck-ide/shared/types';
 
+// Import WebSocket type explicitly from 'ws' package to avoid conflicts
+import type { WebSocket as WebSocketType } from 'ws';
+
 export type TerminalSession = {
   id: string;
   deckId: string;
@@ -8,7 +11,7 @@ export type TerminalSession = {
   command: string | null;
   createdAt: string;
   term: import('node-pty').IPty;
-  sockets: Set<import('ws').WebSocket>;
+  sockets: Set<WebSocketType>;
   buffer: string;
   lastActive: number;
   dispose: import('node-pty').IDisposable | null;

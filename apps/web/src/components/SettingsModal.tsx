@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 
 interface Settings {
   port: number;
@@ -42,6 +42,14 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
   const [basicAuthPassword, setBasicAuthPassword] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
+  // Track initial values to detect unsaved changes
+  const [initialValues, setInitialValues] = useState<Settings>({
+    port: 8787,
+    basicAuthEnabled: false,
+    basicAuthUser: '',
+    basicAuthPassword: ''
+  });
+
   // WebSocket settings
   const [wsLimit, setWsLimit] = useState(1000);
   const [wsStats, setWsStats] = useState<WsStats | null>(null);
@@ -69,6 +77,8 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
           setBasicAuthEnabled(data.basicAuthEnabled);
           setBasicAuthUser(data.basicAuthUser);
           setBasicAuthPassword(data.basicAuthPassword);
+          // Store initial values to detect unsaved changes
+          setInitialValues(data);
         })
         .catch(err => {
           console.error('Failed to load settings:', err);
@@ -78,6 +88,27 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
       loadWsStats();
     }
   }, [isOpen]);
+
+  // Check if there are unsaved changes
+  const hasUnsavedChanges = useMemo(() => {
+    return (
+      port !== initialValues.port ||
+      basicAuthEnabled !== initialValues.basicAuthEnabled ||
+      basicAuthUser !== initialValues.basicAuthUser ||
+      basicAuthPassword !== initialValues.basicAuthPassword
+    );
+  }, [port, basicAuthEnabled, basicAuthUser, basicAuthPassword, initialValues]);
+
+  // Handle close with confirmation for unsaved changes
+  const handleClose = useCallback(() => {
+    if (hasUnsavedChanges) {
+      if (window.confirm('保存していない変更があります。閉じてもよろしいですか？')) {
+        onClose();
+      }
+    } else {
+      onClose();
+    }
+  }, [hasUnsavedChanges, onClose]);
 
   const handleWsLimitApply = async () => {
     try {
@@ -116,6 +147,8 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
         basicAuthUser,
         basicAuthPassword
       });
+      // Update initial values after successful save
+      setInitialValues({ port, basicAuthEnabled, basicAuthUser, basicAuthPassword });
       onClose();
     } catch (err) {
       console.error('Failed to save settings:', err);
@@ -128,14 +161,14 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={handleClose}>
       <div className="modal-content settings-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">{LABEL_SETTINGS}</h2>
           <button
             type="button"
             className="modal-close-btn"
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="閉じる"
           >
             ×
@@ -273,7 +306,7 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
             <button
               type="button"
               className="ghost-button"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={isSaving}
             >
               {LABEL_CANCEL}

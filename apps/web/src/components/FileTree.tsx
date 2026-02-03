@@ -8,6 +8,34 @@ const LABEL_REFRESH = '更新';
 const LABEL_EMPTY = 'ファイルが見つかりません。';
 const LABEL_BACK = '戻る';
 
+// Invalid filename characters for Windows and Unix systems
+const INVALID_FILENAME_CHARS = /[<>:"/\\|?*\x00-\x1F]/;
+const INVALID_FILENAME_CHARS_WIN = /[<>:"/\\|?*\x00-\x1F]/;
+const RESERVED_NAMES_WIN = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i;
+
+function validateFileName(name: string): { valid: boolean; error?: string } {
+  if (!name || name.trim().length === 0) {
+    return { valid: false, error: 'ファイル名を入力してください' };
+  }
+
+  // Check for invalid characters
+  if (INVALID_FILENAME_CHARS.test(name)) {
+    return { valid: false, error: 'ファイル名に無効な文字が含まれています: <>:"/\\|?*' };
+  }
+
+  // Check for Windows reserved names
+  if (RESERVED_NAMES_WIN.test(name)) {
+    return { valid: false, error: 'この名前は予約されています' };
+  }
+
+  // Check for names ending with space or dot (invalid on Windows)
+  if (name.endsWith(' ') || name.endsWith('.')) {
+    return { valid: false, error: 'ファイル名はスペースまたはピリオドで終わることができません' };
+  }
+
+  return { valid: true };
+}
+
 function getGitStatusClass(
   path: string,
   gitFiles: GitFileStatus[] | undefined
@@ -144,6 +172,16 @@ export function FileTree({
       return;
     }
     const name = inputValue.trim();
+
+    // Validate filename
+    const validation = validateFileName(name);
+    if (!validation.valid) {
+      alert(validation.error || '無効なファイル名です');
+      setInputValue('');
+      inputRef.current?.focus();
+      return;
+    }
+
     if (newItemInput.type === 'file') {
       onCreateFile?.(newItemInput.parentPath, name);
     } else {

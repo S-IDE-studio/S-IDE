@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, memo } from 'react';
 import { File as FileIcon, X, GitBranch, Loader2 } from 'lucide-react';
 import Editor, { type OnMount } from '@monaco-editor/react';
 import type { EditorFile } from '../types';
@@ -248,3 +248,15 @@ export function EditorPane({
     </div>
   );
 }
+
+// Memoize EditorPane to prevent unnecessary re-renders
+// Only re-render when files array reference changes or activeFileId changes
+const areEqual = (prevProps: EditorPaneProps, nextProps: EditorPaneProps) => {
+  return (
+    prevProps.files === nextProps.files &&
+    prevProps.activeFileId === nextProps.activeFileId &&
+    prevProps.savingFileId === nextProps.savingFileId
+  );
+};
+
+export const MemoizedEditorPane = memo(EditorPane, areEqual);

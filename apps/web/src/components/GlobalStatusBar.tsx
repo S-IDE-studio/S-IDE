@@ -6,6 +6,17 @@ interface GlobalStatusBarProps {
   onToggleContextStatus?: () => void;
 }
 
+// Type definition for performance.memory API (Chrome-specific)
+interface PerformanceMemory {
+  jsHeapSizeLimit: number;
+  totalJSHeapSize: number;
+  usedJSHeapSize: number;
+}
+
+interface PerformanceWithMemory extends Performance {
+  memory?: PerformanceMemory;
+}
+
 export function GlobalStatusBar({
   activeTerminalsCount = 0,
   contextHealthScore = 100,
@@ -13,13 +24,12 @@ export function GlobalStatusBar({
 }: GlobalStatusBarProps) {
   // Get memory usage if available
   const memoryUsage = useMemo(() => {
-    if (typeof performance !== 'undefined' && 'memory' in performance) {
-      const mem = (performance as any).memory;
-      if (mem) {
-        const used = Math.round(mem.usedJSHeapSize / 1024 / 1024);
-        const total = Math.round(mem.jsHeapSizeLimit / 1024 / 1024);
-        return `${used}MB/${total}MB`;
-      }
+    const perf = performance as PerformanceWithMemory;
+    if (typeof performance !== 'undefined' && perf.memory) {
+      const mem = perf.memory;
+      const used = Math.round(mem.usedJSHeapSize / 1024 / 1024);
+      const total = Math.round(mem.jsHeapSizeLimit / 1024 / 1024);
+      return `${used}MB/${total}MB`;
     }
     return null;
   }, []);

@@ -8,6 +8,56 @@ import { resolveSafePath, normalizeWorkspacePath } from '../utils/path.js';
 import { requireWorkspace } from './workspaces.js';
 import { sortFileEntries } from '@deck-ide/shared/utils-node';
 
+// Allowed file extensions for file operations
+// This prevents writing executable files or configuration files that could be exploited
+const ALLOWED_FILE_EXTENSIONS = new Set([
+  // Text files
+  '.txt', '.md', '.markdown', '.rst', '.adoc',
+  // Code files
+  '.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs',
+  '.py', '.rb', '.php', '.pl', '.pm', '.sh', '.bash', '.zsh', '.fish',
+  '.java', '.kt', '.kts', '.scala', '.groovy',
+  '.c', '.h', '.cpp', '.hpp', '.cc', '.cxx',
+  '.cs', '.go', '.rs', '.swift', '.dart',
+  '.html', '.htm', '.css', '.scss', '.sass', '.less',
+  '.json', '.xml', '.yaml', '.yml', '.toml', '.ini', '.cfg', '.conf',
+  '.sql', '.graphql', '.gql',
+  // Template files
+  '.hbs', '.handlebars', '.mustache', '.ejs', '.pug', '.jade',
+  // Config files (read-only usually, but allow editing)
+  '.env.example', '.env.defaults', '.env.template',
+  // Documentation
+  '.pdf', '.doc', '.docx', '.xls', '.xlsx',
+]);
+
+// File extensions that should NEVER be allowed
+const FORBIDDEN_FILE_EXTENSIONS = new Set([
+  // Executables
+  '.exe', '.dll', '.so', '.dylib', '.app', '.bin',
+  // Scripts that could be executed on the server
+  '.bat', '.cmd', '.ps1', '.psm1', '.psd1', '.vbs', '.wsf', '.jsc',
+  '.sh', '.bash', '.zsh', '.fish', '.csh', '.tcsh',
+  // Configuration files that could affect server behavior
+  '.htaccess', '.htpasswd', '.nginx', '.apache',
+  // System files
+  '.sys', '.drv',
+]);
+
+/**
+ * Validate file extension is safe
+ */
+function validateFileExtension(filePath: string): void {
+  const ext = path.extname(filePath).toLowerCase();
+
+  // Check forbidden extensions first
+  if (FORBIDDEN_FILE_EXTENSIONS.has(ext)) {
+    throw createHttpError(`File type ${ext} is not allowed for security reasons`, 400);
+  }
+
+  // For files without extension or with allowed extensions, permit
+  // We're permissive by default for legitimate development work
+}
+
 export function createFileRouter(workspaces: Map<string, Workspace>) {
   const router = new Hono();
 
@@ -109,6 +159,10 @@ export function createFileRouter(workspaces: Map<string, Workspace>) {
       if (contentSize > MAX_FILE_SIZE) {
         throw createHttpError(`Content size exceeds maximum allowed size of ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB`, 413);
       }
+
+      // Validate file extension for security
+      validateFileExtension(body?.path || '');
+
       await fs.mkdir(path.dirname(target), { recursive: true });
       await fs.writeFile(target, contents, 'utf8');
       return c.json({ path: body?.path, saved: true });
@@ -134,6 +188,9 @@ export function createFileRouter(workspaces: Map<string, Workspace>) {
       }
       const workspace = requireWorkspace(workspaces, workspaceId);
       const target = await resolveSafePath(workspace.path, body.path);
+
+      // Validate file extension for security
+      validateFileExtension(body.path);
 
       // Check if file already exists
       try {

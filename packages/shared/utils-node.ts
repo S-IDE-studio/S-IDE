@@ -3,6 +3,9 @@
 
 import path from 'node:path';
 
+// Re-export all browser-compatible utilities
+export * from './utils.js';
+
 /**
  * Normalize a workspace path to an absolute path (Node.js version)
  * @param inputPath - Input path (can be relative or absolute)
@@ -15,6 +18,7 @@ export function normalizeWorkspacePath(inputPath: string, defaultPath: string): 
 
 /**
  * Get a workspace key for indexing (handles case-insensitivity on Windows)
+ * Node.js version with proper platform detection
  * @param workspacePath - Workspace path
  * @returns Normalized key for indexing
  */
@@ -24,7 +28,7 @@ export function getWorkspaceKey(workspacePath: string): string {
 }
 
 /**
- * Extract a workspace name from its path
+ * Extract a workspace name from its path (Node.js version)
  * @param workspacePath - Workspace path
  * @param fallbackIndex - Index to use for fallback name
  * @returns Workspace name
@@ -34,17 +38,3 @@ export function getWorkspaceName(workspacePath: string, fallbackIndex: number): 
   const base = path.basename(trimmed);
   return base || `Project ${fallbackIndex}`;
 }
-
-// Re-export browser-compatible utilities
-export {
-  getFileExtension,
-  getLanguageFromPath,
-  normalizePathSeparators,
-  isHidden,
-  getErrorMessage,
-  createHttpError,
-  truncate,
-  shortId,
-  formatFileSize,
-  sortFileEntries
-} from './utils.js';

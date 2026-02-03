@@ -15,9 +15,9 @@ export type PersistedTerminal = {
 export function checkDatabaseIntegrity(dbPath: string): boolean {
   try {
     const tempDb = new DatabaseSync(dbPath);
-    const result = tempDb.prepare('PRAGMA integrity_check').get();
+    const result = tempDb.prepare('PRAGMA integrity_check').get() as Record<string, unknown> | undefined;
     tempDb.close();
-    return result && typeof result === 'object' && 'integrity_check' in result && result.integrity_check === 'ok';
+    return result !== undefined && typeof result === 'object' && 'integrity_check' in result && result.integrity_check === 'ok';
   } catch {
     return false;
   }
@@ -39,6 +39,8 @@ export function initializeDatabase(db: DatabaseSync): void {
   // Enable WAL mode for better concurrent access
   db.exec('PRAGMA journal_mode = WAL;');
   db.exec('PRAGMA synchronous = NORMAL;');
+  // Set busy timeout to 5 seconds to handle concurrent access gracefully
+  db.exec('PRAGMA busy_timeout = 5000;');
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS workspaces (

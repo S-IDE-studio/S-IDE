@@ -19,6 +19,7 @@ interface TerminalTileProps {
   session: TerminalSession;
   wsUrl: string;
   onDelete: () => void;
+  onError?: (error: string) => void;
 }
 
 const TEXT_BOOT = 'ターミナルを起動しました: ';
@@ -32,7 +33,8 @@ const RECONNECT_BASE_DELAY_MS = 1000;
 export function TerminalTile({
   session,
   wsUrl,
-  onDelete
+  onDelete,
+  onError
 }: TerminalTileProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -486,8 +488,10 @@ export function TerminalTile({
           }
         });
 
-        socket.addEventListener('error', () => {
-          // Error event is usually followed by close event, so we don't need to handle it separately
+        socket.addEventListener('error', (error) => {
+          console.error('[Terminal] WebSocket error:', error);
+          // Notify parent component about the error
+          onError?.('WebSocket connection error occurred');
         });
 
         if (dataDisposable) {
@@ -499,14 +503,16 @@ export function TerminalTile({
           }
         });
       } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
         console.error('[Terminal] Failed to connect:', err);
+        onError?.(`Connection failed: ${errorMessage}`);
         if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS && hasConnectedOnce) {
           reconnectAttempts++;
           const delay = RECONNECT_BASE_DELAY_MS * Math.pow(2, reconnectAttempts - 1);
           term.write(`\r\n\x1b[33m${TEXT_RECONNECTING} (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})\x1b[0m\r\n`);
           reconnectTimeout = setTimeout(() => connect(true), delay);
         } else {
-          term.write(`\r\n\x1b[31m接続エラー: ${err instanceof Error ? err.message : 'Unknown error'}\x1b[0m\r\n`);
+          term.write(`\r\n\x1b[31m接続エラー: ${errorMessage}\x1b[0m\r\n`);
         }
       }
     };

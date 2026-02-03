@@ -2320,36 +2320,38 @@ textarea {
 
 /* ========================================
    Git Status Colors
+   All colors meet WCAG AA contrast standards (4.5:1 for normal text)
+   against dark background (#1e1e1e)
    ======================================== */
 
 .git-modified,
 .git-tree-modified .tree-label {
-  color: #cca700;
+  color: #e6c200; /* Brighter yellow for better contrast */
 }
 
 .git-untracked,
 .git-tree-untracked .tree-label {
-  color: #4ec9b0;
+  color: #4ec9b0; /* Already good contrast */
 }
 
 .git-deleted,
 .git-tree-deleted .tree-label {
-  color: #f14c4c;
+  color: #f48771; /* Brighter red-orange for better contrast */
 }
 
 .git-staged,
 .git-tree-staged .tree-label {
-  color: #73c991;
+  color: #73c991; /* Already good contrast */
 }
 
 .git-renamed,
 .git-tree-renamed .tree-label {
-  color: #4fc1ff;
+  color: #75beff; /* Brighter blue for better contrast */
 }
 
 .git-conflicted,
 .git-tree-conflicted .tree-label {
-  color: #ff6b6b;
+  color: #ff8787; /* Brighter red for better contrast */
 }
 
 /* ========================================

@@ -15,6 +15,7 @@ interface TerminalPaneProps {
   onToggleGroupCollapsed?: (groupId: string) => void;
   onDeleteGroup?: (groupId: string) => void;
   onRenameGroup?: (groupId: string) => void;
+  isCreatingTerminal?: boolean;
 }
 
 // Group terminals by their groupId
@@ -69,7 +70,8 @@ export function TerminalPane({
   onCreateTerminal,
   onToggleGroupCollapsed,
   onDeleteGroup,
-  onRenameGroup
+  onRenameGroup,
+  isCreatingTerminal = false
 }: TerminalPaneProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -156,7 +158,7 @@ export function TerminalPane({
 
   return (
     <section className="terminal-pane">
-      {terminals.length === 0 ? (
+      {terminals.length === 0 && !isCreatingTerminal ? (
         <div className="terminal-empty">
           <span className="terminal-empty-text">ターミナルを追加</span>
         </div>

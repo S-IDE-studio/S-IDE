@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, useRef, type FormEvent } from 'react';
 import type { Workspace } from '../types';
 
 interface DeckModalProps {
@@ -16,6 +16,60 @@ export const DeckModal = ({
 }: DeckModalProps) => {
   const [deckWorkspaceId, setDeckWorkspaceId] = useState(workspaces[0]?.id || '');
   const [deckNameDraft, setDeckNameDraft] = useState('');
+  const modalRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const firstInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus trap implementation
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Focus first input when modal opens
+    firstInputRef.current?.focus();
+
+    // Handle tab key for focus trap
+    const handleTabKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+
+      const focusableElements = modalRef.current?.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      ) || [];
+
+      const firstElement = focusableElements[0] as HTMLElement;
+      const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          lastElement?.focus();
+          e.preventDefault();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          firstElement?.focus();
+          e.preventDefault();
+        }
+      }
+    };
+
+    // Handle escape key
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleTabKey);
+    document.addEventListener('keydown', handleEscape);
+
+    // Prevent body scroll when modal is open
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.removeEventListener('keydown', handleTabKey);
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = '';
+    };
+  }, [isOpen, onClose]);
 
   useEffect(() => {
     if (isOpen && workspaces.length > 0 && !deckWorkspaceId) {
@@ -32,12 +86,13 @@ export const DeckModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true">
-      <form className="modal" onSubmit={handleSubmit}>
+    <div className="modal-backdrop" role="dialog" aria-modal="true" ref={modalRef}>
+      <form className="modal" onSubmit={handleSubmit} ref={formRef}>
         <div className="modal-title">{'\u30c7\u30c3\u30ad\u4f5c\u6210'}</div>
         <label className="field">
           <span>{'\u30c7\u30c3\u30ad\u540d (\u4efb\u610f)'}</span>
           <input
+            ref={firstInputRef}
             type="text"
             value={deckNameDraft}
             placeholder={'\u7a7a\u767d\u306e\u307e\u307e\u3067\u3082OK'}
