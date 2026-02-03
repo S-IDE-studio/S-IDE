@@ -1,4 +1,4 @@
-import { Activity, Files, GitBranch, Settings, Server } from "lucide-react";
+import { Activity, Files, GitBranch, Server, Settings } from "lucide-react";
 import type { SidebarPanel } from "../types";
 
 interface SideNavProps {

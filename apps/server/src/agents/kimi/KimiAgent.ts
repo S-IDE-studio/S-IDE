@@ -8,17 +8,17 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { BaseAgent } from "../base/BaseAgent.js";
 import type {
   AgentConfig,
   AgentInfo,
-  ContextInfo,
+  AgentTask,
   MCPInfo,
   SkillInfo,
+  TaskResult,
   TerminalOptions,
   TerminalSession,
 } from "../types.js";
-import { BaseAgent } from "../base/BaseAgent.js";
-import { ConfigReader } from "../config/ConfigReader.js";
 
 const KIMI_ID = "kimi" as const;
 const KIMI_NAME = "Kimi";
@@ -26,25 +26,24 @@ const KIMI_ICON = "kimi";
 const KIMI_DESCRIPTION = "Moonshot AI's code assistant";
 
 export class KimiAgent extends BaseAgent {
-  private configPath: string;
+  private tomlPath: string;
   private authPath: string;
-  private configReader: ConfigReader;
 
   constructor() {
     super(KIMI_ID, KIMI_NAME, KIMI_ICON, KIMI_DESCRIPTION);
 
     // Kimi config locations
+    const path = require("node:path");
+    const os = require("node:os");
     const configDir = path.join(os.homedir(), ".kimi");
-    this.configPath = path.join(configDir, "config.toml");
+    this.tomlPath = path.join(configDir, "config.toml");
     this.authPath = path.join(configDir, "auth.json");
-
-    this.configReader = new ConfigReader();
   }
 
   /**
    * Get agent info
    */
-  override async getInfo(): Promise<AgentInfo> {
+  async getInfo(): Promise<AgentInfo> {
     const isInstalled = await this.checkIfInstalled();
     const config = await this.getConfig();
 
@@ -56,48 +55,72 @@ export class KimiAgent extends BaseAgent {
       enabled: isInstalled,
       installed: isInstalled,
       version: await this.getVersion(),
-      configPath: this.configPath,
+      configPath: this.tomlPath,
       configExists: isInstalled,
     };
   }
 
   /**
-   * Get agent configuration
+   * Load agent configuration
    */
-  override async getConfig(): Promise<AgentConfig> {
+  protected async loadConfig(): Promise<void> {
     try {
-      if (!fs.existsSync(this.configPath)) {
-        return this.getDefaultConfig();
+      if (!fs.existsSync(this.tomlPath)) {
+        this.config = this.getDefaultConfig();
+        return;
       }
 
-      const config = await this.configReader.readTOML(this.configPath);
+      const { ConfigReader } = await import("../config/ConfigReader.js");
+      const config = await ConfigReader.readTOML(this.tomlPath);
 
       // Also read auth.json for API key
       let apiKey: string | undefined;
       if (fs.existsSync(this.authPath)) {
-        const auth = await this.configReader.readJSON(this.authPath);
-        apiKey = auth.apiKey || auth.token;
+        const auth = await ConfigReader.readJSON(this.authPath);
+        const authFile = auth as Record<string, unknown>;
+        apiKey =
+          typeof authFile.apiKey === "string"
+            ? authFile.apiKey
+            : typeof authFile.token === "string"
+              ? authFile.token
+              : undefined;
       }
 
-      return {
-        apiKey: apiKey || config.apiKey || config.api_key,
-        apiEndpoint: config.endpoint || config.api_endpoint || "https://api.moonshot.cn",
-        model: config.model || "moonshot-v1-8k",
-        temperature: config.temperature,
-        maxTokens: config.maxTokens || config.max_tokens,
+      this.config = {
+        apiKey:
+          apiKey ||
+          (typeof config.apiKey === "string"
+            ? config.apiKey
+            : typeof config.api_key === "string"
+              ? config.api_key
+              : undefined),
+        apiEndpoint:
+          (typeof config.endpoint === "string"
+            ? config.endpoint
+            : typeof config.api_endpoint === "string"
+              ? config.api_endpoint
+              : undefined) || "https://api.moonshot.cn",
+        model: typeof config.model === "string" ? config.model : "moonshot-v1-8k",
+        temperature: typeof config.temperature === "number" ? config.temperature : undefined,
+        maxTokens:
+          typeof config.maxTokens === "number"
+            ? config.maxTokens
+            : typeof config.max_tokens === "number"
+              ? config.max_tokens
+              : undefined,
         mcpServers: [],
         skills: [],
       };
     } catch (error) {
-      console.error("[Kimi] Failed to read config:", error);
-      return this.getDefaultConfig();
+      console.error("[Kimi] Failed to load config:", error);
+      this.config = this.getDefaultConfig();
     }
   }
 
   /**
-   * Update agent configuration
+   * Save agent configuration
    */
-  override async updateConfig(config: Partial<AgentConfig>): Promise<void> {
+  protected async saveConfig(): Promise<void> {
     try {
       const configDir = path.join(os.homedir(), ".kimi");
 
@@ -107,39 +130,37 @@ export class KimiAgent extends BaseAgent {
       }
 
       // Update TOML config
-      if (fs.existsSync(this.configPath)) {
-        let existingConfig = await this.configReader.readTOML(this.configPath);
+      if (fs.existsSync(this.tomlPath)) {
+        const { ConfigReader } = await import("../config/ConfigReader.js");
+        let existingConfig = await ConfigReader.readTOML(this.tomlPath);
 
         // Merge with new config
         existingConfig = {
           ...existingConfig,
-          ...(config.apiEndpoint && { endpoint: config.apiEndpoint }),
-          ...(config.model && { model: config.model }),
-          ...(config.temperature !== undefined && { temperature: config.temperature }),
-          ...(config.maxTokens !== undefined && { maxTokens: config.maxTokens }),
+          ...(this.config.apiEndpoint && { endpoint: this.config.apiEndpoint }),
+          ...(this.config.model && { model: this.config.model }),
+          ...(this.config.temperature !== undefined && { temperature: this.config.temperature }),
+          ...(this.config.maxTokens !== undefined && { maxTokens: this.config.maxTokens }),
         };
 
         // Write TOML (convert to string)
         const toml = this.configToTOMLString(existingConfig);
-        fs.writeFileSync(this.configPath, toml, "utf-8");
+        fs.writeFileSync(this.tomlPath, toml, "utf-8");
       }
 
       // Update auth.json for API key
-      if (config.apiKey) {
+      if (this.config.apiKey) {
+        const { ConfigReader } = await import("../config/ConfigReader.js");
         let auth: Record<string, unknown> = {};
         if (fs.existsSync(this.authPath)) {
-          auth = await this.configReader.readJSON(this.authPath) as Record<string, unknown>;
+          auth = (await ConfigReader.readJSON(this.authPath)) as Record<string, unknown>;
         }
 
-        auth.apiKey = config.apiKey;
-        fs.writeFileSync(
-          this.authPath,
-          JSON.stringify(auth, null, 2),
-          "utf-8"
-        );
+        auth.apiKey = this.config.apiKey;
+        fs.writeFileSync(this.authPath, JSON.stringify(auth, null, 2), "utf-8");
       }
     } catch (error) {
-      console.error("[Kimi] Failed to update config:", error);
+      console.error("[Kimi] Failed to save config:", error);
       throw error;
     }
   }
@@ -148,7 +169,7 @@ export class KimiAgent extends BaseAgent {
    * List configured MCPs
    * Kimi doesn't natively support MCPs
    */
-  override async listMCPs(): Promise<MCPInfo[]> {
+  async listMCPs(): Promise<MCPInfo[]> {
     return [];
   }
 
@@ -156,14 +177,14 @@ export class KimiAgent extends BaseAgent {
    * List configured Skills
    * Kimi doesn't natively support Skills
    */
-  override async listSkills(): Promise<SkillInfo[]> {
+  async listSkills(): Promise<SkillInfo[]> {
     return [];
   }
 
   /**
    * Start a terminal with Kimi CLI
    */
-  override async startTerminal(options: TerminalOptions): Promise<TerminalSession> {
+  async startTerminal(options: TerminalOptions): Promise<TerminalSession> {
     // Kimi CLI command: kimi
     const command = "kimi";
     const args = this.buildKimiArgs(options);
@@ -178,6 +199,50 @@ export class KimiAgent extends BaseAgent {
         ...(options.env || {}),
       },
     };
+  }
+
+  /**
+   * Execute a task
+   */
+  async executeTask(task: AgentTask): Promise<TaskResult> {
+    try {
+      const { execSync } = await import("node:child_process");
+
+      const args = ["kimi"];
+
+      switch (task.type) {
+        case "prompt":
+        case "command":
+          args.push(task.content);
+          break;
+        case "code":
+          args.push("--code", task.content);
+          break;
+        default:
+          return {
+            taskId: task.id,
+            success: false,
+            error: `Unknown task type: ${task.type}`,
+          };
+      }
+
+      const output = execSync(`kimi ${args.join(" ")}`, {
+        encoding: "utf-8",
+        cwd: (task.options?.cwd as string) || process.cwd(),
+      });
+
+      return {
+        taskId: task.id,
+        success: true,
+        output,
+      };
+    } catch (error) {
+      return {
+        taskId: task.id,
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
   }
 
   /**
@@ -282,54 +347,6 @@ export class KimiAgent extends BaseAgent {
       }
     }
 
-    return lines.join("\n") + "\n";
-  }
-
-  /**
-   * Execute a task
-   */
-  override async executeTask(task: {
-    type: string;
-    content: string;
-    options?: Record<string, unknown>;
-  }): Promise<{ success: boolean; result?: string; error?: string }> {
-    try {
-      const { execSync } = await import("node:child_process");
-
-      const args = ["kimi"];
-
-      switch (task.type) {
-        case "ask":
-        case "prompt":
-          args.push(task.content);
-          break;
-        case "code":
-          args.push("--code", task.content);
-          break;
-        case "explain":
-          args.push("--explain", task.content);
-          break;
-        default:
-          return {
-            success: false,
-            error: `Unknown task type: ${task.type}`,
-          };
-      }
-
-      const output = execSync(`kimi ${args.join(" ")}`, {
-        encoding: "utf-8",
-        cwd: task.options?.cwd as string || process.cwd(),
-      });
-
-      return {
-        success: true,
-        result: output,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
+    return `${lines.join("\n")}\n`;
   }
 }

@@ -6,34 +6,21 @@
  */
 
 import path from "node:path";
-import { ContextController } from "../../../.claude/context-manager/core/context-controller.js";
-import { SessionStore } from "../../../.claude/context-manager/storage/session-store.js";
-import { SessionMonitor } from "../../../.claude/context-manager/core/session-monitor.js";
-import { SessionAnalyzer } from "../../../.claude/context-manager/core/session-analyzer.js";
-import type { SnapshotRef } from "../../../.claude/context-manager/types.js";
+import { BaseAgent } from "../base/BaseAgent.js";
 import type {
   AgentConfig,
+  AgentInfo,
   AgentTask,
   Context,
   ContextOptions,
-  ContextUpdate,
   MCPConfig,
   MCPInfo,
   SkillConfig,
   SkillInfo,
+  TaskResult,
   TerminalOptions,
   TerminalSession,
-  TaskResult,
 } from "../types.js";
-import { ConfigReader } from "../config/ConfigReader.js";
-import { BaseAgent, type BaseAgentConfig } from "../base/BaseAgent.js";
-
-/**
- * Claude agent configuration
- */
-interface ClaudeAgentConfig extends BaseAgentConfig {
-  contextManagerPath?: string;
-}
 
 /**
  * Claude Code Agent Adapter
@@ -42,21 +29,20 @@ interface ClaudeAgentConfig extends BaseAgentConfig {
  * Context Manager and providing terminal launch functionality.
  */
 export class ClaudeAgent extends BaseAgent {
-  private contextManagerPath: string;
-  private contextController: ContextController | null = null;
-  private sessionStore: SessionStore | null = null;
+  private contextController: unknown | null = null;
+  private sessionStore: unknown | null = null;
 
-  constructor(config: ClaudeAgentConfig) {
-    super({
-      id: "claude",
-      name: "Claude Code",
-      icon: "/icons/agents/claude.svg",
-      description: "Anthropic's Claude Code CLI - Advanced AI coding assistant",
-      configPath: config.configPath || ConfigReader.getAgentConfigPath("claude"),
-    });
-    this.contextManagerPath =
-      config.contextManagerPath ||
-      path.join(process.cwd(), ".claude", "context-manager");
+  constructor() {
+    super(
+      "claude",
+      "Claude Code",
+      "/icons/agents/claude.svg",
+      "Anthropic's Claude Code CLI - Advanced AI coding assistant"
+    );
+    // Override config path for Claude
+    const os = require("node:os");
+    const path = require("node:path");
+    this.configPath = path.join(os.homedir(), ".claude");
   }
 
   // ==================== Lifecycle ====================
@@ -69,18 +55,36 @@ export class ClaudeAgent extends BaseAgent {
     await super.initialize();
 
     // Initialize Context Controller
-    const { SessionStore: Store, SessionMonitor, SessionAnalyzer } =
-      await import("../../.claude/context-manager/index.js");
+    try {
+      const contextManagerPath = path.join(process.cwd(), ".claude", "context-manager");
+      const fs = await import("node:fs/promises");
 
-    this.sessionStore = new Store();
-    const monitor = new SessionMonitor();
-    const analyzer = new SessionAnalyzer();
+      // Check if context-manager exists before importing
+      try {
+        await fs.access(contextManagerPath);
+      } catch {
+        throw new Error("Context Manager not found");
+      }
 
-    this.contextController = new ContextController(
-      this.sessionStore,
-      monitor,
-      analyzer
-    );
+      // Context Manager is optional - use dynamic import
+      // @ts-expect-error - Context Manager may not have type declarations
+      const contextManagerModule = await import("../../../../.claude/context-manager/index.js");
+      const {
+        SessionStore: Store,
+        SessionMonitor,
+        SessionAnalyzer,
+        ContextController,
+      } = contextManagerModule;
+
+      this.sessionStore = new Store();
+      const monitor = new SessionMonitor();
+      const analyzer = new SessionAnalyzer();
+
+      this.contextController = new ContextController(this.sessionStore, monitor, analyzer);
+    } catch {
+      // Context Manager not available - continue without it
+      console.warn("[Claude] Context Manager not available");
+    }
   }
 
   async dispose(): Promise<void> {
@@ -89,380 +93,355 @@ export class ClaudeAgent extends BaseAgent {
     await super.dispose();
   }
 
+  async isAvailable(): Promise<boolean> {
+    try {
+      const fs = await import("node:fs/promises");
+      await fs.access(this.configPath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   // ==================== Terminal Operations ====================
 
   async startTerminal(options: TerminalOptions): Promise<TerminalSession> {
-    // Create a Claude Code terminal session
-    // The actual terminal is managed by the terminal router
-    // Here we just create the reference
+    // Claude Code CLI command: claude
+    const command = "claude";
+    const args = this.buildClaudeArgs(options);
 
-    const terminalId = this.generateId();
-    const command = options.command || "claude";
-
-    const session: TerminalSession = {
-      id: terminalId,
-      pid: 0, // Will be set by terminal router
-      title: options.title || `Claude Terminal`,
-      createdAt: new Date().toISOString(),
+    return {
+      id: options.terminalId || `claude-${Date.now()}`,
+      command,
+      args,
+      cwd: options.cwd,
+      env: {
+        ...process.env,
+        ...(options.env || {}),
+      },
     };
-
-    this.terminals.set(terminalId, session);
-    return session;
   }
 
-  // ==================== Context Management (using Context Controller) ====================
+  // ==================== Context Management ====================
 
-  override async createContext(options: ContextOptions): Promise<Context> {
-    await this.ensureInitialized();
+  async createContext(options: ContextOptions): Promise<Context> {
+    // Try to use Context Controller if available
+    if (this.contextController) {
+      try {
+        const snapshotId = await (this.contextController as any).createSnapshot({
+          files: (options.metadata?.files as string[]) || [],
+          prompt: options.initialPrompt || "",
+        });
 
-    if (!this.contextController) {
-      throw new Error("Context controller not initialized");
+        return {
+          id: snapshotId,
+          agentId: this.id,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          metadata: options.metadata || {},
+          messageCount: 0,
+        };
+      } catch {
+        // Fall back to base implementation
+      }
     }
 
-    // Use Context Controller to create session
-    const sessionId = this.generateId();
-    const initialPrompt = options.initialPrompt || "";
-
-    const claudeSession = this.contextController.createSession(
-      sessionId,
-      initialPrompt
-    );
-
-    // Map Claude session to our Context type
-    const context: Context = {
-      id: claudeSession.id,
-      agentId: this.id,
-      createdAt: claudeSession.createdAt,
-      updatedAt: claudeSession.updatedAt,
-      metadata: claudeSession.metadata as Record<string, unknown>,
-      messageCount: claudeSession.events.length,
-    };
-
-    this.contexts.set(context.id, context);
-    return context;
+    return super.createContext(options);
   }
 
-  override async getContext(contextId: string): Promise<Context | null> {
-    await this.ensureInitialized();
-
-    if (!this.contextController) {
-      throw new Error("Context controller not initialized");
+  async getContext(contextId: string): Promise<Context | null> {
+    // Try to use Context Controller if available
+    if (this.contextController) {
+      try {
+        const snapshot = await (this.contextController as any).getSnapshot(contextId);
+        if (snapshot) {
+          return {
+            id: snapshot.id,
+            agentId: this.id,
+            createdAt: snapshot.createdAt,
+            updatedAt: snapshot.updatedAt,
+            metadata: snapshot.metadata || {},
+            messageCount: snapshot.messageCount || 0,
+          };
+        }
+      } catch {
+        // Fall back to base implementation
+      }
     }
 
-    const claudeSession = this.contextController.getSession(contextId);
-    if (!claudeSession) {
-      return null;
-    }
-
-    // Map Claude session to our Context type
-    const context: Context = {
-      id: claudeSession.id,
-      agentId: this.id,
-      createdAt: claudeSession.createdAt,
-      updatedAt: claudeSession.updatedAt,
-      metadata: claudeSession.metadata as Record<string, unknown>,
-      messageCount: claudeSession.events.length,
-    };
-
-    return context;
-  }
-
-  override async updateContext(
-    contextId: string,
-    updates: ContextUpdate
-  ): Promise<void> {
-    await this.ensureInitialized();
-
-    if (!this.contextController) {
-      throw new Error("Context controller not initialized");
-    }
-
-    // Update via Context Controller
-    this.contextController.getSession(contextId); // Will throw if not found
-
-    // Update local cache
-    const existing = this.contexts.get(contextId);
-    if (existing) {
-      const updated: Context = {
-        ...existing,
-        ...updates,
-        updatedAt: new Date().toISOString(),
-      };
-      this.contexts.set(contextId, updated);
-    }
+    return super.getContext(contextId);
   }
 
   // ==================== Config Management ====================
 
-  protected override async loadConfig(): Promise<void> {
-    // Load Claude settings from ~/.claude/settings.json
-    const settingsPath = ConfigReader.getAgentConfigFilePath("claude", "settings");
-    const settings = await ConfigReader.readJSON(settingsPath);
-
-    this.config = {
-      ...this.config,
-      ...settings,
-    };
-  }
-
-  protected override async saveConfig(): Promise<void> {
-    // Save Claude settings to ~/.claude/settings.json
-    const settingsPath = ConfigReader.getAgentConfigFilePath("claude", "settings");
-    await ConfigReader.writeJSON(settingsPath, this.config);
-  }
-
-  // ==================== MCP/Skills Operations ====================
-
-  protected override async loadMCPs(): Promise<void> {
-    // Load MCP servers from ~/.claude/mcp_servers.json
-    const mcpPath = ConfigReader.getAgentConfigFilePath("claude", "mcp");
-    const mcpConfig = await ConfigReader.readJSON(mcpPath);
-
-    if (mcpConfig.mcpServers) {
-      const servers = mcpConfig.mcpServers as Array<{
-        name: string;
-        command: string;
-        args?: string[];
-        env?: Record<string, string>;
-      }>;
-
-      for (const server of servers) {
-        const mcpInfo: MCPInfo = {
-          id: server.name,
-          name: server.name,
-          command: server.command,
-          args: server.args,
-          env: server.env,
-          status: "active",
-        };
-        this.mcpServers.set(server.name, mcpInfo);
-      }
-    }
-  }
-
-  protected override async saveMCPs(): Promise<void> {
-    // Save MCP servers to ~/.claude/mcp_servers.json
-    const mcpPath = ConfigReader.getAgentConfigFilePath("claude", "mcp");
-    const servers = Array.from(this.mcpServers.values()).map((mcp) => ({
-      name: mcp.name,
-      command: mcp.command,
-      args: mcp.args,
-      env: mcp.env,
-    }));
-
-    await ConfigReader.writeJSON(mcpPath, { mcpServers: servers });
-  }
-
-  protected override async loadSkills(): Promise<void> {
-    // Load Skills from ~/.claude/skills/ directory
-    const skillsDir = path.join(
-      ConfigReader.getAgentConfigPath("claude"),
-      "skills"
-    );
-
+  /**
+   * Load agent configuration from file
+   */
+  protected async loadConfig(): Promise<void> {
     try {
       const fs = await import("node:fs/promises");
-      const files = await fs.readdir(skillsDir);
+      const path = require("node:path");
 
-      for (const file of files) {
-        if (file.endsWith(".json") || file.endsWith(".md")) {
-          const skillId = file.replace(/\.(json|md)$/, "");
-          const skillInfo: SkillInfo = {
-            id: skillId,
-            name: skillId,
-            description: `Claude Code skill: ${skillId}`,
-            status: "active",
-          };
-          this.skills.set(skillId, skillInfo);
-        }
+      const settingsPath = path.join(this.configPath, "settings.json");
+
+      try {
+        await fs.access(settingsPath);
+      } catch {
+        this.config = this.getDefaultConfig();
+        return;
       }
-    } catch {
-      // Skills directory doesn't exist or is not accessible
+
+      const { ConfigReader } = await import("../config/ConfigReader.js");
+      const config = await ConfigReader.readJSON(settingsPath);
+
+      this.config = {
+        apiKey: typeof config.apiKey === "string" ? config.apiKey : undefined,
+        apiEndpoint: typeof config.apiEndpoint === "string" ? config.apiEndpoint : undefined,
+        model: typeof config.model === "string" ? config.model : undefined,
+        temperature: typeof config.temperature === "number" ? config.temperature : undefined,
+        maxTokens: typeof config.maxTokens === "number" ? config.maxTokens : undefined,
+        mcpServers: Array.isArray(config.mcpServers) ? (config.mcpServers as MCPConfig[]) : [],
+        skills: Array.isArray(config.skills) ? (config.skills as SkillConfig[]) : [],
+      };
+    } catch (error) {
+      console.error("[Claude] Failed to load config:", error);
+      this.config = this.getDefaultConfig();
     }
   }
 
-  protected override async saveSkills(): Promise<void> {
-    // Skills are managed as individual files, not as a config
-    // This is a no-op for Claude
+  /**
+   * Save agent configuration to file
+   */
+  protected async saveConfig(): Promise<void> {
+    try {
+      const fs = await import("node:fs/promises");
+      const path = require("node:path");
+
+      const settingsPath = path.join(this.configPath, "settings.json");
+
+      // Ensure directory exists
+      try {
+        await fs.mkdir(this.configPath, { recursive: true });
+      } catch {
+        // Directory may already exist
+      }
+
+      // Write config
+      await fs.writeFile(settingsPath, JSON.stringify(this.config, null, 2), "utf-8");
+    } catch (error) {
+      console.error("[Claude] Failed to save config:", error);
+      throw error;
+    }
   }
 
-  // ==================== Task Execution ====================
+  /**
+   * Get agent info
+   */
+  async getInfo(): Promise<AgentInfo> {
+    const isInstalled = await this.checkIfInstalled();
+    const config = await this.getConfig();
 
-  async executeTask(task: AgentTask): Promise<TaskResult> {
-    await this.ensureInitialized();
-
-    // Track the task in context controller if available
-    if (this.contextController) {
-      this.contextController.trackMessage("user", task.content);
-    }
-
-    // For Claude, tasks are typically executed via the CLI
-    // Return success result
     return {
-      taskId: task.id,
-      success: true,
-      output: `Task sent to Claude: ${task.content}`,
+      id: this.id,
+      name: this.name,
+      icon: this.icon,
+      description: this.description,
+      enabled: isInstalled,
+      installed: isInstalled,
+      version: await this.getVersion(),
+      configPath: this.configPath,
+      configExists: isInstalled,
     };
   }
 
-  // ==================== Context Manager Specific Methods ====================
-
   /**
-   * Compact the current context using Context Controller
+   * List configured MCPs
    */
-  async compact(options?: {
-    keepLastN?: number;
-    preserveErrors?: boolean;
-    preserveSnapshots?: boolean;
-  }): Promise<{
-    originalEvents: number;
-    remainingEvents: number;
-    compactedEvents: number;
-    summary: string;
-    spaceSaved: number;
-  }> {
-    await this.ensureInitialized();
+  async listMCPs(): Promise<MCPInfo[]> {
+    try {
+      const fs = await import("node:fs/promises");
+      const path = require("node:path");
 
-    if (!this.contextController) {
-      throw new Error("Context controller not initialized");
-    }
+      const mcpServersPath = path.join(this.configPath, "mcp_servers.json");
 
-    return this.contextController.compact(options);
-  }
-
-  /**
-   * Create a snapshot of the current context
-   */
-  async createSnapshot(description?: string): Promise<SnapshotRef> {
-    await this.ensureInitialized();
-
-    if (!this.contextController) {
-      throw new Error("Context controller not initialized");
-    }
-
-    return this.contextController.createSnapshot(description);
-  }
-
-  /**
-   * Restore a context from a snapshot
-   */
-  async restoreSnapshot(commitHash: string): Promise<void> {
-    await this.ensureInitialized();
-
-    if (!this.contextController) {
-      throw new Error("Context controller not initialized");
-    }
-
-    return this.contextController.restoreSnapshot(commitHash);
-  }
-
-  /**
-   * Get context status (health score, drift, etc.)
-   */
-  async getStatus(): Promise<{
-    healthScore: number;
-    driftScore: number;
-    currentPhase: string;
-    messageCount: number;
-    tokenCount: number;
-    recommendations?: string[];
-  } | null> {
-    await this.ensureInitialized();
-
-    if (!this.contextController) {
-      throw new Error("Context controller not initialized");
-    }
-
-    return this.contextController.getStatus();
-  }
-
-  /**
-   * Get health score for current context
-   */
-  getHealthScore(): number {
-    if (!this.contextController) {
-      return 100;
-    }
-    return this.contextController.getHealthScore();
-  }
-
-  /**
-   * Set drift threshold
-   */
-  setDriftThreshold(threshold: number): void {
-    if (!this.contextController) {
-      return;
-    }
-    this.contextController.setDriftThreshold(threshold);
-  }
-
-  /**
-   * Get drift threshold
-   */
-  getDriftThreshold(): number {
-    if (!this.contextController) {
-      return 0.5;
-    }
-    return this.contextController.getDriftThreshold();
-  }
-
-  /**
-   * Track a message in the current context
-   */
-  trackMessage(role: "user" | "assistant", content: string): void {
-    if (!this.contextController) {
-      return;
-    }
-    this.contextController.trackMessage(role, content);
-  }
-
-  /**
-   * Track a tool execution
-   */
-  trackTool(name: string, args: unknown, result: unknown): void {
-    if (!this.contextController) {
-      return;
-    }
-    this.contextController.trackTool(name, args, result);
-  }
-
-  /**
-   * Track an error
-   */
-  trackError(error: Error | string): void {
-    if (!this.contextController) {
-      return;
-    }
-    this.contextController.trackError(error);
-  }
-
-  /**
-   * End the current session
-   */
-  endSession(sessionId: string): void {
-    if (!this.contextController) {
-      return;
-    }
-    this.contextController.endSession(sessionId);
-  }
-
-  /**
-   * Get the current session
-   */
-  getCurrentSession():
-    | {
-        id: string;
-        initialPrompt: string;
-        createdAt: string;
-        updatedAt: string;
-        metadata: Record<string, unknown>;
-        events: unknown[];
-        snapshots: unknown[];
+      try {
+        await fs.access(mcpServersPath);
+      } catch {
+        return [];
       }
-    | null {
-    if (!this.contextController) {
+
+      const { ConfigReader } = await import("../config/ConfigReader.js");
+      const mcpsData = await ConfigReader.readJSON(mcpServersPath);
+      const mcps = Array.isArray(mcpsData)
+        ? (mcpsData as Array<{
+            id: string;
+            name: string;
+            command: string;
+            args?: string[];
+            env?: Record<string, string>;
+            disabled?: boolean;
+          }>)
+        : [];
+
+      return mcps.map((mcp) => ({
+        ...mcp,
+        enabled: !mcp.disabled,
+        status: mcp.disabled ? "inactive" : "active",
+      }));
+    } catch (error) {
+      console.error("[Claude] Failed to list MCPs:", error);
+      return [];
+    }
+  }
+
+  /**
+   * List configured Skills
+   */
+  async listSkills(): Promise<SkillInfo[]> {
+    try {
+      const fs = await import("node:fs/promises");
+      const path = require("node:path");
+
+      const skillsPath = path.join(this.configPath, "skills.json");
+
+      try {
+        await fs.access(skillsPath);
+      } catch {
+        return [];
+      }
+
+      const { ConfigReader } = await import("../config/ConfigReader.js");
+      const skillsData = await ConfigReader.readJSON(skillsPath);
+      const skills = Array.isArray(skillsData)
+        ? (skillsData as Array<{
+            id: string;
+            name: string;
+            description?: string;
+            enabled?: boolean;
+            config?: Record<string, unknown>;
+          }>)
+        : [];
+
+      return skills.map((skill) => ({
+        ...skill,
+        enabled: skill.enabled !== false,
+        status: skill.enabled !== false ? "active" : "inactive",
+      }));
+    } catch (error) {
+      console.error("[Claude] Failed to list Skills:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Execute a task
+   */
+  async executeTask(task: AgentTask): Promise<TaskResult> {
+    try {
+      const { execSync } = await import("node:child_process");
+
+      const args = ["claude"];
+
+      switch (task.type) {
+        case "prompt":
+          args.push(task.content);
+          break;
+        case "command":
+          args.push("run", task.content);
+          break;
+        case "code":
+          args.push("code", task.content);
+          break;
+        default:
+          return {
+            taskId: task.id,
+            success: false,
+            error: `Unknown task type: ${task.type}`,
+          };
+      }
+
+      const output = execSync(args.join(" "), {
+        encoding: "utf-8",
+        cwd: (task.options?.cwd as string) || process.cwd(),
+      });
+
+      return {
+        taskId: task.id,
+        success: true,
+        output,
+      };
+    } catch (error) {
+      return {
+        taskId: task.id,
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  /**
+   * Check if Claude is installed
+   */
+  private async checkIfInstalled(): Promise<boolean> {
+    try {
+      const { execSync } = await import("node:child_process");
+      execSync("claude --version", { stdio: "ignore" });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Get Claude version
+   */
+  private async getVersion(): Promise<string | null> {
+    try {
+      const { execSync } = await import("node:child_process");
+      const output = execSync("claude --version", { encoding: "utf-8" });
+      const match = output.match(/(\d+\.\d+\.\d+)/);
+      return match ? match[1] : null;
+    } catch {
       return null;
     }
-    return this.contextController.getCurrentSession();
+  }
+
+  /**
+   * Build Claude CLI arguments
+   */
+  private buildClaudeArgs(options: Record<string, unknown>): string[] {
+    const args: string[] = [];
+
+    if (options.model) {
+      args.push("--model", String(options.model));
+    }
+
+    if (options.temperature) {
+      args.push("--temperature", String(options.temperature));
+    }
+
+    if (options.maxTokens) {
+      args.push("--max-tokens", String(options.maxTokens));
+    }
+
+    // Add prompt
+    if (options.prompt) {
+      args.push(String(options.prompt));
+    }
+
+    return args;
+  }
+
+  /**
+   * Get default configuration
+   */
+  private getDefaultConfig(): AgentConfig {
+    return {
+      model: "claude-sonnet-4-20250514",
+      temperature: 0.7,
+      maxTokens: 8192,
+      mcpServers: [],
+      skills: [],
+    };
   }
 }

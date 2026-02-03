@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
 import { Smartphone } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface TitleBarProps {
   onOpenSettings?: () => void;
@@ -7,7 +7,11 @@ interface TitleBarProps {
   onToggleContextStatus?: () => void;
 }
 
-export function TitleBar({ onOpenSettings, onOpenServerModal, onToggleContextStatus }: TitleBarProps) {
+export function TitleBar({
+  onOpenSettings,
+  onOpenServerModal,
+  onToggleContextStatus,
+}: TitleBarProps) {
   const [isTauri, setIsTauri] = useState(false);
   const [isMobileMode, setIsMobileMode] = useState(false);
 
@@ -51,7 +55,9 @@ export function TitleBar({ onOpenSettings, onOpenServerModal, onToggleContextSta
   };
 
   return (
-    <div className={`title-bar ${isTauri ? "title-bar--tauri" : ""} ${isMobileMode ? "title-bar--mobile" : ""}`}>
+    <div
+      className={`title-bar ${isTauri ? "title-bar--tauri" : ""} ${isMobileMode ? "title-bar--mobile" : ""}`}
+    >
       {/* Left side - mobile mode toggle or empty */}
       <div className="title-bar-left" data-tauri-drag-region={isTauri}>
         <button
@@ -71,56 +77,72 @@ export function TitleBar({ onOpenSettings, onOpenServerModal, onToggleContextSta
         <button
           className="title-bar-menu-item"
           data-tauri-drag-region={false}
-          onClick={() => {/* TODO: File menu */}}
+          onClick={() => {
+            /* TODO: File menu */
+          }}
         >
           File
         </button>
         <button
           className="title-bar-menu-item"
           data-tauri-drag-region={false}
-          onClick={() => {/* TODO: Edit menu */}}
+          onClick={() => {
+            /* TODO: Edit menu */
+          }}
         >
           Edit
         </button>
         <button
           className="title-bar-menu-item"
           data-tauri-drag-region={false}
-          onClick={() => {/* TODO: Selection menu */}}
+          onClick={() => {
+            /* TODO: Selection menu */
+          }}
         >
           Selection
         </button>
         <button
           className="title-bar-menu-item"
           data-tauri-drag-region={false}
-          onClick={() => {/* TODO: View menu */}}
+          onClick={() => {
+            /* TODO: View menu */
+          }}
         >
           View
         </button>
         <button
           className="title-bar-menu-item"
           data-tauri-drag-region={false}
-          onClick={() => {/* TODO: Go menu */}}
+          onClick={() => {
+            /* TODO: Go menu */
+          }}
         >
           Go
         </button>
         <button
           className="title-bar-menu-item"
           data-tauri-drag-region={false}
-          onClick={() => {/* TODO: Run menu */}}
+          onClick={() => {
+            /* TODO: Run menu */
+          }}
         >
           Run
         </button>
         <button
           className="title-bar-menu-item"
           data-tauri-drag-region={false}
-          onClick={() => {/* TODO: Terminal menu */}}
+          onClick={() => {
+            /* TODO: Terminal menu */
+          }}
         >
           Terminal
         </button>
         <button
           className="title-bar-menu-item"
           data-tauri-drag-region={false}
-          onClick={() => {/* TODO: Help menu */}}
+          onClick={() => {
+            /* TODO: Help menu */
+          }}
         >
           Help
         </button>

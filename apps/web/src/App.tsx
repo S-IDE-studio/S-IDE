@@ -2,16 +2,18 @@ import { Folder, GitBranch } from "lucide-react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getConfig, getWsBase } from "./api";
+import { CommonSettings } from "./components/AgentSettings";
+import { AgentTabBar } from "./components/AgentTabs";
 import { AIWorkflowPanel } from "./components/AIWorkflowPanel";
 import { ContextStatus } from "./components/ContextStatus";
 import { DeckModal } from "./components/DeckModal";
 import { DiffViewer } from "./components/DiffViewer";
 import { EditorPane } from "./components/EditorPane";
+import { EnvironmentModal } from "./components/EnvironmentModal";
 import { FileTree } from "./components/FileTree";
 import { GlobalStatusBar } from "./components/GlobalStatusBar";
 import { ServerModal } from "./components/ServerModal";
 import { ServerStartupScreen } from "./components/ServerStartupScreen";
-import { EnvironmentModal } from "./components/EnvironmentModal";
 import { ServerStatus } from "./components/ServerStatus";
 import { SettingsModal } from "./components/SettingsModal";
 import { SourceControl } from "./components/SourceControl";
@@ -22,8 +24,6 @@ import { TunnelControl } from "./components/TunnelControl";
 import { WelcomeScreen } from "./components/WelcomeScreen";
 import { WorkspaceList } from "./components/WorkspaceList";
 import { WorkspaceModal } from "./components/WorkspaceModal";
-import { AgentTabBar } from "./components/AgentTabs";
-import { CommonSettings } from "./components/AgentSettings";
 import {
   DEFAULT_ROOT_FALLBACK,
   MESSAGE_SAVED,
@@ -65,7 +65,9 @@ export default function App() {
   const [sidebarPanel, setSidebarPanel] = useState<SidebarPanel>("files");
 
   // Agent state
-  const [agents, setAgents] = useState<Array<{ id: string; name: string; icon: string; description: string; enabled: boolean }>>([]);
+  const [agents, setAgents] = useState<
+    Array<{ id: string; name: string; icon: string; description: string; enabled: boolean }>
+  >([]);
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
 
   const { workspaceStates, setWorkspaceStates, updateWorkspaceState, initializeWorkspaceStates } =

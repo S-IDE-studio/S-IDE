@@ -66,7 +66,7 @@
   },
   "overrides": [
     {
-      "includes": ["apps/server/src/websocket.ts"],
+      "includes": ["apps/server/src/websocket.ts", "apps/server/src/websocket.js"],
       "linter": {
         "rules": {
           "suspicious": {
@@ -86,7 +86,7 @@
       }
     },
     {
-      "includes": ["apps/server/src/routes/terminals.ts"],
+      "includes": ["apps/server/src/routes/terminals.ts", "apps/server/src/routes/terminals.js"],
       "linter": {
         "rules": {
           "suspicious": {
@@ -96,7 +96,7 @@
       }
     },
     {
-      "includes": ["apps/server/src/routes/git.ts"],
+      "includes": ["apps/server/src/routes/git.ts", "apps/server/src/routes/git.js"],
       "linter": {
         "rules": {
           "suspicious": {
@@ -125,7 +125,7 @@
       }
     },
     {
-      "includes": ["apps/web/src/components/FileTree.tsx"],
+      "includes": ["apps/web/src/components/FileTree.tsx", "apps/web/src/components/FileTree.js"],
       "linter": {
         "rules": {
           "suspicious": {

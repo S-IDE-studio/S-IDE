@@ -6,19 +6,18 @@
  */
 
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
+import { BaseAgent } from "../base/BaseAgent.js";
 import type {
   AgentConfig,
   AgentInfo,
-  ContextInfo,
+  AgentTask,
   MCPInfo,
   SkillInfo,
+  TaskResult,
   TerminalOptions,
   TerminalSession,
 } from "../types.js";
-import { BaseAgent } from "../base/BaseAgent.js";
-import { ConfigReader } from "../config/ConfigReader.js";
 
 const COPILOT_ID = "copilot" as const;
 const COPILOT_NAME = "GitHub Copilot";
@@ -26,26 +25,18 @@ const COPILOT_ICON = "copilot";
 const COPILOT_DESCRIPTION = "GitHub's AI pair programmer";
 
 export class CopilotAgent extends BaseAgent {
-  private configPath: string;
-  private configReader: ConfigReader;
-
   constructor() {
     super(COPILOT_ID, COPILOT_NAME, COPILOT_ICON, COPILOT_DESCRIPTION);
-
-    // Copilot config location
-    this.configPath = path.join(
-      os.homedir(),
-      ".config",
-      "github-copilot"
-    );
-
-    this.configReader = new ConfigReader();
+    // Override config path for Copilot
+    const path = require("node:path");
+    const os = require("node:os");
+    this.configPath = path.join(os.homedir(), ".config", "github-copilot");
   }
 
   /**
    * Get agent info
    */
-  override async getInfo(): Promise<AgentInfo> {
+  async getInfo(): Promise<AgentInfo> {
     const isInstalled = await this.checkIfInstalled();
     const config = await this.getConfig();
 
@@ -63,38 +54,44 @@ export class CopilotAgent extends BaseAgent {
   }
 
   /**
-   * Get agent configuration
+   * Load agent configuration from file
    */
-  override async getConfig(): Promise<AgentConfig> {
+  protected async loadConfig(): Promise<void> {
     try {
-      // Copilot stores settings in VS Code storage
       const settingsPath = path.join(this.configPath, "settings.json");
 
       if (!fs.existsSync(settingsPath)) {
-        return this.getDefaultConfig();
+        this.config = this.getDefaultConfig();
+        return;
       }
 
-      const config = await this.configReader.readJSON(settingsPath);
+      const { ConfigReader } = await import("../config/ConfigReader.js");
+      const config = await ConfigReader.readJSON(settingsPath);
 
-      return {
-        apiKey: config.auth?.token || config.token,
-        apiEndpoint: config.endpoint || "https://api.githubcopilot.com",
-        model: config.model || "gpt-4",
-        temperature: config.temperature,
-        maxTokens: config.maxTokens,
+      const auth = config.auth as Record<string, unknown> | undefined;
+
+      this.config = {
+        apiKey:
+          (typeof auth?.token === "string" ? auth.token : undefined) ||
+          (typeof config.token === "string" ? config.token : undefined),
+        apiEndpoint:
+          typeof config.endpoint === "string" ? config.endpoint : "https://api.githubcopilot.com",
+        model: typeof config.model === "string" ? config.model : "gpt-4",
+        temperature: typeof config.temperature === "number" ? config.temperature : undefined,
+        maxTokens: typeof config.maxTokens === "number" ? config.maxTokens : undefined,
         mcpServers: [],
         skills: [],
       };
     } catch (error) {
-      console.error("[Copilot] Failed to read config:", error);
-      return this.getDefaultConfig();
+      console.error("[Copilot] Failed to load config:", error);
+      this.config = this.getDefaultConfig();
     }
   }
 
   /**
-   * Update agent configuration
+   * Save agent configuration to file
    */
-  override async updateConfig(config: Partial<AgentConfig>): Promise<void> {
+  protected async saveConfig(): Promise<void> {
     try {
       const settingsPath = path.join(this.configPath, "settings.json");
 
@@ -106,55 +103,33 @@ export class CopilotAgent extends BaseAgent {
       // Read existing config
       let existingConfig: Record<string, unknown> = {};
       if (fs.existsSync(settingsPath)) {
-        existingConfig = await this.configReader.readJSON(settingsPath) as Record<string, unknown>;
+        const { ConfigReader } = await import("../config/ConfigReader.js");
+        existingConfig = (await ConfigReader.readJSON(settingsPath)) as Record<string, unknown>;
       }
 
       // Merge with new config
       const updatedConfig = {
         ...existingConfig,
-        ...(config.apiKey && { auth: { token: config.apiKey } }),
-        ...(config.apiEndpoint && { endpoint: config.apiEndpoint }),
-        ...(config.model && { model: config.model }),
-        ...(config.temperature !== undefined && { temperature: config.temperature }),
-        ...(config.maxTokens !== undefined && { maxTokens: config.maxTokens }),
+        ...(this.config.apiKey && { auth: { token: this.config.apiKey } }),
+        ...(this.config.apiEndpoint && { endpoint: this.config.apiEndpoint }),
+        ...(this.config.model && { model: this.config.model }),
+        ...(this.config.temperature !== undefined && { temperature: this.config.temperature }),
+        ...(this.config.maxTokens !== undefined && { maxTokens: this.config.maxTokens }),
       };
 
       // Write config
-      fs.writeFileSync(
-        settingsPath,
-        JSON.stringify(updatedConfig, null, 2),
-        "utf-8"
-      );
+      fs.writeFileSync(settingsPath, JSON.stringify(updatedConfig, null, 2), "utf-8");
     } catch (error) {
-      console.error("[Copilot] Failed to update config:", error);
+      console.error("[Copilot] Failed to save config:", error);
       throw error;
     }
   }
 
   /**
-   * List configured MCPs
-   * Note: Copilot doesn't natively support MCPs
-   */
-  override async listMCPs(): Promise<MCPInfo[]> {
-    // Copilot doesn't have native MCP support
-    // Return empty array
-    return [];
-  }
-
-  /**
-   * List configured Skills
-   * Note: Copilot doesn't natively support Skills
-   */
-  override async listSkills(): Promise<SkillInfo[]> {
-    // Copilot doesn't have native Skills support
-    return [];
-  }
-
-  /**
    * Start a terminal with Copilot CLI
    */
-  override async startTerminal(options: TerminalOptions): Promise<TerminalSession> {
-    // Copilot CLI command: gh copilot
+  async startTerminal(options: TerminalOptions): Promise<TerminalSession> {
+    // Copilot CLI command: gh
     const command = "gh";
     const args = ["copilot", ...this.buildCopilotArgs(options)];
 
@@ -168,6 +143,71 @@ export class CopilotAgent extends BaseAgent {
         ...(options.env || {}),
       },
     };
+  }
+
+  /**
+   * List configured MCPs
+   * Note: Copilot doesn't natively support MCPs
+   */
+  async listMCPs(): Promise<MCPInfo[]> {
+    // Copilot doesn't have native MCP support
+    // Return empty array
+    return [];
+  }
+
+  /**
+   * List configured Skills
+   * Note: Copilot doesn't natively support Skills
+   */
+  async listSkills(): Promise<SkillInfo[]> {
+    // Copilot doesn't have native Skills support
+    return [];
+  }
+
+  /**
+   * Execute a task
+   */
+  async executeTask(task: AgentTask): Promise<TaskResult> {
+    try {
+      const { execSync } = await import("node:child_process");
+
+      const args = ["gh", "copilot"];
+
+      switch (task.type) {
+        case "prompt":
+          args.push("explain", task.content);
+          break;
+        case "command":
+          args.push(task.content);
+          break;
+        case "code":
+          args.push("fix", task.content);
+          break;
+        default:
+          return {
+            taskId: task.id,
+            success: false,
+            error: `Unknown task type: ${task.type}`,
+          };
+      }
+
+      const output = execSync(args.join(" "), {
+        encoding: "utf-8",
+        cwd: (task.options?.cwd as string) || process.cwd(),
+      });
+
+      return {
+        taskId: task.id,
+        success: true,
+        output,
+      };
+    } catch (error) {
+      return {
+        taskId: task.id,
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
   }
 
   /**
@@ -238,55 +278,5 @@ export class CopilotAgent extends BaseAgent {
       mcpServers: [],
       skills: [],
     };
-  }
-
-  /**
-   * Execute a task
-   */
-  override async executeTask(task: {
-    type: string;
-    content: string;
-    options?: Record<string, unknown>;
-  }): Promise<{ success: boolean; result?: string; error?: string }> {
-    try {
-      const { execSync } = await import("node:child_process");
-
-      const args = ["copilot"];
-
-      switch (task.type) {
-        case "explain":
-          args.push("explain", task.content);
-          break;
-        case "fix":
-          args.push("fix", task.content);
-          break;
-        case "test":
-          args.push("test", task.content);
-          break;
-        case "review":
-          args.push("review", task.content);
-          break;
-        default:
-          return {
-            success: false,
-            error: `Unknown task type: ${task.type}`,
-          };
-      }
-
-      const output = execSync(`gh ${args.join(" ")}`, {
-        encoding: "utf-8",
-        cwd: task.options?.cwd as string || process.cwd(),
-      });
-
-      return {
-        success: true,
-        result: output,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
   }
 }

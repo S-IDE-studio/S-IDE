@@ -228,9 +228,7 @@ export function AgentTabContent({ agentId, agentName }: AgentTabContentProps) {
 
       {/* MCP Servers Section */}
       <div style={STYLES.section}>
-        <div style={STYLES.sectionTitle}>
-          MCP Servers ({mcps.length})
-        </div>
+        <div style={STYLES.sectionTitle}>MCP Servers ({mcps.length})</div>
         {mcps.length === 0 ? (
           <div style={{ ...STYLES.card, fontSize: "13px", color: "var(--ink-muted)" }}>
             No MCP servers configured
@@ -241,9 +239,7 @@ export function AgentTabContent({ agentId, agentName }: AgentTabContentProps) {
               <div key={mcp.id} style={STYLES.listItem}>
                 <div style={{ ...STYLES.statusDot, ...getStatusStyle(mcp.status) }} />
                 <span style={{ flex: 1 }}>{mcp.name}</span>
-                <span style={{ color: "var(--ink-muted)", fontSize: "11px" }}>
-                  {mcp.command}
-                </span>
+                <span style={{ color: "var(--ink-muted)", fontSize: "11px" }}>{mcp.command}</span>
               </div>
             ))}
           </div>

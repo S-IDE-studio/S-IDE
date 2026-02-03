@@ -6,13 +6,15 @@
  */
 
 import fs from "node:fs/promises";
-import path from "node:path";
 import os from "node:os";
+import path from "node:path";
 
 /**
  * Config reader/writer utility class
  */
 export class ConfigReader {
+  constructor() {}
+
   /**
    * Read a JSON config file
    */
@@ -77,19 +79,16 @@ export class ConfigReader {
    * Read Cursor config from SQLite database
    * Cursor stores settings as JSON blob in SQLite
    */
-  static async readSQLite(
-    dbPath: string,
-    key: string
-  ): Promise<Record<string, unknown> | null> {
+  static async readSQLite(dbPath: string, key: string): Promise<Record<string, unknown> | null> {
     try {
       // Dynamic import of better-sqlite3
-      const Database = await import("better-sqlite3").then((m) => m.default);
-      const db = new Database.Database(dbPath);
+      const { default: Database } = await import("better-sqlite3");
+      const db = new Database(dbPath);
 
       // Query the value from ItemTable
-      const row = db
-        .prepare("SELECT value FROM ItemTable WHERE key = ?")
-        .get(key) as { value: string } | undefined;
+      const row = db.prepare("SELECT value FROM ItemTable WHERE key = ?").get(key) as
+        | { value: string }
+        | undefined;
 
       db.close();
 
@@ -115,23 +114,27 @@ export class ConfigReader {
   ): Promise<void> {
     try {
       // Dynamic import of better-sqlite3
-      const Database = await import("better-sqlite3").then((m) => m.default);
-      const db = new Database.Database(dbPath);
+      const { default: Database } = await import("better-sqlite3");
+      const db = new Database(dbPath);
 
       // Insert or update the value in ItemTable
       const jsonString = JSON.stringify(value);
       const now = Date.now();
 
-      const existing = db
-        .prepare("SELECT 1 FROM ItemTable WHERE key = ?")
-        .get(key);
+      const existing = db.prepare("SELECT 1 FROM ItemTable WHERE key = ?").get(key);
 
       if (existing) {
-        db.prepare("UPDATE ItemTable SET value = ?, timestamp = ? WHERE key = ?")
-          .run(jsonString, now, key);
+        db.prepare("UPDATE ItemTable SET value = ?, timestamp = ? WHERE key = ?").run(
+          jsonString,
+          now,
+          key
+        );
       } else {
-        db.prepare("INSERT INTO ItemTable (key, value, timestamp) VALUES (?, ?, ?)")
-          .run(key, jsonString, now);
+        db.prepare("INSERT INTO ItemTable (key, value, timestamp) VALUES (?, ?, ?)").run(
+          key,
+          jsonString,
+          now
+        );
       }
 
       db.close();
@@ -174,14 +177,7 @@ export class ConfigReader {
             "globalStorage"
           );
         } else if (process.platform === "win32") {
-          return path.join(
-            home,
-            "AppData",
-            "Roaming",
-            "Cursor",
-            "User",
-            "globalStorage"
-          );
+          return path.join(home, "AppData", "Roaming", "Cursor", "User", "globalStorage");
         } else {
           return path.join(home, ".config", "Cursor", "User", "globalStorage");
         }
@@ -297,17 +293,17 @@ export class ConfigReader {
 
     switch (ext) {
       case ".json":
-        return await this.readJSON(filePath);
+        return await ConfigReader.readJSON(filePath);
 
       case ".toml":
-        return await this.readTOML(filePath);
+        return await ConfigReader.readTOML(filePath);
 
       default:
         // Try JSON first, then TOML
         try {
-          return await this.readJSON(filePath);
+          return await ConfigReader.readJSON(filePath);
         } catch {
-          return await this.readTOML(filePath);
+          return await ConfigReader.readTOML(filePath);
         }
     }
   }

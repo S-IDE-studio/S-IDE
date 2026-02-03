@@ -1,5 +1,5 @@
+import { Check, Copy, Globe, Loader2, Power, PowerOff } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Globe, Loader2, Copy, Check, Power, PowerOff } from "lucide-react";
 import { useTunnelStatus } from "../hooks/useTunnelStatus";
 
 export function TunnelControl() {

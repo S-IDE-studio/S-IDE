@@ -6,8 +6,8 @@
  */
 
 import { Hono } from "hono";
-import type { AgentId } from "../agents/types.js";
 import type { AgentInterface } from "../agents/base/AgentInterface.js";
+import type { AgentId } from "../agents/types.js";
 import { createHttpError, handleError, readJson } from "../utils/error.js";
 
 /**
@@ -118,14 +118,14 @@ export function createAgentRouter() {
         throw createHttpError("Agent not found", 404);
       }
 
-      const body = (await readJson<{
+      const body = await readJson<{
         cwd?: string;
         env?: Record<string, string>;
         command?: string;
         title?: string;
         rows?: number;
         cols?: number;
-      }>(c));
+      }>(c);
 
       const terminal = await agent.startTerminal({
         cwd: body?.cwd,
@@ -180,14 +180,18 @@ export function createAgentRouter() {
         throw createHttpError("Agent not found", 404);
       }
 
-      const body = (await readJson<{
+      const body = await readJson<{
         apiKey?: string;
         apiEndpoint?: string;
         model?: string;
         temperature?: number;
         maxTokens?: number;
         [key: string]: unknown;
-      }>(c));
+      }>(c);
+
+      if (!body) {
+        throw createHttpError("Invalid request body", 400);
+      }
 
       // Handle password placeholder
       if (body.apiKey === "••••••••••••") {
@@ -233,14 +237,18 @@ export function createAgentRouter() {
         throw createHttpError("Agent not found", 404);
       }
 
-      const body = (await readJson<{
+      const body = await readJson<{
         id?: string;
         name: string;
         command: string;
         args?: string[];
         env?: Record<string, string>;
         enabled?: boolean;
-      }>(c));
+      }>(c);
+
+      if (!body || !body.name || !body.command) {
+        throw createHttpError("Invalid request body", 400);
+      }
 
       const mcpId = body.id || body.name;
       await agent.addMCP({
@@ -310,13 +318,17 @@ export function createAgentRouter() {
         throw createHttpError("Agent not found", 404);
       }
 
-      const body = (await readJson<{
+      const body = await readJson<{
         id?: string;
         name: string;
         description?: string;
         enabled?: boolean;
         config?: Record<string, unknown>;
-      }>(c));
+      }>(c);
+
+      if (!body || !body.name) {
+        throw createHttpError("Invalid request body", 400);
+      }
 
       const skillId = body.id || body.name;
       await agent.addSkill({
@@ -366,7 +378,11 @@ export function createAgentRouter() {
         throw createHttpError("Agent not found", 404);
       }
 
-      const body = (await readJson<{ content: string }>(c));
+      const body = await readJson<{ content: string }>(c);
+
+      if (!body || !body.content) {
+        throw createHttpError("Content is required", 400);
+      }
 
       const result = await agent.sendMessage(body.content);
 
@@ -388,11 +404,15 @@ export function createAgentRouter() {
         throw createHttpError("Agent not found", 404);
       }
 
-      const body = (await readJson<{
+      const body = await readJson<{
         type: "prompt" | "command" | "code" | "custom";
         content: string;
         options?: Record<string, unknown>;
-      }>(c));
+      }>(c);
+
+      if (!body || !body.type || !body.content) {
+        throw createHttpError("Type and content are required", 400);
+      }
 
       const result = await agent.executeTask({
         id: `${agentId}-${Date.now()}`,

@@ -8,17 +8,17 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import Database from "better-sqlite3";
+import { BaseAgent } from "../base/BaseAgent.js";
 import type {
   AgentConfig,
   AgentInfo,
-  ContextInfo,
+  AgentTask,
   MCPInfo,
   SkillInfo,
+  TaskResult,
   TerminalOptions,
   TerminalSession,
 } from "../types.js";
-import { BaseAgent } from "../base/BaseAgent.js";
 
 const CURSOR_ID = "cursor" as const;
 const CURSOR_NAME = "Cursor";
@@ -50,14 +50,7 @@ function getCursorConfigPath(): string {
         "state.vscdb"
       );
     case "linux":
-      return path.join(
-        os.homedir(),
-        ".config",
-        "Cursor",
-        "User",
-        "globalStorage",
-        "state.vscdb"
-      );
+      return path.join(os.homedir(), ".config", "Cursor", "User", "globalStorage", "state.vscdb");
     default:
       throw new Error(`Unsupported platform: ${platform}`);
   }
@@ -74,7 +67,7 @@ export class CursorAgent extends BaseAgent {
   /**
    * Get agent info
    */
-  override async getInfo(): Promise<AgentInfo> {
+  async getInfo(): Promise<AgentInfo> {
     const isInstalled = await this.checkIfInstalled();
     const config = await this.getConfig();
 
@@ -92,21 +85,21 @@ export class CursorAgent extends BaseAgent {
   }
 
   /**
-   * Get agent configuration from SQLite database
+   * Load agent configuration from SQLite database
    */
-  override async getConfig(): Promise<AgentConfig> {
+  protected async loadConfig(): Promise<void> {
     try {
       if (!fs.existsSync(this.dbPath)) {
-        return this.getDefaultConfig();
+        this.config = this.getDefaultConfig();
+        return;
       }
 
+      const Database = (await import("better-sqlite3")).default;
       const db = new Database(this.dbPath, { readonly: true });
 
       // Cursor stores various settings as JSON in the ItemTable
       const getConfigValue = (key: string): unknown => {
-        const stmt = db.prepare(
-          "SELECT value FROM ItemTable WHERE key = ?"
-        );
+        const stmt = db.prepare("SELECT value FROM ItemTable WHERE key = ?");
         const row = stmt.get(key) as { value: string } | undefined;
         if (row?.value) {
           try {
@@ -119,18 +112,19 @@ export class CursorAgent extends BaseAgent {
       };
 
       // Get API key from various possible locations
-      const apiKey = getConfigValue("cursor.auth.apiKey") as string | undefined ||
-                     getConfigValue("github.copilot.apiKey") as string | undefined ||
-                     getConfigValue("cursor.apiKey") as string | undefined;
+      const apiKey =
+        (getConfigValue("cursor.auth.apiKey") as string | undefined) ||
+        (getConfigValue("github.copilot.apiKey") as string | undefined) ||
+        (getConfigValue("cursor.apiKey") as string | undefined);
 
       // Get model settings
-      const model = getConfigValue("cursor.model") as string | undefined || "cursor-small";
+      const model = (getConfigValue("cursor.model") as string | undefined) || "cursor-small";
       const temperature = getConfigValue("cursor.temperature") as number | undefined;
       const maxTokens = getConfigValue("cursor.maxTokens") as number | undefined;
 
       db.close();
 
-      return {
+      this.config = {
         apiKey,
         apiEndpoint: "https://api.cursor.sh",
         model,
@@ -140,50 +134,49 @@ export class CursorAgent extends BaseAgent {
         skills: [],
       };
     } catch (error) {
-      console.error("[Cursor] Failed to read config:", error);
-      return this.getDefaultConfig();
+      console.error("[Cursor] Failed to load config:", error);
+      this.config = this.getDefaultConfig();
     }
   }
 
   /**
-   * Update agent configuration in SQLite database
+   * Save agent configuration to SQLite database
    */
-  override async updateConfig(config: Partial<AgentConfig>): Promise<void> {
+  protected async saveConfig(): Promise<void> {
     try {
       if (!fs.existsSync(this.dbPath)) {
         throw new Error("Cursor config database not found");
       }
 
+      const Database = (await import("better-sqlite3")).default;
       const db = new Database(this.dbPath);
 
       const setConfigValue = (key: string, value: unknown): void => {
-        const stmt = db.prepare(
-          "INSERT OR REPLACE INTO ItemTable (key, value) VALUES (?, ?)"
-        );
+        const stmt = db.prepare("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (?, ?)");
         stmt.run(key, JSON.stringify(value));
       };
 
       // Update API key
-      if (config.apiKey) {
-        setConfigValue("cursor.apiKey", config.apiKey);
+      if (this.config.apiKey) {
+        setConfigValue("cursor.apiKey", this.config.apiKey);
       }
 
       // Update model settings
-      if (config.model) {
-        setConfigValue("cursor.model", config.model);
+      if (this.config.model) {
+        setConfigValue("cursor.model", this.config.model);
       }
 
-      if (config.temperature !== undefined) {
-        setConfigValue("cursor.temperature", config.temperature);
+      if (this.config.temperature !== undefined) {
+        setConfigValue("cursor.temperature", this.config.temperature);
       }
 
-      if (config.maxTokens !== undefined) {
-        setConfigValue("cursor.maxTokens", config.maxTokens);
+      if (this.config.maxTokens !== undefined) {
+        setConfigValue("cursor.maxTokens", this.config.maxTokens);
       }
 
       db.close();
     } catch (error) {
-      console.error("[Cursor] Failed to update config:", error);
+      console.error("[Cursor] Failed to save config:", error);
       throw error;
     }
   }
@@ -192,17 +185,16 @@ export class CursorAgent extends BaseAgent {
    * List configured MCPs
    * Cursor has some MCP support in newer versions
    */
-  override async listMCPs(): Promise<MCPInfo[]> {
+  async listMCPs(): Promise<MCPInfo[]> {
     try {
       if (!fs.existsSync(this.dbPath)) {
         return [];
       }
 
+      const Database = (await import("better-sqlite3")).default;
       const db = new Database(this.dbPath, { readonly: true });
 
-      const stmt = db.prepare(
-        "SELECT value FROM ItemTable WHERE key LIKE '%mcp%'"
-      );
+      const stmt = db.prepare("SELECT value FROM ItemTable WHERE key LIKE '%mcp%'");
       const rows = stmt.all() as { value: string }[];
 
       db.close();
@@ -216,7 +208,10 @@ export class CursorAgent extends BaseAgent {
               id: mcp.id || mcp.name,
               name: mcp.name,
               enabled: mcp.enabled !== false,
-              config: mcp,
+              command: mcp.command || "",
+              args: mcp.args,
+              env: mcp.env,
+              status: mcp.enabled !== false ? "active" : "inactive",
             });
           }
         } catch {
@@ -234,17 +229,16 @@ export class CursorAgent extends BaseAgent {
   /**
    * List configured Skills
    */
-  override async listSkills(): Promise<SkillInfo[]> {
+  async listSkills(): Promise<SkillInfo[]> {
     try {
       if (!fs.existsSync(this.dbPath)) {
         return [];
       }
 
+      const Database = (await import("better-sqlite3")).default;
       const db = new Database(this.dbPath, { readonly: true });
 
-      const stmt = db.prepare(
-        "SELECT value FROM ItemTable WHERE key LIKE '%skill%'"
-      );
+      const stmt = db.prepare("SELECT value FROM ItemTable WHERE key LIKE '%skill%'");
       const rows = stmt.all() as { value: string }[];
 
       db.close();
@@ -259,7 +253,8 @@ export class CursorAgent extends BaseAgent {
               name: skill.name,
               description: skill.description,
               enabled: skill.enabled !== false,
-              config: skill,
+              config: skill.config,
+              status: skill.enabled !== false ? "active" : "inactive",
             });
           }
         } catch {
@@ -277,7 +272,7 @@ export class CursorAgent extends BaseAgent {
   /**
    * Start a terminal with Cursor CLI
    */
-  override async startTerminal(options: TerminalOptions): Promise<TerminalSession> {
+  async startTerminal(options: TerminalOptions): Promise<TerminalSession> {
     // Cursor CLI command: cursor
     const command = "cursor";
     const args = this.buildCursorArgs(options);
@@ -292,6 +287,50 @@ export class CursorAgent extends BaseAgent {
         ...(options.env || {}),
       },
     };
+  }
+
+  /**
+   * Execute a task
+   */
+  async executeTask(task: AgentTask): Promise<TaskResult> {
+    try {
+      const { execSync } = await import("node:child_process");
+
+      const args = ["cursor"];
+
+      switch (task.type) {
+        case "prompt":
+        case "command":
+          args.push("ask", task.content);
+          break;
+        case "code":
+          args.push("edit", task.content);
+          break;
+        default:
+          return {
+            taskId: task.id,
+            success: false,
+            error: `Unknown task type: ${task.type}`,
+          };
+      }
+
+      const output = execSync(`cursor ${args.join(" ")}`, {
+        encoding: "utf-8",
+        cwd: (task.options?.cwd as string) || process.cwd(),
+      });
+
+      return {
+        taskId: task.id,
+        success: true,
+        output,
+      };
+    } catch (error) {
+      return {
+        taskId: task.id,
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
   }
 
   /**
@@ -353,53 +392,5 @@ export class CursorAgent extends BaseAgent {
       mcpServers: [],
       skills: [],
     };
-  }
-
-  /**
-   * Execute a task
-   */
-  override async executeTask(task: {
-    type: string;
-    content: string;
-    options?: Record<string, unknown>;
-  }): Promise<{ success: boolean; result?: string; error?: string }> {
-    try {
-      const { execSync } = await import("node:child_process");
-
-      const args = ["cursor"];
-
-      switch (task.type) {
-        case "ask":
-        case "prompt":
-          args.push("ask", task.content);
-          break;
-        case "edit":
-          args.push("edit", task.content);
-          break;
-        case "explain":
-          args.push("explain", task.content);
-          break;
-        default:
-          return {
-            success: false,
-            error: `Unknown task type: ${task.type}`,
-          };
-      }
-
-      const output = execSync(`cursor ${args.join(" ")}`, {
-        encoding: "utf-8",
-        cwd: task.options?.cwd as string || process.cwd(),
-      });
-
-      return {
-        success: true,
-        result: output,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
   }
 }

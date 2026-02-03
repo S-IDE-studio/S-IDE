@@ -5,8 +5,8 @@
  */
 
 import { Hono } from "hono";
-import type { AgentId } from "../types.js";
 import { getMCPServer } from "../mcp/server.js";
+import type { AgentId } from "../types.js";
 
 const app = new Hono();
 
@@ -53,11 +53,7 @@ app.post("/:from/broadcast", async (c) => {
     }>();
     const mcpServer = getMCPServer();
 
-    const responses = await mcpServer.broadcastMessage(
-      from,
-      body.content,
-      body.exclude
-    );
+    const responses = await mcpServer.broadcastMessage(from, body.content, body.exclude);
 
     return c.json({ responses });
   } catch (error) {

@@ -1,15 +1,5 @@
+import { CheckCircle2, Loader2, Network, RefreshCw, Server, Terminal, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
-import {
-  CheckCircle2,
-  XCircle,
-  Loader2,
-  Globe,
-  Server,
-  Network,
-  Copy,
-  RefreshCw,
-  Terminal,
-} from "lucide-react";
 
 interface EnvironmentModalProps {
   isOpen: boolean;
@@ -58,12 +48,12 @@ export function EnvironmentModal({ isOpen, onClose }: EnvironmentModalProps) {
       const tauri = await import("@tauri-apps/api/core");
 
       // Load environment info
-      const envResult = await tauri.invoke("check_environment") as EnvironmentInfo;
+      const envResult = (await tauri.invoke("check_environment")) as EnvironmentInfo;
       setEnvInfo(envResult);
 
       // Check ports
       const portResults = await Promise.all(
-        portsToCheck.map(port => tauri.invoke("check_port", { port }))
+        portsToCheck.map((port) => tauri.invoke("check_port", { port }))
       );
       setPorts(portResults as PortStatus[]);
     } catch (e) {
@@ -86,12 +76,7 @@ export function EnvironmentModal({ isOpen, onClose }: EnvironmentModalProps) {
       <div className="modal-content environment-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>Environment Status</h2>
-          <button
-            type="button"
-            className="modal-close-btn"
-            onClick={onClose}
-            aria-label="Close"
-          >
+          <button type="button" className="modal-close-btn" onClick={onClose} aria-label="Close">
             ×
           </button>
         </div>
@@ -128,19 +113,9 @@ export function EnvironmentModal({ isOpen, onClose }: EnvironmentModalProps) {
                   Required Tools
                 </h3>
                 <div className="env-items">
-                  <CommandItem
-                    name="Node.js"
-                    info={envInfo?.node ?? null}
-                  />
-                  <CommandItem
-                    name="npm"
-                    info={envInfo?.npm ?? null}
-                  />
-                  <CommandItem
-                    name="pnpm"
-                    info={envInfo?.pnpm ?? null}
-                    optional
-                  />
+                  <CommandItem name="Node.js" info={envInfo?.node ?? null} />
+                  <CommandItem name="npm" info={envInfo?.npm ?? null} />
+                  <CommandItem name="pnpm" info={envInfo?.pnpm ?? null} optional />
                 </div>
               </section>
 
@@ -174,7 +149,12 @@ export function EnvironmentModal({ isOpen, onClose }: EnvironmentModalProps) {
                   <button
                     type="button"
                     className="env-action-btn"
-                    onClick={() => window.open("https://docs.npmjs.com/downloading-and-installing-node-js-and-npm", "_blank")}
+                    onClick={() =>
+                      window.open(
+                        "https://docs.npmjs.com/downloading-and-installing-node-js-and-npm",
+                        "_blank"
+                      )
+                    }
                   >
                     Install npm
                   </button>
@@ -191,8 +171,8 @@ export function EnvironmentModal({ isOpen, onClose }: EnvironmentModalProps) {
               {/* Help */}
               <section className="env-section env-help">
                 <p>
-                  <strong>Troubleshooting:</strong> If any required tools are missing,
-                  install them using the buttons above or visit the official documentation.
+                  <strong>Troubleshooting:</strong> If any required tools are missing, install them
+                  using the buttons above or visit the official documentation.
                 </p>
               </section>
             </div>
@@ -235,9 +215,7 @@ function CommandItem({
           {name}
           {optional && <span className="env-item-badge">Optional</span>}
         </div>
-        {info.available && info.version && (
-          <div className="env-item-version">{info.version}</div>
-        )}
+        {info.available && info.version && <div className="env-item-version">{info.version}</div>}
         {!info.available && (
           <div className="env-item-status">
             {optional ? "Not installed (optional)" : "Not installed - required"}
@@ -260,9 +238,7 @@ function PortItem({ status }: { status: PortStatus }) {
       </div>
       <div className="env-item-content">
         <div className="env-item-name">Port {status.port}</div>
-        <div className="env-item-status">
-          {status.available ? "Available" : "In use"}
-        </div>
+        <div className="env-item-status">{status.available ? "Available" : "In use"}</div>
       </div>
     </div>
   );

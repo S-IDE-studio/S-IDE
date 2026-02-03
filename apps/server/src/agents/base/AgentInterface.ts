@@ -6,8 +6,8 @@
  */
 
 import type {
-  AgentId,
   AgentConfig,
+  AgentId,
   AgentTask,
   Context,
   ContextOptions,
@@ -16,24 +16,10 @@ import type {
   MCPInfo,
   SkillConfig,
   SkillInfo,
+  TaskResult,
   TerminalOptions,
   TerminalSession,
-  TaskResult,
 } from "../types.js";
-
-/**
- * Information about an MCP server
- */
-export interface MCPInfo extends MCPConfig {
-  status?: "active" | "inactive" | "error";
-}
-
-/**
- * Information about a Skill
- */
-export interface SkillInfo extends SkillConfig {
-  status?: "active" | "inactive" | "error";
-}
 
 /**
  * Base Agent Interface

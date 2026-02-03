@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 interface MCPServer {
   id: string;
@@ -228,9 +228,15 @@ export function CommonSettings({ isOpen, onClose }: CommonSettingsProps) {
       const res = await fetch("/api/agents");
       if (res.ok) {
         const data = await res.json();
-        setAgents(data.filter((a: { enabled: boolean }) => a.enabled).map((a: { id: string }) => a.id));
+        setAgents(
+          data.filter((a: { enabled: boolean }) => a.enabled).map((a: { id: string }) => a.id)
+        );
         // Default to all agents selected
-        setSelectedAgents(new Set(data.filter((a: { enabled: boolean }) => a.enabled).map((a: { id: string }) => a.id)));
+        setSelectedAgents(
+          new Set(
+            data.filter((a: { enabled: boolean }) => a.enabled).map((a: { id: string }) => a.id)
+          )
+        );
       }
     } catch (err) {
       console.error("Failed to fetch agents:", err);
@@ -337,11 +343,7 @@ export function CommonSettings({ isOpen, onClose }: CommonSettingsProps) {
         {/* Header */}
         <div style={STYLES.header}>
           <h2 style={STYLES.title}>Shared Resources Settings</h2>
-          <button
-            style={STYLES.closeButton}
-            onClick={onClose}
-            aria-label="閉じる"
-          >
+          <button style={STYLES.closeButton} onClick={onClose} aria-label="閉じる">
             ×
           </button>
         </div>
@@ -368,7 +370,7 @@ export function CommonSettings({ isOpen, onClose }: CommonSettingsProps) {
                     checked={selectedAgents.has(agentId)}
                     onChange={() => toggleAgent(agentId)}
                   />
-                  <span style={{ ...STYLES.listItemName, textTransform: "capitalize" }}}>
+                  <span style={{ ...STYLES.listItemName, textTransform: "capitalize" }}>
                     {agentId}
                   </span>
                 </label>
@@ -482,9 +484,7 @@ export function CommonSettings({ isOpen, onClose }: CommonSettingsProps) {
           <button style={STYLES.button} onClick={onClose}>
             Close
           </button>
-          <button style={{ ...STYLES.button, ...STYLES.buttonPrimary }}>
-            Save Changes
-          </button>
+          <button style={{ ...STYLES.button, ...STYLES.buttonPrimary }}>Save Changes</button>
         </div>
       </div>
     </div>

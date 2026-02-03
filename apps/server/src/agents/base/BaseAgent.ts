@@ -6,8 +6,8 @@
  */
 
 import type {
-  AgentId,
   AgentConfig,
+  AgentId,
   AgentTask,
   Context,
   ContextOptions,
@@ -16,9 +16,9 @@ import type {
   MCPInfo,
   SkillConfig,
   SkillInfo,
+  TaskResult,
   TerminalOptions,
   TerminalSession,
-  TaskResult,
 } from "../types.js";
 import type { AgentInterface } from "./AgentInterface.js";
 
@@ -52,12 +52,15 @@ export abstract class BaseAgent implements AgentInterface {
   protected mcpServers: Map<string, MCPInfo> = new Map();
   protected skills: Map<string, SkillInfo> = new Map();
 
-  constructor(config: BaseAgentConfig) {
-    this.id = config.id;
-    this.name = config.name;
-    this.icon = config.icon;
-    this.description = config.description;
-    this.configPath = config.configPath;
+  constructor(id: AgentId, name: string, icon: string, description: string) {
+    this.id = id;
+    this.name = name;
+    this.icon = icon;
+    this.description = description;
+    // Set default config path - can be overridden by subclasses
+    const os = require("node:os");
+    const path = require("node:path");
+    this.configPath = path.join(os.homedir(), `.${id}`);
   }
 
   // ==================== Lifecycle ====================
@@ -182,27 +185,66 @@ export abstract class BaseAgent implements AgentInterface {
 
   /**
    * Load MCP servers from agent config
-   * Must be implemented by specific agent adapters
+   * Default implementation - can be overridden
    */
-  protected abstract loadMCPs(): Promise<void>;
+  protected async loadMCPs(): Promise<void> {
+    // Default: load from config
+    if (this.config.mcpServers) {
+      for (const mcp of this.config.mcpServers) {
+        this.mcpServers.set(mcp.id, {
+          ...mcp,
+          status: mcp.enabled !== false ? "active" : "inactive",
+        });
+      }
+    }
+  }
 
   /**
    * Save MCP servers to agent config
-   * Must be implemented by specific agent adapters
+   * Default implementation - can be overridden
    */
-  protected abstract saveMCPs(): Promise<void>;
+  protected async saveMCPs(): Promise<void> {
+    // Save to config
+    this.config.mcpServers = Array.from(this.mcpServers.values()).map((mcp) => ({
+      id: mcp.id,
+      name: mcp.name,
+      command: mcp.command,
+      args: mcp.args,
+      env: mcp.env,
+      enabled: mcp.status !== "inactive",
+    }));
+  }
 
   /**
    * Load Skills from agent config
-   * Must be implemented by specific agent adapters
+   * Default implementation - can be overridden
    */
-  protected abstract loadSkills(): Promise<void>;
+  protected async loadSkills(): Promise<void> {
+    // Default: load from config
+    if (this.config.skills) {
+      for (const skill of this.config.skills) {
+        this.skills.set(skill.id, {
+          ...skill,
+          status: skill.enabled !== false ? "active" : "inactive",
+        });
+      }
+    }
+  }
 
   /**
    * Save Skills to agent config
-   * Must be implemented by specific agent adapters
+   * Default implementation - can be overridden
    */
-  protected abstract saveSkills(): Promise<void>;
+  protected async saveSkills(): Promise<void> {
+    // Save to config
+    this.config.skills = Array.from(this.skills.values()).map((skill) => ({
+      id: skill.id,
+      name: skill.name,
+      description: skill.description,
+      enabled: skill.status !== "inactive",
+      config: skill.config,
+    }));
+  }
 
   async listMCPs(): Promise<MCPInfo[]> {
     return Array.from(this.mcpServers.values());

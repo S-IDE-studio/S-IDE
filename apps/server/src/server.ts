@@ -7,6 +7,11 @@ import { serveStatic } from "@hono/node-server/serve-static";
 import type { MiddlewareHandler } from "hono";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { ClaudeAgent } from "./agents/claude/ClaudeAgent.js";
+import { CodexAgent } from "./agents/codex/CodexAgent.js";
+import { CopilotAgent } from "./agents/copilot/CopilotAgent.js";
+import { CursorAgent } from "./agents/cursor/CursorAgent.js";
+import { KimiAgent } from "./agents/kimi/KimiAgent.js";
 import {
   BASIC_AUTH_PASSWORD,
   BASIC_AUTH_USER,
@@ -21,25 +26,20 @@ import {
   PORT,
   TRUST_PROXY,
 } from "./config.js";
+import { getMCPServer } from "./mcp/server.js";
 import { basicAuthMiddleware, generateWsToken, isBasicAuthEnabled } from "./middleware/auth.js";
 import { corsMiddleware } from "./middleware/cors.js";
 import { securityHeaders } from "./middleware/security.js";
+import { createAgentBridgeRouter } from "./routes/agent-bridge.js";
+import { initializeAgentRouter, registerAgent } from "./routes/agents.js";
 import { createContextManagerRouter } from "./routes/context-manager.js";
 import { createDeckRouter } from "./routes/decks.js";
 import { createFileRouter } from "./routes/files.js";
 import { createGitRouter } from "./routes/git.js";
 import { createSettingsRouter } from "./routes/settings.js";
+import { createSharedResourcesRouter } from "./routes/shared-resources.js";
 import { createTerminalRouter } from "./routes/terminals.js";
 import { createWorkspaceRouter, getConfigHandler } from "./routes/workspaces.js";
-import { initializeAgentRouter, registerAgent } from "./routes/agents.js";
-import { createSharedResourcesRouter } from "./routes/shared-resources.js";
-import { createAgentBridgeRouter } from "./routes/agent-bridge.js";
-import { ClaudeAgent } from "./agents/claude/ClaudeAgent.js";
-import { CodexAgent } from "./agents/codex/CodexAgent.js";
-import { CopilotAgent } from "./agents/copilot/CopilotAgent.js";
-import { CursorAgent } from "./agents/cursor/CursorAgent.js";
-import { KimiAgent } from "./agents/kimi/KimiAgent.js";
-import { getMCPServer } from "./mcp/server.js";
 import type { Deck, TerminalSession, Workspace } from "./types.js";
 import {
   checkDatabaseIntegrity,

@@ -1,5 +1,5 @@
-import { type ReactNode, useMemo } from "react";
 import { Settings } from "lucide-react";
+import { type ReactNode, useMemo } from "react";
 
 interface GlobalStatusBarProps {
   serverStatus?: ReactNode;

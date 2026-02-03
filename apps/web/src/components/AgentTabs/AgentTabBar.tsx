@@ -171,18 +171,15 @@ export function AgentTabBar({
               <div
                 style={{
                   ...STYLES.tabClose,
-                  ...(isHovered || isCloseHover ? STYLES.tabCloseVisible : {}),
-                  ...(isCloseHover ? STYLES.tabCloseHover : {}),
+                  ...(isHovered || isCloseHovered ? STYLES.tabCloseVisible : {}),
+                  ...(isCloseHovered ? STYLES.tabCloseHover : {}),
                 }}
                 onClick={(e) => handleTabClose(e, agent.id)}
                 onMouseEnter={() => setHoveredClose(agent.id)}
                 onMouseLeave={() => setHoveredClose(null)}
                 title="Close agent tab"
               >
-                <svg
-                  viewBox="0 0 10 10"
-                  style={STYLES.closeButton}
-                >
+                <svg viewBox="0 0 10 10" style={STYLES.closeButton}>
                   <path
                     d="M1 1L9 9M9 1L1 9"
                     stroke="currentColor"

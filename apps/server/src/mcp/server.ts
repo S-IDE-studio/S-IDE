@@ -76,8 +76,7 @@ export interface SharedSkillConfig {
  */
 export class SIDEMCPServer {
   // Registered agents and their message handlers
-  private agents: Map<AgentId, (message: AgentMessage) => Promise<AgentResponse>> =
-    new Map();
+  private agents: Map<AgentId, (message: AgentMessage) => Promise<AgentResponse>> = new Map();
 
   // Shared resources
   private sharedMCPs: Map<string, SharedMCPConfig> = new Map();
@@ -117,11 +116,7 @@ export class SIDEMCPServer {
   /**
    * Send a message to a specific agent
    */
-  async sendMessage(
-    from: AgentId,
-    to: AgentId,
-    content: unknown
-  ): Promise<AgentResponse> {
+  async sendMessage(from: AgentId, to: AgentId, content: unknown): Promise<AgentResponse> {
     const handler = this.agents.get(to);
     if (!handler) {
       return {
@@ -248,9 +243,7 @@ export class SIDEMCPServer {
    * Get shared MCPs for a specific agent
    */
   getSharedMCPsForAgent(agentId: AgentId): SharedMCPConfig[] {
-    return Array.from(this.sharedMCPs.values()).filter((mcp) =>
-      mcp.sharedWith.includes(agentId)
-    );
+    return Array.from(this.sharedMCPs.values()).filter((mcp) => mcp.sharedWith.includes(agentId));
   }
 
   /**

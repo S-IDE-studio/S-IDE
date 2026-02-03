@@ -17,8 +17,11 @@ export interface AgentInfo {
   name: string;
   icon: string;
   description: string;
-  version?: string;
+  version?: string | null;
   enabled: boolean;
+  installed?: boolean;
+  configPath?: string;
+  configExists?: boolean;
 }
 
 /**
@@ -31,6 +34,12 @@ export interface TerminalOptions {
   title?: string;
   rows?: number;
   cols?: number;
+  terminalId?: string;
+  prompt?: string;
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+  [key: string]: unknown;
 }
 
 /**
@@ -38,10 +47,11 @@ export interface TerminalOptions {
  */
 export interface TerminalSession {
   id: string;
-  pid: number;
-  title: string;
-  createdAt: string;
-  // Note: Actual terminal process managed by terminal router
+  command?: string;
+  args?: string[];
+  cwd?: string;
+  env?: Record<string, string | undefined>;
+  title?: string;
 }
 
 /**
@@ -90,6 +100,13 @@ export interface MCPConfig {
 }
 
 /**
+ * Information about an MCP server
+ */
+export interface MCPInfo extends MCPConfig {
+  status?: "active" | "inactive" | "error";
+}
+
+/**
  * Skill configuration
  */
 export interface SkillConfig {
@@ -98,6 +115,13 @@ export interface SkillConfig {
   description?: string;
   enabled?: boolean;
   config?: Record<string, unknown>;
+}
+
+/**
+ * Information about a Skill
+ */
+export interface SkillInfo extends SkillConfig {
+  status?: "active" | "inactive" | "error";
 }
 
 /**

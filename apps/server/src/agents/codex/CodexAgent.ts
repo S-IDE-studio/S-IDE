@@ -5,22 +5,20 @@
  * Reads config from ~/.codex/config.toml and ~/.codex/auth.json
  */
 
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { BaseAgent } from "../base/BaseAgent.js";
 import type {
   AgentConfig,
+  AgentInfo,
   AgentTask,
-  Context,
-  ContextOptions,
-  MCPConfig,
   MCPInfo,
-  SkillConfig,
   SkillInfo,
+  TaskResult,
   TerminalOptions,
   TerminalSession,
-  TaskResult,
 } from "../types.js";
-import { ConfigReader } from "../config/ConfigReader.js";
-import { BaseAgent, type BaseAgentConfig } from "../base/BaseAgent.js";
 
 /**
  * OpenAI Codex configuration format
@@ -49,260 +47,325 @@ interface CodexAuthFile {
  * OpenAI Codex Agent Adapter
  */
 export class CodexAgent extends BaseAgent {
-  constructor(config?: Partial<BaseAgentConfig>) {
-    super({
-      id: "codex",
-      name: "OpenAI Codex",
-      icon: "/icons/agents/codex.svg",
-      description: "OpenAI's Codex CLI - AI-powered coding assistant",
-      configPath:
-        config?.configPath || ConfigReader.getAgentConfigPath("codex"),
-    });
-  }
+  private tomlPath: string;
+  private authPath: string;
 
-  // ==================== Terminal Operations ====================
-
-  async startTerminal(options: TerminalOptions): Promise<TerminalSession> {
-    // Create a Codex terminal session
-    const terminalId = this.generateId();
-
-    // Default command is 'codex'
-    const command = options.command || "codex";
-
-    const session: TerminalSession = {
-      id: terminalId,
-      pid: 0, // Will be set by terminal router
-      title: options.title || `Codex Terminal`,
-      createdAt: new Date().toISOString(),
-    };
-
-    this.terminals.set(terminalId, session);
-    return session;
-  }
-
-  // ==================== Context Management ====================
-
-  override async createContext(options: ContextOptions): Promise<Context> {
-    await this.ensureInitialized();
-
-    // Codex doesn't have built-in context management like Claude
-    // We'll create a basic context structure
-    const context: Context = {
-      id: this.generateId(),
-      agentId: this.id,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      metadata: options.metadata || {},
-      messageCount: 0,
-    };
-
-    // Store initial prompt in metadata
-    if (options.initialPrompt) {
-      context.metadata.initialPrompt = options.initialPrompt;
-    }
-
-    this.contexts.set(context.id, context);
-    return context;
-  }
-
-  // ==================== Config Management ====================
-
-  protected override async loadConfig(): Promise<void> {
-    // Load config from ~/.codex/config.toml
-    const configPath = ConfigReader.getAgentConfigFilePath("codex", "config");
-    const authPath = ConfigReader.getAgentConfigFilePath("codex", "auth");
-
-    const codexConfig = (await ConfigReader.readAgentConfig(
+  constructor() {
+    super(
       "codex",
-      "config"
-    )) as CodexConfigFile;
-
-    const codexAuth = (await ConfigReader.readAgentConfig(
-      "codex",
-      "auth"
-    )) as CodexAuthFile;
-
-    // Merge configs, with auth taking precedence for API key
-    this.config = {
-      ...(codexConfig || {}),
-      ...(codexAuth || {}),
-    };
-
-    // Map Codex-specific fields to standard format
-    if (this.config.api_key && !this.config.apiKey) {
-      this.config.apiKey = this.config.api_key as string;
-    }
-    if (this.config.max_tokens && !this.config.maxTokens) {
-      this.config.maxTokens = this.config.max_tokens as number;
-    }
-  }
-
-  protected override async saveConfig(): Promise<void> {
-    // Save config to ~/.codex/config.toml
-    const configPath = ConfigReader.getAgentConfigFilePath("codex", "config");
-
-    // Map standard format back to Codex format
-    const codexConfig: CodexConfigFile = {};
-
-    if (this.config.apiKey) {
-      codexConfig.api_key = this.config.apiKey as string;
-    }
-    if (this.config.base_url) {
-      codexConfig.base_url = this.config.base_url as string;
-    }
-    if (this.config.model) {
-      codexConfig.model = this.config.model as string;
-    }
-    if (this.config.temperature !== undefined) {
-      codexConfig.temperature = this.config.temperature as number;
-    }
-    if (this.config.maxTokens !== undefined) {
-      codexConfig.max_tokens = this.config.maxTokens as number;
-    }
-    if (this.config.provider) {
-      codexConfig.provider = this.config.provider as string;
-    }
-
-    // Write as TOML (default for Codex)
-    await ConfigReader.writeTOML(configPath, codexConfig);
-  }
-
-  // ==================== MCP/Skills Operations ====================
-
-  protected override async loadMCPs(): Promise<void> {
-    // Codex may use MCP servers configured in config
-    // Check for mcp_servers section in config
-    const configPath = ConfigReader.getAgentConfigFilePath("codex", "config");
-    const codexConfig = await ConfigReader.readAgentConfig("codex", "config");
-
-    if (codexConfig && codexConfig.mcpServers) {
-      const servers = codexConfig.mcpServers as Array<{
-        name: string;
-        command: string;
-        args?: string[];
-        env?: Record<string, string>;
-      }>;
-
-      for (const server of servers) {
-        const mcpInfo: MCPInfo = {
-          id: server.name,
-          name: server.name,
-          command: server.command,
-          args: server.args,
-          env: server.env,
-          status: "active",
-        };
-        this.mcpServers.set(server.name, mcpInfo);
-      }
-    }
-  }
-
-  protected override async saveMCPs(): Promise<void> {
-    // Save MCP servers to ~/.codex/config.toml
-    const configPath = ConfigReader.getAgentConfigFilePath("codex", "config");
-    const codexConfig = (await ConfigReader.readAgentConfig(
-      "codex",
-      "config"
-    )) as CodexConfigFile;
-
-    const servers = Array.from(this.mcpServers.values()).map((mcp) => ({
-      name: mcp.name,
-      command: mcp.command,
-      args: mcp.args,
-      env: mcp.env,
-    }));
-
-    codexConfig.mcpServers = servers;
-    await ConfigReader.writeTOML(configPath, codexConfig);
-  }
-
-  protected override async loadSkills(): Promise<void> {
-    // Codex skills are typically stored as individual files
-    const skillsDir = path.join(
-      ConfigReader.getAgentConfigPath("codex"),
-      "skills"
+      "OpenAI Codex",
+      "/icons/agents/codex.svg",
+      "OpenAI's Codex CLI - AI-powered coding assistant"
     );
 
-    try {
-      const fs = await import("node:fs/promises");
-      const files = await fs.readdir(skillsDir);
-
-      for (const file of files) {
-        if (file.endsWith(".json") || file.endsWith(".md")) {
-          const skillId = file.replace(/\.(json|md)$/, "");
-          const skillInfo: SkillInfo = {
-            id: skillId,
-            name: skillId,
-            description: `Codex skill: ${skillId}`,
-            status: "active",
-          };
-          this.skills.set(skillId, skillInfo);
-        }
-      }
-    } catch {
-      // Skills directory doesn't exist
-    }
+    // Codex config locations
+    const path = require("node:path");
+    const os = require("node:os");
+    const configDir = path.join(os.homedir(), ".codex");
+    this.tomlPath = path.join(configDir, "config.toml");
+    this.authPath = path.join(configDir, "auth.json");
   }
 
-  protected override async saveSkills(): Promise<void> {
-    // Skills are managed as individual files
-    // This is a no-op for Codex
-  }
-
-  // ==================== Task Execution ====================
-
-  async executeTask(task: AgentTask): Promise<TaskResult> {
-    await this.ensureInitialized();
-
-    // For Codex, tasks are executed via the CLI
-    // We track the task but actual execution happens in terminal
-    const context = Array.from(this.contexts.values())[0];
-    if (context) {
-      context.messageCount++;
-      context.updatedAt = new Date().toISOString();
-    }
+  /**
+   * Get agent info
+   */
+  async getInfo(): Promise<AgentInfo> {
+    const isInstalled = await this.checkIfInstalled();
+    const config = await this.getConfig();
 
     return {
-      taskId: task.id,
-      success: true,
-      output: `Task sent to Codex: ${task.content}`,
+      id: this.id,
+      name: this.name,
+      icon: this.icon,
+      description: this.description,
+      enabled: isInstalled,
+      installed: isInstalled,
+      version: await this.getVersion(),
+      configPath: this.tomlPath,
+      configExists: isInstalled,
     };
   }
 
-  // ==================== Codex-Specific Methods ====================
-
   /**
-   * Get the configured API key
+   * Load agent configuration
    */
-  getAPIKey(): string | undefined {
-    return this.config.apiKey as string;
+  protected async loadConfig(): Promise<void> {
+    try {
+      if (!fs.existsSync(this.tomlPath)) {
+        this.config = this.getDefaultConfig();
+        return;
+      }
+
+      const { ConfigReader } = await import("../config/ConfigReader.js");
+      const config = await ConfigReader.readTOML(this.tomlPath);
+
+      // Also read auth.json for API key
+      let apiKey: string | undefined;
+      if (fs.existsSync(this.authPath)) {
+        const auth = await ConfigReader.readJSON(this.authPath);
+        const authFile = auth as CodexAuthFile;
+        apiKey =
+          typeof authFile.apiKey === "string"
+            ? authFile.apiKey
+            : typeof authFile.token === "string"
+              ? authFile.token
+              : undefined;
+      }
+
+      const codexConfig = config as CodexConfigFile;
+
+      this.config = {
+        apiKey:
+          apiKey || (typeof codexConfig.api_key === "string" ? codexConfig.api_key : undefined),
+        apiEndpoint:
+          typeof codexConfig.base_url === "string"
+            ? codexConfig.base_url
+            : "https://api.openai.com/v1",
+        model: typeof codexConfig.model === "string" ? codexConfig.model : "gpt-4",
+        temperature:
+          typeof codexConfig.temperature === "number" ? codexConfig.temperature : undefined,
+        maxTokens: typeof codexConfig.max_tokens === "number" ? codexConfig.max_tokens : undefined,
+        mcpServers: [],
+        skills: [],
+      };
+    } catch (error) {
+      console.error("[Codex] Failed to load config:", error);
+      this.config = this.getDefaultConfig();
+    }
   }
 
   /**
-   * Get the configured model
+   * Save agent configuration
    */
-  getModel(): string | undefined {
-    return this.config.model as string;
+  protected async saveConfig(): Promise<void> {
+    try {
+      const configDir = path.join(os.homedir(), ".codex");
+
+      // Ensure directory exists
+      if (!fs.existsSync(configDir)) {
+        fs.mkdirSync(configDir, { recursive: true });
+      }
+
+      // Update TOML config
+      if (fs.existsSync(this.tomlPath)) {
+        const { ConfigReader } = await import("../config/ConfigReader.js");
+        let existingConfig = await ConfigReader.readTOML(this.tomlPath);
+
+        // Merge with new config
+        existingConfig = {
+          ...existingConfig,
+          ...(this.config.apiKey && { api_key: this.config.apiKey }),
+          ...(this.config.apiEndpoint && { base_url: this.config.apiEndpoint }),
+          ...(this.config.model && { model: this.config.model }),
+          ...(this.config.temperature !== undefined && { temperature: this.config.temperature }),
+          ...(this.config.maxTokens !== undefined && { max_tokens: this.config.maxTokens }),
+        };
+
+        // Write TOML (convert to string)
+        const toml = this.configToTOMLString(existingConfig);
+        fs.writeFileSync(this.tomlPath, toml, "utf-8");
+      }
+
+      // Update auth.json for API key
+      if (this.config.apiKey) {
+        const { ConfigReader } = await import("../config/ConfigReader.js");
+        let auth: CodexAuthFile = {};
+        if (fs.existsSync(this.authPath)) {
+          auth = (await ConfigReader.readJSON(this.authPath)) as CodexAuthFile;
+        }
+
+        auth.apiKey = this.config.apiKey;
+        fs.writeFileSync(this.authPath, JSON.stringify(auth, null, 2), "utf-8");
+      }
+    } catch (error) {
+      console.error("[Codex] Failed to save config:", error);
+      throw error;
+    }
   }
 
   /**
-   * Get the configured base URL
+   * Start a terminal with Codex CLI
    */
-  getBaseURL(): string | undefined {
-    return this.config.base_url as string;
+  async startTerminal(options: TerminalOptions): Promise<TerminalSession> {
+    // Codex CLI command: codex
+    const command = "codex";
+    const args = this.buildCodexArgs(options);
+
+    return {
+      id: options.terminalId || `codex-${Date.now()}`,
+      command,
+      args,
+      cwd: options.cwd,
+      env: {
+        ...process.env,
+        ...(options.env || {}),
+      },
+    };
   }
 
   /**
-   * Get the configured temperature
+   * List configured MCPs
+   * Codex doesn't natively support MCPs
    */
-  getTemperature(): number {
-    return (this.config.temperature as number) || 0.7;
+  async listMCPs(): Promise<MCPInfo[]> {
+    return [];
   }
 
   /**
-   * Get the configured max tokens
+   * List configured Skills
+   * Codex doesn't natively support Skills
    */
-  getMaxTokens(): number {
-    return (this.config.maxTokens as number) || 2048;
+  async listSkills(): Promise<SkillInfo[]> {
+    return [];
+  }
+
+  /**
+   * Execute a task
+   */
+  async executeTask(task: AgentTask): Promise<TaskResult> {
+    try {
+      const { execSync } = await import("node:child_process");
+
+      const args = ["codex"];
+
+      switch (task.type) {
+        case "prompt":
+        case "command":
+          args.push(task.content);
+          break;
+        case "code":
+          args.push("--code", task.content);
+          break;
+        default:
+          return {
+            taskId: task.id,
+            success: false,
+            error: `Unknown task type: ${task.type}`,
+          };
+      }
+
+      const output = execSync(`codex ${args.join(" ")}`, {
+        encoding: "utf-8",
+        cwd: (task.options?.cwd as string) || process.cwd(),
+      });
+
+      return {
+        taskId: task.id,
+        success: true,
+        output,
+      };
+    } catch (error) {
+      return {
+        taskId: task.id,
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  /**
+   * Check if Codex is installed
+   */
+  private async checkIfInstalled(): Promise<boolean> {
+    try {
+      // Check if codex command is available
+      const { execSync } = await import("node:child_process");
+      execSync("codex --version", { stdio: "ignore" });
+      return true;
+    } catch {
+      // Fallback: check if config file exists
+      return fs.existsSync(this.tomlPath) || fs.existsSync(this.authPath);
+    }
+  }
+
+  /**
+   * Get Codex version
+   */
+  private async getVersion(): Promise<string | null> {
+    try {
+      const { execSync } = await import("node:child_process");
+      const output = execSync("codex --version", { encoding: "utf-8" });
+      const match = output.match(/(\d+\.\d+\.\d+)/);
+      return match ? match[1] : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Build Codex CLI arguments
+   */
+  private buildCodexArgs(options: Record<string, unknown>): string[] {
+    const args: string[] = [];
+
+    if (options.model) {
+      args.push("--model", String(options.model));
+    }
+
+    if (options.temperature) {
+      args.push("--temperature", String(options.temperature));
+    }
+
+    if (options.maxTokens) {
+      args.push("--max-tokens", String(options.maxTokens));
+    }
+
+    // Add prompt
+    if (options.prompt) {
+      args.push(String(options.prompt));
+    }
+
+    return args;
+  }
+
+  /**
+   * Get default configuration
+   */
+  private getDefaultConfig(): AgentConfig {
+    return {
+      apiEndpoint: "https://api.openai.com/v1",
+      model: "gpt-4",
+      temperature: 0.7,
+      maxTokens: 2000,
+      mcpServers: [],
+      skills: [],
+    };
+  }
+
+  /**
+   * Convert config object to TOML string
+   */
+  private configToTOMLString(config: Record<string, unknown>): string {
+    const lines: string[] = [];
+
+    for (const [key, value] of Object.entries(config)) {
+      if (value === undefined || value === null) {
+        continue;
+      }
+
+      if (typeof value === "string") {
+        lines.push(`${key} = "${value}"`);
+      } else if (typeof value === "number") {
+        lines.push(`${key} = ${value}`);
+      } else if (typeof value === "boolean") {
+        lines.push(`${key} = ${value}`);
+      } else if (Array.isArray(value)) {
+        lines.push(`${key} = [${value.map((v) => `"${v}"`).join(", ")}]`);
+      } else if (typeof value === "object") {
+        // Nested object - create table
+        lines.push(`[${key}]`);
+        for (const [nestedKey, nestedValue] of Object.entries(value as Record<string, unknown>)) {
+          if (typeof nestedValue === "string") {
+            lines.push(`  ${nestedKey} = "${nestedValue}"`);
+          } else if (typeof nestedValue === "number") {
+            lines.push(`  ${nestedKey} = ${nestedValue}`);
+          } else if (typeof nestedValue === "boolean") {
+            lines.push(`  ${nestedKey} = ${nestedValue}`);
+          }
+        }
+      }
+    }
+
+    return `${lines.join("\n")}\n`;
   }
 }

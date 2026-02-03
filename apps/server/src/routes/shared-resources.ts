@@ -5,9 +5,9 @@
  */
 
 import { Hono } from "hono";
-import type { AgentId } from "../types.js";
 import type { SharedMCPConfig, SharedSkillConfig } from "../mcp/server.js";
 import { getMCPServer } from "../mcp/server.js";
+import type { AgentId } from "../types.js";
 
 const app = new Hono();
 

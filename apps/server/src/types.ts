@@ -1,5 +1,6 @@
 // Re-export shared types
 export type { Deck, Workspace } from "@side-ide/shared/types";
+export type { AgentId } from "./agents/types.js";
 
 // Import WebSocket type explicitly from 'ws' package to avoid conflicts
 import type { WebSocket as WebSocketType } from "ws";
