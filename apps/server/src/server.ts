@@ -32,11 +32,14 @@ import { createSettingsRouter } from "./routes/settings.js";
 import { createTerminalRouter } from "./routes/terminals.js";
 import { createWorkspaceRouter, getConfigHandler } from "./routes/workspaces.js";
 import { initializeAgentRouter, registerAgent } from "./routes/agents.js";
+import { createSharedResourcesRouter } from "./routes/shared-resources.js";
+import { createAgentBridgeRouter } from "./routes/agent-bridge.js";
 import { ClaudeAgent } from "./agents/claude/ClaudeAgent.js";
 import { CodexAgent } from "./agents/codex/CodexAgent.js";
 import { CopilotAgent } from "./agents/copilot/CopilotAgent.js";
 import { CursorAgent } from "./agents/cursor/CursorAgent.js";
 import { KimiAgent } from "./agents/kimi/KimiAgent.js";
+import { getMCPServer } from "./mcp/server.js";
 import type { Deck, TerminalSession, Workspace } from "./types.js";
 import {
   checkDatabaseIntegrity,
@@ -143,6 +146,9 @@ export function createServer(portOverride?: number) {
   registerAgent(cursorAgent);
   registerAgent(kimiAgent);
 
+  // Initialize MCP Server for agent-to-agent communication
+  const mcpServer = getMCPServer();
+
   // Initialize agent router
   const agentRouter = initializeAgentRouter();
 
@@ -155,6 +161,8 @@ export function createServer(portOverride?: number) {
   app.route("/api/git", createGitRouter(workspaces));
   app.route("/api/context-manager", createContextManagerRouter());
   app.route("/api/agents", agentRouter);
+  app.route("/api/shared", createSharedResourcesRouter());
+  app.route("/api/bridge", createAgentBridgeRouter());
 
   // Restore persisted terminals
   const persistedTerminals = loadPersistedTerminals(db, decks);
