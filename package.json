@@ -6,13 +6,17 @@
     "packages/*"
   ],
   "scripts": {
+    "dev": "npm run dev:web",
     "dev:web": "npm --workspace apps/web run dev",
     "dev:server": "npm --workspace apps/server run dev",
     "dev:desktop": "npm --workspace apps/desktop run dev",
-    "build:server": "npm --workspace apps/server run build",
+    "dev:mobile": "npm --workspace apps/mobile run start",
+    "build": "npm run build:web && npm run build:server && npm run build:desktop",
+    "build:ui": "npm --workspace packages/ui run build",
     "build:web": "npm --workspace apps/web run build",
+    "build:server": "npm --workspace apps/server run build",
     "build:desktop": "npm run build:web && npm run build:server && npm --workspace apps/desktop run build",
-    "build": "npm run build:web",
+    "build:mobile": "npm --workspace apps/mobile run build",
     "serve": "npm run build:web && npm run build:server && npm --workspace apps/server run serve"
   }
 }
