@@ -1,8 +1,9 @@
 use crate::server;
 use crate::tunnel;
+use crate::updater;
 use crate::ServerState;
 use crate::TunnelState;
-use tauri::State;
+use tauri::{AppHandle, State};
 
 #[tauri::command]
 pub async fn start_server(
@@ -171,4 +172,17 @@ async fn check_command_version(command: &str, args: &[&str]) -> CommandInfo {
             version: None,
         },
     }
+}
+
+// Update commands
+#[tauri::command]
+pub async fn check_update(app: AppHandle) -> Result<Option<updater::UpdateInfo>, String> {
+    updater::check_for_updates(&app).await
+}
+
+#[tauri::command]
+pub async fn download_and_install(app: AppHandle) -> Result<(), String> {
+    updater::download_and_install(&app).await?;
+    // Trigger app restart after successful install (will not return)
+    app.restart();
 }

@@ -1,4 +1,6 @@
 import { Folder, GitBranch } from "lucide-react";
+import { UpdateNotification, useUpdateCheck } from "./components/UpdateNotification";
+import { UpdateProgress } from "./components/UpdateProgress";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getConfig, getWsBase } from "./api";
@@ -45,6 +47,17 @@ import { parseUrlState } from "./utils/urlUtils";
 
 export default function App() {
   const initialUrlState = parseUrlState();
+
+  // Update check
+  const {
+    updateInfo,
+    isChecking,
+    isDownloading,
+    showNotification,
+    checkForUpdates,
+    downloadAndInstall,
+    skipUpdate,
+  } = useUpdateCheck();
 
   // Server startup screen state
   const [serverReady, setServerReady] = useState(true); // Start as ready for browser preview
@@ -201,6 +214,15 @@ export default function App() {
       alive = false;
     };
   }, []);
+
+  // Check for updates on app startup (desktop only)
+  useEffect(() => {
+    const isDesktop = typeof window !== "undefined" &&
+      "__TAURI__" in window;
+    if (isDesktop) {
+      checkForUpdates();
+    }
+  }, [checkForUpdates]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -798,6 +820,14 @@ export default function App() {
         isOpen={isCommonSettingsOpen}
         onClose={() => setIsCommonSettingsOpen(false)}
       />
+      {showNotification && updateInfo && (
+        <UpdateNotification
+          updateInfo={updateInfo}
+          onDownload={downloadAndInstall}
+          onSkip={skipUpdate}
+        />
+      )}
+      {isDownloading && <UpdateProgress />}
     </div>
   );
 }

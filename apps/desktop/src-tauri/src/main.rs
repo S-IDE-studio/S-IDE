@@ -5,6 +5,7 @@
 mod commands;
 mod server;
 mod tunnel;
+mod updater;
 mod window;
 
 use tokio::sync::Mutex as TokioMutex;
@@ -34,6 +35,8 @@ pub fn run() {
             commands::get_tunnel_status,
             commands::check_environment,
             commands::check_port,
+            commands::check_update,
+            commands::download_and_install,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
