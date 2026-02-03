@@ -22,7 +22,7 @@ import type {
 
 const KIMI_ID = "kimi" as const;
 const KIMI_NAME = "Kimi";
-const KIMI_ICON = "kimi";
+const KIMI_ICON = "/icons/agents/kimi.svg";
 const KIMI_DESCRIPTION = "Moonshot AI's code assistant";
 
 export class KimiAgent extends BaseAgent {
@@ -33,8 +33,6 @@ export class KimiAgent extends BaseAgent {
     super(KIMI_ID, KIMI_NAME, KIMI_ICON, KIMI_DESCRIPTION);
 
     // Kimi config locations
-    const path = require("node:path");
-    const os = require("node:os");
     const configDir = path.join(os.homedir(), ".kimi");
     this.tomlPath = path.join(configDir, "config.toml");
     this.authPath = path.join(configDir, "auth.json");
@@ -208,15 +206,53 @@ export class KimiAgent extends BaseAgent {
     try {
       const { execSync } = await import("node:child_process");
 
-      const args = ["kimi"];
+      // Validate task content to prevent command injection
+      if (!task.content || typeof task.content !== "string") {
+        return {
+          taskId: task.id,
+          success: false,
+          error: "Invalid task content",
+        };
+      }
+
+      // Check for dangerous shell metacharacters
+      const dangerousPatterns = [
+        /[;&|`$()]/, // Shell metacharacters that could enable command chaining
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: security check for null bytes
+        /\x00/, // Null bytes
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: security check for control characters
+        /[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/, // Control characters
+      ];
+
+      for (const pattern of dangerousPatterns) {
+        if (pattern.test(task.content)) {
+          return {
+            taskId: task.id,
+            success: false,
+            error: "Task content contains invalid characters",
+          };
+        }
+      }
+
+      // Limit content length
+      const MAX_CONTENT_LENGTH = 10000;
+      if (task.content.length > MAX_CONTENT_LENGTH) {
+        return {
+          taskId: task.id,
+          success: false,
+          error: `Task content too long (max: ${MAX_CONTENT_LENGTH} characters)`,
+        };
+      }
+
+      const args: string[] = ["kimi"];
 
       switch (task.type) {
         case "prompt":
         case "command":
-          args.push(task.content);
+          args.push("--", task.content);
           break;
         case "code":
-          args.push("--code", task.content);
+          args.push("--code", "--", task.content);
           break;
         default:
           return {
@@ -226,8 +262,11 @@ export class KimiAgent extends BaseAgent {
           };
       }
 
-      const output = execSync(`kimi ${args.join(" ")}`, {
-        encoding: "utf-8",
+      // Use execFileSync instead of execSync to prevent command injection
+      // This properly separates arguments from the command
+      const { execFileSync } = await import("node:child_process");
+      const output = execFileSync(args[0], args.slice(1), {
+        encoding: "utf-8" as const,
         cwd: (task.options?.cwd as string) || process.cwd(),
       });
 

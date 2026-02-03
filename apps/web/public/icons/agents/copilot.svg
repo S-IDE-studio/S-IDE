@@ -1,23 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
-  <!-- Background -->
-  <rect width="64" height="64" rx="12" fill="#333"/>
+  <!-- Background - GitHub black -->
+  <rect width="64" height="64" rx="12" fill="#000"/>
 
-  <!-- Octocat body -->
-  <ellipse cx="32" cy="42" rx="14" ry="10" fill="white"/>
+  <!-- GitHub Copilot face - based on official Copilot icon -->
+  <!-- Face outline -->
+  <path d="M16 32 Q16 18 32 18 Q48 18 48 32 L48 44 Q48 54 32 54 Q16 54 16 44 Z" fill="white"/>
 
-  <!-- Head -->
-  <circle cx="32" cy="24" r="12" fill="white"/>
+  <!-- Cat ears -->
+  <path d="M18 24 L14 14 L26 20" fill="white"/>
+  <path d="M46 24 L50 14 L38 20" fill="white"/>
 
   <!-- Eyes -->
-  <circle cx="28" cy="22" r="2" fill="#333"/>
-  <circle cx="36" cy="22" r="2" fill="#333"/>
+  <ellipse cx="26" cy="34" rx="4" ry="5" fill="#000"/>
+  <ellipse cx="38" cy="34" rx="4" ry="5" fill="#000"/>
 
-  <!-- Tentacles -->
-  <path d="M24 48 Q20 56 18 58" stroke="white" stroke-width="3" stroke-linecap="round" fill="none"/>
-  <path d="M32 48 Q32 56 32 60" stroke="white" stroke-width="3" stroke-linecap="round" fill="none"/>
-  <path d="M40 48 Q44 56 46 58" stroke="white" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <!-- Eye shine -->
+  <circle cx="27" cy="32" r="1.5" fill="white"/>
+  <circle cx="39" cy="32" r="1.5" fill="white"/>
 
-  <!-- Ears -->
-  <path d="M20 14 L18 8 L26 14" fill="white" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
-  <path d="M44 14 L46 8 L38 14" fill="white" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- Simple smile -->
+  <path d="M27 44 Q32 47 37 44" stroke="#000" stroke-width="2" stroke-linecap="round" fill="none"/>
 </svg>

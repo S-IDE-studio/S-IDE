@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useEffect, useState } from "react";
 
 interface UpdateInfo {
   current_version: string;
@@ -21,22 +21,13 @@ const LABEL_RELEASE_NOTES = "リリースノート";
 const LABEL_DOWNLOAD = "今すぐ更新";
 const LABEL_SKIP = "スキップ";
 
-export function UpdateNotification({
-  updateInfo,
-  onDownload,
-  onSkip,
-}: UpdateNotificationProps) {
+export function UpdateNotification({ updateInfo, onDownload, onSkip }: UpdateNotificationProps) {
   return (
     <div className="modal-overlay">
       <div className="modal-content update-notification-modal">
         <div className="modal-header">
           <h2 className="modal-title">{LABEL_TITLE}</h2>
-          <button
-            type="button"
-            className="modal-close-btn"
-            onClick={onSkip}
-            aria-label="閉じる"
-          >
+          <button type="button" className="modal-close-btn" onClick={onSkip} aria-label="閉じる">
             ×
           </button>
         </div>
@@ -48,9 +39,7 @@ export function UpdateNotification({
             </div>
             <div className="update-version-row">
               <span className="update-label">{LABEL_LATEST}:</span>
-              <span className="update-value update-version-new">
-                {updateInfo.latest_version}
-              </span>
+              <span className="update-value update-version-new">{updateInfo.latest_version}</span>
             </div>
             <div className="update-date">公開日: {updateInfo.date}</div>
           </div>
@@ -89,18 +78,10 @@ export function UpdateNotification({
           )}
         </div>
         <div className="modal-footer">
-          <button
-            type="button"
-            className="ghost-button"
-            onClick={onSkip}
-          >
+          <button type="button" className="ghost-button" onClick={onSkip}>
             {LABEL_SKIP}
           </button>
-          <button
-            type="button"
-            className="primary-button"
-            onClick={onDownload}
-          >
+          <button type="button" className="primary-button" onClick={onDownload}>
             {LABEL_DOWNLOAD}
           </button>
         </div>
@@ -110,6 +91,7 @@ export function UpdateNotification({
 }
 
 // Hook for update checking
+// NOTE: Updater functionality is disabled in this build
 export function useUpdateCheck() {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [isChecking, setIsChecking] = useState(false);
@@ -125,7 +107,8 @@ export function useUpdateCheck() {
         setShowNotification(true);
       }
     } catch (error) {
-      console.error("Update check failed:", error);
+      // Silently ignore - updater commands are not available in this build
+      // This is expected when the updater plugin is disabled
     } finally {
       setIsChecking(false);
     }
@@ -147,6 +130,15 @@ export function useUpdateCheck() {
     setShowNotification(false);
     setUpdateInfo(null);
   };
+
+  // Cleanup function to reset state on unmount
+  useEffect(() => {
+    return () => {
+      // Reset any pending states when component unmounts
+      setIsChecking(false);
+      setIsDownloading(false);
+    };
+  }, []);
 
   return {
     updateInfo,

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { MODAL_Z_INDEX } from "../../constants";
 
 interface MCPServer {
   id: string;
@@ -32,7 +33,7 @@ const STYLES = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 1000,
+    zIndex: MODAL_Z_INDEX,
   } as const,
   content: {
     backgroundColor: "var(--bg-primary)",

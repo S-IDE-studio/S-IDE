@@ -29,7 +29,8 @@ import {
 import { getMCPServer } from "./mcp/server.js";
 import { basicAuthMiddleware, generateWsToken, isBasicAuthEnabled } from "./middleware/auth.js";
 import { corsMiddleware } from "./middleware/cors.js";
-import { securityHeaders } from "./middleware/security.js";
+import { mediumRateLimit, strictRateLimit } from "./middleware/rate-limiter.js";
+import { csrfProtection, generateCSRFToken, securityHeaders } from "./middleware/security.js";
 import { createAgentBridgeRouter } from "./routes/agent-bridge.js";
 import { initializeAgentRouter, registerAgent } from "./routes/agents.js";
 import { createContextManagerRouter } from "./routes/context-manager.js";
@@ -120,6 +121,19 @@ export function createServer(portOverride?: number) {
     })
   );
 
+  // Apply rate limiting to sensitive endpoints
+  // Auth endpoints (login attempts)
+  app.use("/api/ws-token", strictRateLimit);
+  // Agent execution (prevents abuse)
+  app.use("/api/agents/*/execute", strictRateLimit);
+  app.use("/api/agents/*/send", mediumRateLimit);
+  // Configuration changes
+  app.use("/api/agents/*/config", mediumRateLimit);
+  // File operations
+  app.use("/api/file", mediumRateLimit);
+  // Terminal operations
+  app.use("/api/terminals", mediumRateLimit);
+
   // Basic auth middleware
   if (basicAuthMiddleware) {
     app.use("/api/*", basicAuthMiddleware);
@@ -187,6 +201,30 @@ export function createServer(portOverride?: number) {
       authEnabled: isBasicAuthEnabled(),
     });
   });
+
+  // CSRF token endpoint (for state-changing operations)
+  app.get("/api/csrf-token", (c) => {
+    // Get session identifier (use auth header if available)
+    const sessionIdentifier =
+      c.req.header("authorization") || c.req.header("x-session-id") || "anonymous";
+    return c.json({
+      token: generateCSRFToken(sessionIdentifier),
+    });
+  });
+
+  // Apply CSRF protection to state-changing routes
+  // This middleware should be applied after basic auth
+  app.use("/api/agents/*/config*", csrfProtection());
+  app.use("/api/agents/*/execute", csrfProtection());
+  app.use("/api/agents/*/send", csrfProtection());
+  app.use("/api/agents/*/mcps", csrfProtection());
+  app.use("/api/agents/*/skills", csrfProtection());
+  app.use("/api/file", csrfProtection({ ignoreMethods: ["GET"] }));
+  app.use("/api/dir", csrfProtection({ ignoreMethods: ["GET"] }));
+  app.use("/api/terminals", csrfProtection({ ignoreMethods: ["GET"] }));
+  app.use("/api/decks", csrfProtection({ ignoreMethods: ["GET"] }));
+  app.use("/api/workspaces", csrfProtection({ ignoreMethods: ["GET"] }));
+  app.use("/api/git", csrfProtection({ ignoreMethods: ["GET"] }));
 
   // WebSocket management endpoints
   app.get("/api/ws/stats", (c) => {

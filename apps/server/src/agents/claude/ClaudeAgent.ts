@@ -5,6 +5,7 @@
  * Wraps the existing Context Manager functionality.
  */
 
+import os from "node:os";
 import path from "node:path";
 import { BaseAgent } from "../base/BaseAgent.js";
 import type {
@@ -40,8 +41,6 @@ export class ClaudeAgent extends BaseAgent {
       "Anthropic's Claude Code CLI - Advanced AI coding assistant"
     );
     // Override config path for Claude
-    const os = require("node:os");
-    const path = require("node:path");
     this.configPath = path.join(os.homedir(), ".claude");
   }
 
@@ -180,8 +179,6 @@ export class ClaudeAgent extends BaseAgent {
   protected async loadConfig(): Promise<void> {
     try {
       const fs = await import("node:fs/promises");
-      const path = require("node:path");
-
       const settingsPath = path.join(this.configPath, "settings.json");
 
       try {
@@ -215,8 +212,6 @@ export class ClaudeAgent extends BaseAgent {
   protected async saveConfig(): Promise<void> {
     try {
       const fs = await import("node:fs/promises");
-      const path = require("node:path");
-
       const settingsPath = path.join(this.configPath, "settings.json");
 
       // Ensure directory exists
@@ -260,8 +255,6 @@ export class ClaudeAgent extends BaseAgent {
   async listMCPs(): Promise<MCPInfo[]> {
     try {
       const fs = await import("node:fs/promises");
-      const path = require("node:path");
-
       const mcpServersPath = path.join(this.configPath, "mcp_servers.json");
 
       try {
@@ -300,7 +293,6 @@ export class ClaudeAgent extends BaseAgent {
   async listSkills(): Promise<SkillInfo[]> {
     try {
       const fs = await import("node:fs/promises");
-      const path = require("node:path");
 
       const skillsPath = path.join(this.configPath, "skills.json");
 
@@ -340,17 +332,55 @@ export class ClaudeAgent extends BaseAgent {
     try {
       const { execSync } = await import("node:child_process");
 
-      const args = ["claude"];
+      // Validate task content to prevent command injection
+      if (!task.content || typeof task.content !== "string") {
+        return {
+          taskId: task.id,
+          success: false,
+          error: "Invalid task content",
+        };
+      }
+
+      // Check for dangerous shell metacharacters
+      const dangerousPatterns = [
+        /[;&|`$()]/, // Shell metacharacters that could enable command chaining
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: security check for null bytes
+        /\x00/, // Null bytes
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: security check for control characters
+        /[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/, // Control characters
+      ];
+
+      for (const pattern of dangerousPatterns) {
+        if (pattern.test(task.content)) {
+          return {
+            taskId: task.id,
+            success: false,
+            error: "Task content contains invalid characters",
+          };
+        }
+      }
+
+      // Limit content length
+      const MAX_CONTENT_LENGTH = 10000;
+      if (task.content.length > MAX_CONTENT_LENGTH) {
+        return {
+          taskId: task.id,
+          success: false,
+          error: `Task content too long (max: ${MAX_CONTENT_LENGTH} characters)`,
+        };
+      }
+
+      const args: string[] = ["claude"];
 
       switch (task.type) {
         case "prompt":
-          args.push(task.content);
+          args.push("--prompt", task.content);
           break;
         case "command":
-          args.push("run", task.content);
+          args.push("run", "--", task.content);
           break;
         case "code":
-          args.push("code", task.content);
+          args.push("code", "--", task.content);
           break;
         default:
           return {
@@ -360,8 +390,11 @@ export class ClaudeAgent extends BaseAgent {
           };
       }
 
-      const output = execSync(args.join(" "), {
-        encoding: "utf-8",
+      // Use execFileSync instead of execSync to prevent command injection
+      // This properly separates arguments from the command
+      const { execFileSync } = await import("node:child_process");
+      const output = execFileSync(args[0], args.slice(1), {
+        encoding: "utf-8" as const,
         cwd: (task.options?.cwd as string) || process.cwd(),
       });
 

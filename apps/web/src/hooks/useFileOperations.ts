@@ -62,13 +62,17 @@ export const useFileOperations = ({
 
   const handleRefreshTree = useCallback(() => {
     if (!editorWorkspaceId) return;
+    const abortController = new AbortController();
+
     updateWorkspaceState(editorWorkspaceId, (state) => ({
       ...state,
       treeLoading: true,
       treeError: null,
     }));
+
     withTimeout(listFiles(editorWorkspaceId, ""))
       .then((entries) => {
+        if (abortController.signal.aborted) return;
         updateWorkspaceState(editorWorkspaceId, (state) => ({
           ...state,
           tree: toTreeNodes(entries),
@@ -76,12 +80,16 @@ export const useFileOperations = ({
         }));
       })
       .catch((error: unknown) => {
-        updateWorkspaceState(editorWorkspaceId, (state) => ({
-          ...state,
-          treeLoading: false,
-          treeError: getErrorMessage(error),
-        }));
+        if (!abortController.signal.aborted) {
+          updateWorkspaceState(editorWorkspaceId, (state) => ({
+            ...state,
+            treeLoading: false,
+            treeError: getErrorMessage(error),
+          }));
+        }
       });
+
+    return () => abortController.abort();
   }, [editorWorkspaceId, updateWorkspaceState]);
 
   const handleToggleDir = useCallback(
@@ -108,6 +116,8 @@ export const useFileOperations = ({
         return;
       }
 
+      const abortController = new AbortController();
+
       updateWorkspaceState(editorWorkspaceId, (state) => ({
         ...state,
         tree: updateTreeNode(state.tree, node.path, (item) => ({
@@ -115,8 +125,10 @@ export const useFileOperations = ({
           loading: true,
         })),
       }));
+
       withTimeout(listFiles(editorWorkspaceId, node.path))
         .then((entries) => {
+          if (abortController.signal.aborted) return;
           updateWorkspaceState(editorWorkspaceId, (state) => ({
             ...state,
             tree: updateTreeNode(state.tree, node.path, (item) => ({
@@ -128,14 +140,16 @@ export const useFileOperations = ({
           }));
         })
         .catch((error: unknown) => {
-          updateWorkspaceState(editorWorkspaceId, (state) => ({
-            ...state,
-            treeError: getErrorMessage(error),
-            tree: updateTreeNode(state.tree, node.path, (item) => ({
-              ...item,
-              loading: false,
-            })),
-          }));
+          if (!abortController.signal.aborted) {
+            updateWorkspaceState(editorWorkspaceId, (state) => ({
+              ...state,
+              treeError: getErrorMessage(error),
+              tree: updateTreeNode(state.tree, node.path, (item) => ({
+                ...item,
+                loading: false,
+              })),
+            }));
+          }
         });
     },
     [editorWorkspaceId, updateWorkspaceState, updateTreeNode]
@@ -155,6 +169,8 @@ export const useFileOperations = ({
 
       // Show loading state by setting a temporary file
       const tempFileId = crypto.randomUUID();
+      const abortController = new AbortController();
+
       const tempFile: EditorFile = {
         id: tempFileId,
         name: entry.name,
@@ -171,6 +187,7 @@ export const useFileOperations = ({
 
       withTimeout(readFile(editorWorkspaceId, entry.path))
         .then((data) => {
+          if (abortController.signal.aborted) return;
           updateWorkspaceState(editorWorkspaceId, (state) => ({
             ...state,
             files: state.files.map((f) =>
@@ -179,13 +196,15 @@ export const useFileOperations = ({
           }));
         })
         .catch((error: unknown) => {
-          // Remove the temp file on error
-          updateWorkspaceState(editorWorkspaceId, (state) => ({
-            ...state,
-            files: state.files.filter((f) => f.id !== tempFileId),
-            activeFileId: state.files.length > 1 ? state.files[0].id : null,
-          }));
-          setStatusMessage(`ファイルを開けませんでした: ${getErrorMessage(error)}`);
+          if (!abortController.signal.aborted) {
+            // Remove the temp file on error
+            updateWorkspaceState(editorWorkspaceId, (state) => ({
+              ...state,
+              files: state.files.filter((f) => f.id !== tempFileId),
+              activeFileId: state.files.length > 1 ? state.files[0].id : null,
+            }));
+            setStatusMessage(`ファイルを開けませんでした: ${getErrorMessage(error)}`);
+          }
         });
     },
     [editorWorkspaceId, activeWorkspaceState.files, updateWorkspaceState, setStatusMessage]

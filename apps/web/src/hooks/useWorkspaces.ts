@@ -22,10 +22,12 @@ export const useWorkspaces = ({
   const [editorWorkspaceId, setEditorWorkspaceId] = useState<string | null>(null);
 
   useEffect(() => {
-    let alive = true;
+    const abortController = new AbortController();
+    const signal = abortController.signal;
+
     listWorkspaces()
       .then((data) => {
-        if (!alive) return;
+        if (signal.aborted) return;
         setWorkspaces(data);
         setEditorWorkspaceId((prev) => {
           if (prev && data.some((workspace) => workspace.id === prev)) {
@@ -36,14 +38,14 @@ export const useWorkspaces = ({
         initializeWorkspaceStates(data.map((workspace) => workspace.id));
       })
       .catch((error: unknown) => {
-        if (!alive) return;
+        if (signal.aborted) return;
         setStatusMessage(
           `\u30ef\u30fc\u30af\u30b9\u30da\u30fc\u30b9\u3092\u53d6\u5f97\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f: ${getErrorMessage(error)}`
         );
       });
 
     return () => {
-      alive = false;
+      abortController.abort();
     };
   }, [setStatusMessage, initializeWorkspaceStates]);
 

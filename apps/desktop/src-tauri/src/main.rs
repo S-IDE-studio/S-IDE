@@ -1,11 +1,11 @@
-// Prevents additional console window on Windows in release builds
-// Temporarily disabled for debugging
-// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+//! Deck IDE Desktop Application
+//!
+//! A Tauri-based desktop application for the Deck IDE
 
+mod common;
 mod commands;
 mod server;
 mod tunnel;
-mod updater;
 mod window;
 
 use tokio::sync::Mutex as TokioMutex;
@@ -13,9 +13,17 @@ use tokio::sync::Mutex as TokioMutex;
 type ServerStateInner = TokioMutex<Option<server::ServerHandle>>;
 type TunnelStateInner = TokioMutex<Option<tunnel::TunnelHandle>>;
 
+/// Shared state for the server handle
 struct ServerState(ServerStateInner);
+
+/// Shared state for the tunnel handle
 struct TunnelState(TunnelStateInner);
 
+/// Runs the Tauri application
+///
+/// # Panics
+///
+/// Panics if the Tauri builder context cannot be generated or if the application fails to run
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -35,8 +43,6 @@ pub fn run() {
             commands::get_tunnel_status,
             commands::check_environment,
             commands::check_port,
-            commands::check_update,
-            commands::download_and_install,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

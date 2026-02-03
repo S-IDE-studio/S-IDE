@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { DEFAULT_SERVER_PORT, DEFAULT_WS_LIMIT, MAX_WS_LIMIT, MIN_WS_LIMIT } from "../constants";
 
 interface Settings {
   port: number;
@@ -36,7 +37,7 @@ const LABEL_WS_CLEAR = "全接続をクリア";
 const LABEL_WS_APPLY = "適用";
 
 export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
-  const [port, setPort] = useState(8787);
+  const [port, setPort] = useState(DEFAULT_SERVER_PORT);
   const [basicAuthEnabled, setBasicAuthEnabled] = useState(false);
   const [basicAuthUser, setBasicAuthUser] = useState("");
   const [basicAuthPassword, setBasicAuthPassword] = useState("");
@@ -44,14 +45,14 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
 
   // Track initial values to detect unsaved changes
   const [initialValues, setInitialValues] = useState<Settings>({
-    port: 8787,
+    port: DEFAULT_SERVER_PORT,
     basicAuthEnabled: false,
     basicAuthUser: "",
     basicAuthPassword: "",
   });
 
   // WebSocket settings
-  const [wsLimit, setWsLimit] = useState(1000);
+  const [wsLimit, setWsLimit] = useState(DEFAULT_WS_LIMIT);
   const [wsStats, setWsStats] = useState<WsStats | null>(null);
   const [isClearing, setIsClearing] = useState(false);
 
@@ -261,8 +262,8 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
                     className="form-input"
                     value={wsLimit}
                     onChange={(e) => setWsLimit(Number(e.target.value))}
-                    min={1}
-                    max={10000}
+                    min={MIN_WS_LIMIT}
+                    max={MAX_WS_LIMIT}
                   />
                   <button type="button" className="secondary-button" onClick={handleWsLimitApply}>
                     {LABEL_WS_APPLY}

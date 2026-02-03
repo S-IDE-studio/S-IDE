@@ -81,15 +81,34 @@ export function EditorPane({
   const activeFile = files.find((file) => file.id === activeFileId);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const cursorPositionRef = useRef({ line: 1, column: 1 });
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
   const handleEditorMount: OnMount = useCallback((editor) => {
     editorRef.current = editor;
+
+    // Manually handle layout resize since automaticLayout is disabled
+    const resizeObserver = new ResizeObserver(() => {
+      editor.layout();
+    });
+    resizeObserverRef.current = resizeObserver;
+    const container = editor.getContainerDomNode();
+    if (container?.parentElement) {
+      resizeObserver.observe(container.parentElement);
+    }
+
     editor.onDidChangeCursorPosition((e) => {
       cursorPositionRef.current = {
         line: e.position.lineNumber,
         column: e.position.column,
       };
     });
+  }, []);
+
+  // Cleanup ResizeObserver when component unmounts
+  useEffect(() => {
+    return () => {
+      resizeObserverRef.current?.disconnect();
+    };
   }, []);
 
   useEffect(() => {
@@ -187,34 +206,37 @@ export function EditorPane({
       {/* Editor Area */}
       <div className="editor-content">
         {activeFile ? (
-          <Editor
-            height="100%"
-            theme={MONACO_THEME}
-            language={activeFile.language}
-            value={activeFile.contents}
-            onChange={(value) => onChangeFile(activeFile.id, value ?? "")}
-            onMount={handleEditorMount}
-            options={{
-              fontFamily: EDITOR_FONT_FAMILY,
-              fontSize: EDITOR_FONT_SIZE,
-              fontLigatures: true,
-              minimap: { enabled: true, scale: 1, showSlider: "mouseover" },
-              smoothScrolling: true,
-              cursorBlinking: "smooth",
-              cursorSmoothCaretAnimation: "on",
-              renderLineHighlight: "all",
-              scrollBeyondLastLine: false,
-              automaticLayout: true,
-              padding: { top: 8, bottom: 8 },
-              lineNumbers: "on",
-              renderWhitespace: "selection",
-              bracketPairColorization: { enabled: true },
-              guides: {
-                bracketPairs: true,
-                indentation: true,
-              },
-            }}
-          />
+          <div style={{ height: "100%", overflow: "hidden" }}>
+            <Editor
+              key={activeFile.id}
+              height="100%"
+              theme={MONACO_THEME}
+              language={activeFile.language}
+              value={activeFile.contents}
+              onChange={(value) => onChangeFile(activeFile.id, value ?? "")}
+              onMount={handleEditorMount}
+              options={{
+                fontFamily: EDITOR_FONT_FAMILY,
+                fontSize: EDITOR_FONT_SIZE,
+                fontLigatures: true,
+                minimap: { enabled: true, scale: 1, showSlider: "mouseover" },
+                smoothScrolling: true,
+                cursorBlinking: "smooth",
+                cursorSmoothCaretAnimation: "on",
+                renderLineHighlight: "all",
+                scrollBeyondLastLine: false,
+                automaticLayout: false,
+                padding: { top: 8, bottom: 8 },
+                lineNumbers: "on",
+                renderWhitespace: "selection",
+                bracketPairColorization: { enabled: true },
+                guides: {
+                  bracketPairs: true,
+                  indentation: true,
+                },
+              }}
+            />
+          </div>
         ) : (
           <div className="editor-no-file">
             <span>{LABEL_EMPTY}</span>

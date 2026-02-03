@@ -64,19 +64,36 @@ export function isBasicAuthEnabled(): boolean {
 }
 
 export function verifyWebSocketAuth(req: import("http").IncomingMessage): boolean {
+  // If auth is not configured, deny access for security (require explicit opt-in)
   if (!BASIC_AUTH_USER || !BASIC_AUTH_PASSWORD) {
-    return true;
+    // Log security event: unauthenticated WebSocket connection attempted
+    console.warn("[SECURITY] WebSocket connection attempted without authentication configured");
+    return false;
   }
 
-  // Extract IP address from various headers (supporting proxies)
+  // Extract IP address from various headers with validation
   const forwardedFor = req.headers["x-forwarded-for"];
   const realIp = req.headers["x-real-ip"];
   const cfConnectingIp = req.headers["cf-connecting-ip"];
-  const clientIp =
-    (Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor)?.split(",")[0]?.trim() ||
-    (Array.isArray(realIp) ? realIp[0] : realIp) ||
-    (Array.isArray(cfConnectingIp) ? cfConnectingIp[0] : cfConnectingIp) ||
-    "unknown";
+
+  // Validate and extract IP
+  let clientIp = "unknown";
+  if (forwardedFor && typeof forwardedFor === "string") {
+    const ips = forwardedFor.split(",").map((s) => s.trim());
+    if (ips.length > 0 && ips[0] && /^[\d\.:a-fA-F]+$/.test(ips[0]) && ips[0].length < 46) {
+      clientIp = ips[0];
+    }
+  }
+  if (clientIp === "unknown" && realIp && typeof realIp === "string") {
+    if (/^[\d\.:a-fA-F]+$/.test(realIp) && realIp.length < 46) {
+      clientIp = realIp;
+    }
+  }
+  if (clientIp === "unknown" && cfConnectingIp && typeof cfConnectingIp === "string") {
+    if (/^[\d\.:a-fA-F]+$/.test(cfConnectingIp) && cfConnectingIp.length < 46) {
+      clientIp = cfConnectingIp;
+    }
+  }
 
   // Check for token in query string first (with IP binding)
   const url = new URL(req.url || "", "http://localhost");

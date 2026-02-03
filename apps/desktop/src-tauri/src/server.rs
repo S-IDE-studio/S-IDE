@@ -1,12 +1,33 @@
+//! Server process management for the Node.js backend
+
+use crate::common;
 use tokio::process::{Command, Child};
 use std::path::PathBuf;
 
+/// Maximum number of parent directories to search when finding project root
+const MAX_SEARCH_DEPTH: usize = 10;
+
+/// Maximum number of parent directories to search from exe
+const MAX_EXE_SEARCH_DEPTH: usize = 5;
+
+/// Handle to a running server process
 pub struct ServerHandle {
+    /// The child process
     child: Child,
+    /// The port the server is running on
     pub port: u16,
 }
 
-// Path to the bundled Node.js server executable
+// Implement Drop to ensure process cleanup on orphaning
+impl Drop for ServerHandle {
+    fn drop(&mut self) {
+        // Try to kill the child process when handle is dropped
+        // This prevents process orphaning
+        let _ = self.child.start_kill();
+    }
+}
+
+/// Path to the bundled Node.js server executable
 fn get_server_path() -> PathBuf {
     let exe_path = std::env::current_exe()
         .expect("Failed to get exe path");
@@ -17,7 +38,7 @@ fn get_server_path() -> PathBuf {
     let mut current: PathBuf = exe_dir.to_path_buf();
 
     // Try going up multiple levels to find src-tauri
-    for _ in 0..5 {
+    for _ in 0..MAX_SEARCH_DEPTH {
         // Check if src-tauri exists at this level
         let src_tauri = current.join("src-tauri");
         if src_tauri.exists() {
@@ -37,29 +58,43 @@ fn get_server_path() -> PathBuf {
         match current.parent() {
             Some(p) => current = p.to_path_buf(),
             None => break,
-        };
+        }
     }
 
     // Fallback to exe_dir/resources/server
     exe_dir.join("resources").join("server").join("index.js")
 }
 
-pub async fn start(port: u16) -> Result<ServerHandle, String> {
-    // Check if we're in development mode
+/// Starts the server on the specified port
+///
+/// # Errors
+///
+/// Returns an error if the server fails to start
+pub fn start(port: u16) -> Result<ServerHandle, String> {
+    // Validate port range
+    common::validate_port(port)?;
+
+    // Check if we're running in development mode
     if is_development_mode() {
-        start_dev_server(port).await
+        Ok(start_dev_server(port)?)
     } else {
-        start_production_server(port).await
+        Ok(start_production_server(port)?)
     }
 }
 
+/// Stops the server
+///
+/// # Errors
+///
+/// Returns an error if the server process fails to stop
 pub async fn stop(mut handle: ServerHandle) -> Result<(), String> {
     handle.child.kill()
         .await
-        .map_err(|e| format!("Failed to stop server: {}", e))?;
+        .map_err(|e| format!("Failed to stop server: {e}"))?;
     Ok(())
 }
 
+/// Checks if we're running in development mode
 fn is_development_mode() -> bool {
     // Check if we're running in development environment
     std::env::var("TAURI_DEV")
@@ -70,25 +105,54 @@ fn is_development_mode() -> bool {
             .unwrap_or(false)
 }
 
-async fn start_dev_server(port: u16) -> Result<ServerHandle, String> {
+/// Starts the server in development mode
+///
+/// # Errors
+///
+/// Returns an error if the project root cannot be found or npm fails to start
+fn start_dev_server(port: u16) -> Result<ServerHandle, String> {
     // Find the project root (where package.json exists)
     let project_root = find_project_root()
-        .map_err(|e| format!("Failed to find project root: {}", e))?;
+        .map_err(|e| format!("Failed to find project root: {e}"))?;
 
     let server_dir = project_root.join("apps").join("server");
 
-    // Use npm to run the server in development mode
-    let child = Command::new("npm")
+    // Find npm command using common module
+    let npm_cmd = common::find_npm_command()?;
+
+    println!("[Server] Using npm: {npm_cmd}");
+
+    // On Windows, always use cmd.exe /c to run npm
+    #[cfg(target_os = "windows")]
+    let spawn_result = Command::new("cmd.exe")
+        .arg("/c")
+        .arg(&npm_cmd)
         .current_dir(&server_dir)
         .arg("run")
         .arg("dev")
-        .spawn()
-        .map_err(|e| format!("Failed to start dev server: {}. Ensure npm is in PATH", e))?;
+        .kill_on_drop(true)
+        .spawn();
+
+    #[cfg(not(target_os = "windows"))]
+    let spawn_result = Command::new(&npm_cmd)
+        .current_dir(&server_dir)
+        .arg("run")
+        .arg("dev")
+        .kill_on_drop(true)
+        .spawn();
+
+    let child = spawn_result
+        .map_err(|e| format!("Failed to start dev server: {e}. Ensure npm is in PATH"))?;
 
     Ok(ServerHandle { child, port })
 }
 
-async fn start_production_server(port: u16) -> Result<ServerHandle, String> {
+/// Starts the server in production mode
+///
+/// # Errors
+///
+/// Returns an error if the server executable is not found or fails to start
+fn start_production_server(port: u16) -> Result<ServerHandle, String> {
     let server_path = get_server_path();
 
     if !server_path.exists() {
@@ -98,36 +162,35 @@ async fn start_production_server(port: u16) -> Result<ServerHandle, String> {
         ));
     }
 
-    // Use Node.js to run the bundled server
-    let node_path = find_node_executable()?;
+    // Find Node.js executable using common module
+    let node_exe = common::find_node_executable()?;
 
     // Convert paths to strings (don't canonicalize to avoid path issues)
-    let node_exe = node_path.to_string_lossy().to_string();
     let server_script = server_path.to_string_lossy().to_string();
 
     let child = Command::new(&node_exe)
         .arg(&server_script)
         .env("PORT", port.to_string())
+        .kill_on_drop(true)
         .spawn()
-        .map_err(|e| format!("Failed to start server: {} (node: '{}', script: '{}')", e, node_exe, server_script))?;
+        .map_err(|e| format!("Failed to start server: {e} (node: '{node_exe}', script: '{server_script}')"))?;
 
     Ok(ServerHandle { child, port })
 }
 
-fn find_node_executable() -> Result<PathBuf, String> {
-    // TEMP: Return hardcoded path for now
-    // TODO: Make this dynamic after verifying it works
-    Ok(PathBuf::from(r"C:\Program Files\nodejs\node.exe"))
-}
-
+/// Finds the project root by searching for package.json
+///
+/// # Errors
+///
+/// Returns an error if the project root cannot be found
 fn find_project_root() -> Result<PathBuf, String> {
     let current_dir = std::env::current_dir()
-        .map_err(|e| format!("Failed to get current dir: {}", e))?;
+        .map_err(|e| format!("Failed to get current dir: {e}"))?;
 
     let mut path = current_dir;
 
     // Search up for package.json
-    for _ in 0..10 {
+    for _ in 0..MAX_SEARCH_DEPTH {
         let package_json = path.join("package.json");
         if package_json.exists() {
             return Ok(path);
@@ -139,13 +202,13 @@ fn find_project_root() -> Result<PathBuf, String> {
 
     // Fallback: try relative paths from the exe
     let exe_path = std::env::current_exe()
-        .map_err(|e| format!("Failed to get exe path: {}", e))?;
+        .map_err(|e| format!("Failed to get exe path: {e}"))?;
 
     let mut search_path = exe_path;
     search_path.pop();
 
     // In dev, exe is in target/debug, go up to project root
-    for _ in 0..5 {
+    for _ in 0..MAX_EXE_SEARCH_DEPTH {
         let package_json = search_path.join("package.json");
         if package_json.exists() {
             return Ok(search_path);

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { DEFAULT_SERVER_PORT, SERVER_STARTUP_DELAY } from "../constants";
 
 interface ServerStartupScreenProps {
   onComplete: () => void;
@@ -73,10 +74,10 @@ export function ServerStartupScreen({ onComplete }: ServerStartupScreenProps) {
           }, 300);
         }
 
-        await tauri.invoke("start_server", { port: 8787 });
+        await tauri.invoke("start_server", { port: DEFAULT_SERVER_PORT });
 
-        // Wait a bit for server to be ready
-        await sleep(2000);
+        // Wait for server to be ready
+        await sleep(SERVER_STARTUP_DELAY);
 
         if (!alive) return;
 

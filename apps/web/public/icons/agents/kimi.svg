@@ -1,18 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
-  <!-- Background -->
-  <rect width="64" height="64" rx="12" fill="#8B5CF6"/>
+  <!-- Background - Kimi/Moonshot indigo -->
+  <rect width="64" height="64" rx="12" fill="#6366f1"/>
 
-  <!-- Moon/Moonshot logo -->
-  <circle cx="32" cy="32" r="16" fill="white"/>
-
-  <!-- Crater -->
-  <circle cx="28" cy="28" r="3" fill="#8B5CF6"/>
-  <circle cx="36" cy="34" r="2" fill="#8B5CF6"/>
-  <circle cx="32" cy="38" r="1.5" fill="#8B5CF6"/>
-
-  <!-- Stars -->
-  <circle cx="48" cy="16" r="1.5" fill="white"/>
-  <circle cx="52" cy="24" r="1" fill="white"/>
-  <circle cx="16" cy="48" r="1" fill="white"/>
-  <circle cx="14" cy="20" r="1.5" fill="white"/>
+  <!-- Kimi K mark - stylized based on official logo -->
+  <g transform="translate(32, 32)">
+    <!-- K shape with rounded corners, matching Kimi brand -->
+    <path d="M-14 -16 L-7 -16 L-7 -1 L7 -16 L14 -16 L-1 0 L14 16 L7 16 L-7 1 L-7 16 L-14 16 Z" fill="white"/>
+  </g>
 </svg>

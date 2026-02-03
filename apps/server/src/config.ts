@@ -61,15 +61,30 @@ if (NODE_ENV === "production") {
     process.exit(1);
   }
 
+  // Require authentication in production
+  if (!BASIC_AUTH_USER || !BASIC_AUTH_PASSWORD) {
+    console.error("CRITICAL: BASIC_AUTH_USER and BASIC_AUTH_PASSWORD must be set in production!");
+    console.error("The server will not accept connections without authentication.");
+    process.exit(1);
+  }
+
   // Validate password strength in production
-  if (BASIC_AUTH_PASSWORD && BASIC_AUTH_PASSWORD.length < 12) {
+  if (BASIC_AUTH_PASSWORD.length < 12) {
     console.error("CRITICAL: BASIC_AUTH_PASSWORD must be at least 12 characters in production!");
     process.exit(1);
   }
 
-  // Warn if no authentication is configured
+  // Ensure password is not a common weak password
+  const weakPasswords = ["password", "123456789012", "admin12345678", "password123456"];
+  if (weakPasswords.includes(BASIC_AUTH_PASSWORD.toLowerCase())) {
+    console.error("CRITICAL: BASIC_AUTH_PASSWORD is too weak!");
+    process.exit(1);
+  }
+} else {
+  // In development, warn if no authentication is configured
   if (!BASIC_AUTH_USER || !BASIC_AUTH_PASSWORD) {
     console.warn("WARNING: No authentication configured! API is publicly accessible.");
+    console.warn("Set BASIC_AUTH_USER and BASIC_AUTH_PASSWORD to secure the server.");
   }
 }
 

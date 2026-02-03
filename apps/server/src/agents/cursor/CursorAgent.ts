@@ -22,7 +22,7 @@ import type {
 
 const CURSOR_ID = "cursor" as const;
 const CURSOR_NAME = "Cursor";
-const CURSOR_ICON = "cursor";
+const CURSOR_ICON = "/icons/agents/cursor.svg";
 const CURSOR_DESCRIPTION = "AI-powered code editor";
 
 // Platform-specific cursor config paths
@@ -296,15 +296,53 @@ export class CursorAgent extends BaseAgent {
     try {
       const { execSync } = await import("node:child_process");
 
-      const args = ["cursor"];
+      // Validate task content to prevent command injection
+      if (!task.content || typeof task.content !== "string") {
+        return {
+          taskId: task.id,
+          success: false,
+          error: "Invalid task content",
+        };
+      }
+
+      // Check for dangerous shell metacharacters
+      const dangerousPatterns = [
+        /[;&|`$()]/, // Shell metacharacters that could enable command chaining
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: security check for null bytes
+        /\x00/, // Null bytes
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: security check for control characters
+        /[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/, // Control characters
+      ];
+
+      for (const pattern of dangerousPatterns) {
+        if (pattern.test(task.content)) {
+          return {
+            taskId: task.id,
+            success: false,
+            error: "Task content contains invalid characters",
+          };
+        }
+      }
+
+      // Limit content length
+      const MAX_CONTENT_LENGTH = 10000;
+      if (task.content.length > MAX_CONTENT_LENGTH) {
+        return {
+          taskId: task.id,
+          success: false,
+          error: `Task content too long (max: ${MAX_CONTENT_LENGTH} characters)`,
+        };
+      }
+
+      const args: string[] = ["cursor"];
 
       switch (task.type) {
         case "prompt":
         case "command":
-          args.push("ask", task.content);
+          args.push("ask", "--", task.content);
           break;
         case "code":
-          args.push("edit", task.content);
+          args.push("edit", "--", task.content);
           break;
         default:
           return {
@@ -314,8 +352,11 @@ export class CursorAgent extends BaseAgent {
           };
       }
 
-      const output = execSync(`cursor ${args.join(" ")}`, {
-        encoding: "utf-8",
+      // Use execFileSync instead of execSync to prevent command injection
+      // This properly separates arguments from the command
+      const { execFileSync } = await import("node:child_process");
+      const output = execFileSync(args[0], args.slice(1), {
+        encoding: "utf-8" as const,
         cwd: (task.options?.cwd as string) || process.cwd(),
       });
 

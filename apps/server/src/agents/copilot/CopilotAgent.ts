@@ -6,6 +6,7 @@
  */
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { BaseAgent } from "../base/BaseAgent.js";
 import type {
@@ -21,15 +22,13 @@ import type {
 
 const COPILOT_ID = "copilot" as const;
 const COPILOT_NAME = "GitHub Copilot";
-const COPILOT_ICON = "copilot";
+const COPILOT_ICON = "/icons/agents/copilot.svg";
 const COPILOT_DESCRIPTION = "GitHub's AI pair programmer";
 
 export class CopilotAgent extends BaseAgent {
   constructor() {
     super(COPILOT_ID, COPILOT_NAME, COPILOT_ICON, COPILOT_DESCRIPTION);
     // Override config path for Copilot
-    const path = require("node:path");
-    const os = require("node:os");
     this.configPath = path.join(os.homedir(), ".config", "github-copilot");
   }
 
@@ -171,17 +170,65 @@ export class CopilotAgent extends BaseAgent {
     try {
       const { execSync } = await import("node:child_process");
 
-      const args = ["gh", "copilot"];
+      // Validate task content to prevent command injection
+      if (!task.content || typeof task.content !== "string") {
+        return {
+          taskId: task.id,
+          success: false,
+          error: "Invalid task content",
+        };
+      }
+
+      // Check for dangerous shell metacharacters
+      const dangerousPatterns = [
+        /[;&|`$()]/, // Shell metacharacters that could enable command chaining
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: security check for null bytes
+        /\x00/, // Null bytes
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: security check for control characters
+        /[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/, // Control characters
+      ];
+
+      for (const pattern of dangerousPatterns) {
+        if (pattern.test(task.content)) {
+          return {
+            taskId: task.id,
+            success: false,
+            error: "Task content contains invalid characters",
+          };
+        }
+      }
+
+      // Limit content length
+      const MAX_CONTENT_LENGTH = 10000;
+      if (task.content.length > MAX_CONTENT_LENGTH) {
+        return {
+          taskId: task.id,
+          success: false,
+          error: `Task content too long (max: ${MAX_CONTENT_LENGTH} characters)`,
+        };
+      }
+
+      const args: string[] = ["gh", "copilot"];
 
       switch (task.type) {
         case "prompt":
-          args.push("explain", task.content);
+          args.push("explain", "--", task.content);
           break;
-        case "command":
+        case "command": {
+          // For commands, only allow specific safe subcommands
+          const safeCommand = task.content.trim().split(/\s+/)[0];
+          if (!["explain", "suggest", "fix"].includes(safeCommand)) {
+            return {
+              taskId: task.id,
+              success: false,
+              error: "Invalid copilot subcommand",
+            };
+          }
           args.push(task.content);
           break;
+        }
         case "code":
-          args.push("fix", task.content);
+          args.push("fix", "--", task.content);
           break;
         default:
           return {
@@ -191,8 +238,11 @@ export class CopilotAgent extends BaseAgent {
           };
       }
 
-      const output = execSync(args.join(" "), {
-        encoding: "utf-8",
+      // Use execFileSync instead of execSync to prevent command injection
+      // This properly separates arguments from the command
+      const { execFileSync } = await import("node:child_process");
+      const output = execFileSync(args[0], args.slice(1), {
+        encoding: "utf-8" as const,
         cwd: (task.options?.cwd as string) || process.cwd(),
       });
 

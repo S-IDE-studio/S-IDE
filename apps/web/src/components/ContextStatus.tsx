@@ -185,24 +185,42 @@ export const ContextStatus: React.FC<ContextStatusProps> = ({
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchStatus = async () => {
+    const abortController = new AbortController();
     try {
       setLoading(true);
       setError(null);
       const data = await api.getStatus();
+      if (abortController.signal.aborted) return;
       setStatus(data);
       onStatusChange?.(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch status");
+      if (!abortController.signal.aborted) {
+        setError(err instanceof Error ? err.message : "Failed to fetch status");
+      }
     } finally {
-      setLoading(false);
+      if (!abortController.signal.aborted) {
+        setLoading(false);
+      }
     }
+
+    return () => abortController.abort();
   };
 
   useEffect(() => {
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 30000); // Refresh every 30s
-    return () => clearInterval(interval);
-  }, [fetchStatus]);
+    let cleanup: (() => void) | undefined;
+    const load = async () => {
+      cleanup = await fetchStatus();
+    };
+    load();
+
+    const interval = setInterval(load, 30000); // Refresh every 30s
+
+    return () => {
+      clearInterval(interval);
+      cleanup?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCompact = async () => {
     try {

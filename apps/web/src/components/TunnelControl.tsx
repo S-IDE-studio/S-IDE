@@ -1,15 +1,29 @@
 import { Check, Copy, Globe, Loader2, Power, PowerOff } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { COPY_FEEDBACK_TIMEOUT } from "../constants";
 import { useTunnelStatus } from "../hooks/useTunnelStatus";
+
+// Default port for Vite dev server
+const VITE_DEV_SERVER_PORT = 5176;
 
 export function TunnelControl() {
   const tunnelStatus = useTunnelStatus();
   const [isTauri, setIsTauri] = useState(false);
   const [starting, setStarting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setIsTauri(typeof window !== "undefined" && "__TAURI__" in window);
+  }, []);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, []);
 
   const handleStartTunnel = async () => {
@@ -17,8 +31,7 @@ export function TunnelControl() {
     setStarting(true);
     try {
       const tauri = await import("@tauri-apps/api/core");
-      const serverPort = 5176; // Vite dev server port
-      await tauri.invoke("start_tunnel", { port: serverPort });
+      await tauri.invoke("start_tunnel", { port: VITE_DEV_SERVER_PORT });
     } catch (e) {
       console.error("Failed to start tunnel:", e);
     } finally {
@@ -41,7 +54,11 @@ export function TunnelControl() {
     try {
       await navigator.clipboard.writeText(tunnelStatus.url);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      // Clear previous timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = setTimeout(() => setCopied(false), COPY_FEEDBACK_TIMEOUT);
     } catch (e) {
       console.error("Failed to copy URL:", e);
     }

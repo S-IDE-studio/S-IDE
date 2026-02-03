@@ -1,5 +1,6 @@
 import { CheckCircle2, Loader2, Network, RefreshCw, Server, Terminal, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
+import { COMMON_PORTS_TO_CHECK } from "../constants";
 
 interface EnvironmentModalProps {
   isOpen: boolean;
@@ -30,7 +31,7 @@ export function EnvironmentModal({ isOpen, onClose }: EnvironmentModalProps) {
   const [ports, setPorts] = useState<PortStatus[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  const portsToCheck = [3000, 5173, 5174, 5175, 5176, 8787];
+  const portsToCheck = COMMON_PORTS_TO_CHECK;
 
   useEffect(() => {
     setIsTauri(typeof window !== "undefined" && "__TAURI__" in window);

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { DEFAULT_SERVER_PORT, STATUS_CHECK_INTERVAL } from "../constants";
 
 export type ServerStatusState = "starting" | "running" | "stopped" | "error";
 
@@ -10,13 +11,16 @@ export interface ServerStatus {
 
 export function useServerStatus(): ServerStatus {
   const [status, setStatus] = useState<ServerStatusState>("starting");
-  const [port, setPort] = useState<number>(8787);
+  const [port, setPort] = useState<number>(DEFAULT_SERVER_PORT);
   const [error, setError] = useState<string | undefined>();
 
   useEffect(() => {
-    let alive = true;
+    const abortController = new AbortController();
+    const signal = abortController.signal;
 
     const checkStatus = async () => {
+      if (signal.aborted) return;
+
       try {
         const tauri = await import("@tauri-apps/api/core");
         const result = (await tauri.invoke("get_server_status")) as {
@@ -24,7 +28,7 @@ export function useServerStatus(): ServerStatus {
           port: number;
         };
 
-        if (!alive) return;
+        if (signal.aborted) return;
 
         if (result.running) {
           setStatus("running");
@@ -37,7 +41,7 @@ export function useServerStatus(): ServerStatus {
         }
       } catch {
         // Not in Tauri environment, assume API is available (web mode)
-        if (alive) {
+        if (!signal.aborted) {
           setStatus("running");
           setError(undefined);
         }
@@ -47,11 +51,11 @@ export function useServerStatus(): ServerStatus {
     // Initial check
     checkStatus();
 
-    // Poll every 5 seconds
-    const interval = setInterval(checkStatus, 5000);
+    // Poll periodically
+    const interval = setInterval(checkStatus, STATUS_CHECK_INTERVAL);
 
     return () => {
-      alive = false;
+      abortController.abort();
       clearInterval(interval);
     };
   }, []);

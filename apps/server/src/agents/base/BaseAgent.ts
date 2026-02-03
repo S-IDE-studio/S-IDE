@@ -5,6 +5,9 @@
  * Provides common functionality that all agent adapters can use.
  */
 
+import os from "node:os";
+import path from "node:path";
+
 import type {
   AgentConfig,
   AgentId,
@@ -58,8 +61,6 @@ export abstract class BaseAgent implements AgentInterface {
     this.icon = icon;
     this.description = description;
     // Set default config path - can be overridden by subclasses
-    const os = require("node:os");
-    const path = require("node:path");
     this.configPath = path.join(os.homedir(), `.${id}`);
   }
 

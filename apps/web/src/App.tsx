@@ -1,6 +1,4 @@
 import { Folder, GitBranch } from "lucide-react";
-import { UpdateNotification, useUpdateCheck } from "./components/UpdateNotification";
-import { UpdateProgress } from "./components/UpdateProgress";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getConfig, getWsBase } from "./api";
@@ -23,6 +21,8 @@ import { StatusMessage } from "./components/StatusMessage";
 import { TerminalPane } from "./components/TerminalPane";
 import { TitleBar } from "./components/TitleBar";
 import { TunnelControl } from "./components/TunnelControl";
+import { UpdateNotification, useUpdateCheck } from "./components/UpdateNotification";
+import { UpdateProgress } from "./components/UpdateProgress";
 import { WelcomeScreen } from "./components/WelcomeScreen";
 import { WorkspaceList } from "./components/WorkspaceList";
 import { WorkspaceModal } from "./components/WorkspaceModal";
@@ -34,12 +34,10 @@ import {
   SAVED_MESSAGE_TIMEOUT,
   STORAGE_KEY_THEME,
 } from "./constants";
-import { useDeckState } from "./hooks/useDeckState";
 import { useDecks } from "./hooks/useDecks";
 import { useFileOperations } from "./hooks/useFileOperations";
 import { useGitState } from "./hooks/useGitState";
 import { useServerStatus } from "./hooks/useServerStatus";
-import { useWorkspaceState } from "./hooks/useWorkspaceState";
 import { useWorkspaces } from "./hooks/useWorkspaces";
 import type { SidebarPanel, WorkspaceMode } from "./types";
 import { createEmptyDeckState, createEmptyWorkspaceState } from "./utils/stateUtils";
@@ -201,21 +199,26 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    let alive = true;
+    const abortController = new AbortController();
+    const signal = abortController.signal;
+
     getConfig()
       .then((config) => {
-        if (!alive) return;
+        if (signal.aborted) return;
         if (config?.defaultRoot) {
           setDefaultRoot(config.defaultRoot);
         }
       })
       .catch(() => undefined);
+
     return () => {
-      alive = false;
+      abortController.abort();
     };
   }, []);
 
   // Check for updates on app startup (desktop only)
+  // NOTE: Updater functionality is disabled in this build
+  /*
   useEffect(() => {
     const isDesktop = typeof window !== "undefined" &&
       "__TAURI__" in window;
@@ -223,6 +226,7 @@ export default function App() {
       checkForUpdates();
     }
   }, [checkForUpdates]);
+  */
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -243,7 +247,7 @@ export default function App() {
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [setEditorWorkspaceId, setActiveDeckIds]);
+  }, [setEditorWorkspaceId, setActiveDeckIds, setWorkspaceMode]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -266,11 +270,16 @@ export default function App() {
 
   // Load available agents
   useEffect(() => {
+    const abortController = new AbortController();
+    const signal = abortController.signal;
+
     const fetchAgents = async () => {
       try {
-        const res = await fetch("/api/agents");
+        const res = await fetch("/api/agents", { signal });
+        if (signal.aborted) return;
         if (res.ok) {
           const data = await res.json();
+          if (signal.aborted) return;
           setAgents(data);
           // Set first enabled agent as active if none selected
           if (!activeAgent && data.length > 0) {
@@ -281,11 +290,17 @@ export default function App() {
           }
         }
       } catch (err) {
-        console.error("Failed to load agents:", err);
+        if (!signal.aborted) {
+          console.error("Failed to load agents:", err);
+        }
       }
     };
     fetchAgents();
-  }, []);
+
+    return () => {
+      abortController.abort();
+    };
+  }, [activeAgent]);
 
   useEffect(() => {
     if (workspaceMode === "editor" && !editorWorkspaceId) {
@@ -317,7 +332,7 @@ export default function App() {
       return;
     }
     setIsDeckModalOpen(true);
-  }, [workspaces.length]);
+  }, [workspaces.length, setStatusMessage]);
 
   const handleSubmitDeck = useCallback(
     async (name: string, workspaceId: string) => {
@@ -330,7 +345,7 @@ export default function App() {
         setIsDeckModalOpen(false);
       }
     },
-    [handleCreateDeck]
+    [handleCreateDeck, setStatusMessage]
   );
 
   const handleSaveSettings = useCallback(
@@ -340,11 +355,13 @@ export default function App() {
       basicAuthUser: string;
       basicAuthPassword: string;
     }) => {
+      const abortController = new AbortController();
       try {
         const response = await fetch("/api/settings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(settings),
+          signal: abortController.signal,
         });
 
         if (!response.ok) {
@@ -355,16 +372,18 @@ export default function App() {
         const _result = await response.json();
         setStatusMessage("設定を保存しました。ブラウザをリロードしてください。");
 
-        // Reload after 2 seconds to apply settings
+        // Reload after delay to apply settings
         setTimeout(() => {
           window.location.reload();
-        }, 2000);
+        }, SAVED_MESSAGE_TIMEOUT);
       } catch (error: unknown) {
-        console.error("Failed to save settings:", error);
+        if (error instanceof Error && error.name !== "AbortError") {
+          console.error("Failed to save settings:", error);
+        }
         throw error;
       }
     },
-    []
+    [setStatusMessage]
   );
 
   const handleSelectWorkspace = useCallback(

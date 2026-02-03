@@ -30,8 +30,20 @@ const DANGEROUS_COMMAND_PATTERNS = [
 
 /**
  * Validate terminal command to prevent obvious injection attacks
+ * Note: This allows shell metacharacters since terminals intentionally run shell commands
+ * Users are expected to have shell access, so we focus on preventing obvious exploits
  */
 function validateCommand(command: string): void {
+  // Validate command is a string
+  if (typeof command !== "string") {
+    throw createHttpError("Command must be a string", 400);
+  }
+
+  // Check for null bytes
+  if (command.includes("\0")) {
+    throw createHttpError("Null bytes not allowed in command", 400);
+  }
+
   if (command.length > MAX_COMMAND_LENGTH) {
     throw createHttpError(`Command too long (max: ${MAX_COMMAND_LENGTH} characters)`, 400);
   }
@@ -39,6 +51,29 @@ function validateCommand(command: string): void {
   for (const pattern of DANGEROUS_COMMAND_PATTERNS) {
     if (pattern.test(command)) {
       throw createHttpError("Invalid characters in command", 400);
+    }
+  }
+
+  // Additional validation: check for command substitution attempts that could escape
+  // We need to be careful not to break legitimate shell usage
+  // The goal is to prevent obvious injection, not to sandbox the shell
+
+  // Warn about potentially dangerous commands (but allow them)
+  const dangerousCommands = [
+    "rm -rf /",
+    "rm -rf /*",
+    "mkfs",
+    "dd if=/dev/zero",
+    "> /dev/sda",
+    ":(){:|:&};:", // fork bomb
+  ];
+
+  for (const dangerous of dangerousCommands) {
+    if (command.includes(dangerous)) {
+      console.warn(
+        `[SECURITY] Potentially dangerous command detected: ${command.substring(0, 100)}`
+      );
+      // Still allow it, but log it
     }
   }
 }
@@ -129,7 +164,7 @@ export function createTerminalRouter(
     const isWindows = process.platform === "win32";
     let term;
     try {
-      const spawnOptions: any = {
+      const spawnOptions: import("../types/terminal.js").TerminalSpawnOptions = {
         cwd: deck.root,
         cols: 120,
         rows: 32,

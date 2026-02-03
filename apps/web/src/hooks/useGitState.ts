@@ -17,6 +17,7 @@ import {
   stageFiles,
   unstageFiles,
 } from "../api";
+import { DEFAULT_REQUEST_TIMEOUT } from "../constants";
 import type { GitDiff, GitFileStatus, GitRepoInfo, GitStatus } from "../types";
 
 export interface BranchStatus {
@@ -81,7 +82,7 @@ export const createEmptyGitState = (): GitState => ({
 });
 
 // API timeout wrapper
-const withTimeout = <T>(promise: Promise<T>, timeoutMs = 10000): Promise<T> => {
+const withTimeout = <T>(promise: Promise<T>, timeoutMs = DEFAULT_REQUEST_TIMEOUT): Promise<T> => {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) =>
@@ -100,7 +101,7 @@ export const useGitState = (
 ) => {
   // Map of workspaceId -> GitState
   const [gitStates, setGitStates] = useState<Record<string, GitState>>({});
-  const loadingRefs = useRef<Record<string, boolean>>({});
+  const loadingRefs = useRef<Record<string, boolean | AbortController>>({});
 
   // Get git state for active workspace
   const gitState = activeWorkspaceId
@@ -130,6 +131,10 @@ export const useGitState = (
       }
       loadingRefs.current[workspaceId] = true;
 
+      // Create abort controller for this request
+      const abortController = new AbortController();
+      loadingRefs.current[`${workspaceId}_abort`] = abortController;
+
       updateGitState(workspaceId, (prev) => ({
         ...prev,
         loading: true,
@@ -142,6 +147,9 @@ export const useGitState = (
         const reposResult = await withTimeout(getGitRepos(workspaceId)).catch(() => ({
           repos: [],
         }));
+
+        if (abortController.signal.aborted) return;
+
         const repos = reposResult.repos;
 
         updateGitState(workspaceId, (prev) => ({
@@ -171,6 +179,8 @@ export const useGitState = (
           })),
         ]);
 
+        if (abortController.signal.aborted) return;
+
         updateGitState(workspaceId, (prev) => ({
           ...prev,
           status,
@@ -180,16 +190,19 @@ export const useGitState = (
           error: null,
         }));
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to get git status";
-        updateGitState(workspaceId, (prev) => ({
-          ...prev,
-          status: null,
-          loading: false,
-          reposLoading: false,
-          error: message,
-        }));
+        if (!abortController.signal.aborted) {
+          const message = error instanceof Error ? error.message : "Failed to get git status";
+          updateGitState(workspaceId, (prev) => ({
+            ...prev,
+            status: null,
+            loading: false,
+            reposLoading: false,
+            error: message,
+          }));
+        }
       } finally {
         loadingRefs.current[workspaceId] = false;
+        delete loadingRefs.current[`${workspaceId}_abort`];
       }
     },
     [activeWorkspaceId, updateGitState, gitStates]

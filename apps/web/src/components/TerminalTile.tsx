@@ -7,10 +7,14 @@ import { WebglAddon } from "xterm-addon-webgl";
 import "xterm/css/xterm.css";
 import { getWsToken } from "../api";
 import {
+  RECONNECT_BASE_DELAY_MS,
   TERMINAL_BACKGROUND_COLOR,
   TERMINAL_FONT_FAMILY,
   TERMINAL_FONT_SIZE,
   TERMINAL_FOREGROUND_COLOR,
+  TERMINAL_SCROLLBACK,
+  TERMINAL_WEBSOCKET_NORMAL_CLOSE,
+  TERMINAL_X10_MOUSE_MODE,
 } from "../constants";
 import type { TerminalSession } from "../types";
 import { TerminalTag } from "./TerminalGroupHeader";
@@ -28,7 +32,6 @@ const TEXT_RECONNECTING = "再接続中...";
 const TEXT_CLOSED = "接続が終了しました。";
 const RESIZE_MESSAGE_PREFIX = "\u0000resize:";
 const MAX_RECONNECT_ATTEMPTS = 5;
-const RECONNECT_BASE_DELAY_MS = 1000;
 
 export function TerminalTile({ session, wsUrl, onDelete, onError }: TerminalTileProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -46,7 +49,7 @@ export function TerminalTile({ session, wsUrl, onDelete, onError }: TerminalTile
       fontFamily: TERMINAL_FONT_FAMILY,
       fontSize: TERMINAL_FONT_SIZE,
       allowProposedApi: true,
-      scrollback: 10000,
+      scrollback: TERMINAL_SCROLLBACK,
       convertEol: false,
       // Don't use windowsMode with ConPTY - it handles line discipline itself
       windowsMode: false,
@@ -170,7 +173,7 @@ export function TerminalTile({ session, wsUrl, onDelete, onError }: TerminalTile
       // Modes we recognize but report as "reset" (2)
       const recognizedModes = [
         2026, // Synchronized output (not fully supported)
-        1000, // X10 mouse mode
+        TERMINAL_X10_MOUSE_MODE, // X10 mouse mode
         1003, // Any-event mouse tracking
       ];
 
@@ -471,9 +474,9 @@ export function TerminalTile({ session, wsUrl, onDelete, onError }: TerminalTile
             return;
           }
 
-          // Normal closure (1000) = server intentionally closed (terminal exited, deleted, etc.)
+          // Normal closure (TERMINAL_WEBSOCKET_NORMAL_CLOSE) = server intentionally closed (terminal exited, deleted, etc.)
           // Don't reconnect for normal closures
-          if (event.code === 1000) {
+          if (event.code === TERMINAL_WEBSOCKET_NORMAL_CLOSE) {
             term.write(`\r\n${TEXT_CLOSED}\r\n`);
             return;
           }

@@ -7,10 +7,11 @@
 
 import { randomUUID } from "node:crypto";
 import { Hono } from "hono";
+import type { ContextManagerInstance } from "../types/context-manager.js";
 import { handleError, readJson } from "../utils/error.js";
 
 // Context Manager singleton instance with lazy initialization
-let contextManagerInstance: any = null;
+let contextManagerInstance: ContextManagerInstance | null = null;
 
 // Lazy import the ContextManager to avoid initialization issues
 // Use eval to bypass TypeScript analysis of the dynamic import
@@ -22,14 +23,15 @@ async function getContextManager() {
         'return import("../../../../.claude/context-manager/index.js")'
       );
       const contextManagerModule = await importFn();
-      contextManagerInstance = contextManagerModule.createContextManager({
+      const instance = contextManagerModule.createContextManager({
         sessionsDir: ".claude/sessions",
         autoCompactThreshold: 100,
         healthCheckInterval: 60000,
         driftThreshold: 0.7,
       });
+      contextManagerInstance = instance;
       // Start auto-monitoring
-      contextManagerInstance.start();
+      instance.start();
       console.log("[CONTEXT] Context Manager initialized and started");
     } catch (error) {
       console.error("Failed to initialize ContextManager:", error);

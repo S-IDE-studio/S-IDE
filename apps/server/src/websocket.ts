@@ -57,17 +57,42 @@ export function clearAllConnections(): number {
 }
 
 function getClientIP(req: IncomingMessage): string {
+  // Get client IP with validation to prevent spoofing
+  let ip = "unknown";
+
+  // When behind a trusted proxy, use x-forwarded-for
   if (TRUST_PROXY) {
     const forwarded = req.headers["x-forwarded-for"];
     if (typeof forwarded === "string") {
-      return forwarded.split(",")[0].trim();
+      // Use leftmost IP (original client) when proxy is trusted
+      const ips = forwarded.split(",").map((s) => s.trim());
+      if (ips.length > 0 && ips[0]) {
+        // Validate IP format
+        const firstIp = ips[0];
+        if (/^[\d\.:a-fA-F]+$/.test(firstIp) && firstIp.length < 46) {
+          ip = firstIp;
+        }
+      }
     }
-    const realIp = req.headers["x-real-ip"];
-    if (typeof realIp === "string") {
-      return realIp;
+
+    // Fallback to x-real-ip
+    if (ip === "unknown") {
+      const realIp = req.headers["x-real-ip"];
+      if (typeof realIp === "string" && /^[\d\.:a-fA-F]+$/.test(realIp) && realIp.length < 46) {
+        ip = realIp;
+      }
     }
   }
-  return req.socket?.remoteAddress || "unknown";
+
+  // Last resort: use direct connection address
+  if (ip === "unknown") {
+    const remoteAddr = req.socket?.remoteAddress;
+    if (remoteAddr && typeof remoteAddr === "string") {
+      ip = remoteAddr;
+    }
+  }
+
+  return ip;
 }
 
 function trackConnection(ip: string, socket: WebSocket): boolean {

@@ -35,20 +35,22 @@ export const useDecks = ({
   const [creatingTerminalDeckIds, setCreatingTerminalDeckIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    let alive = true;
+    const abortController = new AbortController();
+    const signal = abortController.signal;
+
     listDecks()
       .then((data) => {
-        if (!alive) return;
+        if (signal.aborted) return;
         setDecks(data);
         initializeDeckStates(data.map((deck) => deck.id));
       })
       .catch((error: unknown) => {
-        if (!alive) return;
+        if (signal.aborted) return;
         setStatusMessage(`デッキを取得できませんでした: ${getErrorMessage(error)}`);
       });
 
     return () => {
-      alive = false;
+      abortController.abort();
     };
   }, [setStatusMessage, initializeDeckStates]);
 
@@ -73,11 +75,18 @@ export const useDecks = ({
 
   // Load terminals for all active decks
   useEffect(() => {
+    const abortControllers = new Map<string, AbortController>();
+
     activeDeckIds.forEach((deckId) => {
       const current = deckStates[deckId];
       if (current?.terminalsLoaded) return;
+
+      const abortController = new AbortController();
+      abortControllers.set(deckId, abortController);
+
       listTerminals(deckId)
         .then((sessions) => {
+          if (abortController.signal.aborted) return;
           updateDeckState(deckId, (state) => ({
             ...state,
             terminals: sessions,
@@ -85,6 +94,7 @@ export const useDecks = ({
           }));
         })
         .catch((error: unknown) => {
+          if (abortController.signal.aborted) return;
           updateDeckState(deckId, (state) => ({
             ...state,
             terminalsLoaded: true,
@@ -92,6 +102,10 @@ export const useDecks = ({
           setStatusMessage(`ターミナルを取得できませんでした: ${getErrorMessage(error)}`);
         });
     });
+
+    return () => {
+      abortControllers.forEach((controller) => controller.abort());
+    };
   }, [activeDeckIds, deckStates, updateDeckState, setStatusMessage]);
 
   const handleCreateDeck = useCallback(

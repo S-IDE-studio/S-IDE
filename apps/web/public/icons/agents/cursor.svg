@@ -1,10 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
-  <!-- Background -->
-  <rect width="64" height="64" rx="12" fill="#007ACC"/>
+  <!-- Background - Cursor dark -->
+  <rect width="64" height="64" rx="12" fill="#1B1913"/>
 
-  <!-- Cursor shape -->
-  <path d="M26 18 L38 30 L34 32 L40 46 L28 38 L26 42 Z" fill="white" stroke="white" stroke-width="1" stroke-linejoin="round"/>
+  <!-- Cursor cube mark - isometric cube with lightning bolt -->
+  <g transform="translate(32, 32)">
+    <!-- Top face -->
+    <path d="M0 -12 L10 -6 L0 0 L-10 -6 Z" fill="#EDECEC"/>
 
-  <!-- Cursor outline -->
-  <path d="M26 18 L38 30 L34 32 L40 46 L28 38 L26 42 Z" fill="none" stroke="#007ACC" stroke-width="1.5"/>
+    <!-- Left face -->
+    <path d="M-10 -6 L0 0 L0 12 L-10 6 Z" fill="#C4C4C4"/>
+
+    <!-- Right face -->
+    <path d="M0 0 L10 -6 L10 6 L0 12 Z" fill="#A8A8A8"/>
+
+    <!-- Lightning bolt cutout (from Cursor brand) -->
+    <path d="M-2 -7 L3 -7 L0 -2 L4 -2 L-2 7 L-2 7 L-4 2 L0 2 L-2 -7 Z" fill="#1B1913"/>
+  </g>
 </svg>

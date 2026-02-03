@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { STATUS_CHECK_INTERVAL } from "../constants";
 
 export interface TunnelStatus {
   running: boolean;
@@ -10,9 +11,12 @@ export function useTunnelStatus(): TunnelStatus {
   const [url, setUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    let alive = true;
+    const abortController = new AbortController();
+    const signal = abortController.signal;
 
     const checkStatus = async () => {
+      if (signal.aborted) return;
+
       try {
         const tauri = await import("@tauri-apps/api/core");
         const result = (await tauri.invoke("get_tunnel_status")) as {
@@ -20,13 +24,13 @@ export function useTunnelStatus(): TunnelStatus {
           url: string | null;
         };
 
-        if (!alive) return;
+        if (signal.aborted) return;
 
         setRunning(result.running);
         setUrl(result.url);
       } catch {
         // Not in Tauri environment
-        if (alive) {
+        if (!signal.aborted) {
           setRunning(false);
           setUrl(null);
         }
@@ -36,11 +40,11 @@ export function useTunnelStatus(): TunnelStatus {
     // Initial check
     checkStatus();
 
-    // Poll every 5 seconds
-    const interval = setInterval(checkStatus, 5000);
+    // Poll periodically
+    const interval = setInterval(checkStatus, STATUS_CHECK_INTERVAL);
 
     return () => {
-      alive = false;
+      abortController.abort();
       clearInterval(interval);
     };
   }, []);

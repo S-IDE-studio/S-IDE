@@ -14,7 +14,7 @@ const HTTP_STATUS_NO_CONTENT = 204;
 /**
  * Makes an HTTP request to the API
  * @param path - API endpoint path
- * @param options - Fetch options
+ * @param options - Fetch options (can include AbortSignal for cancellation)
  * @returns Parsed JSON response
  * @throws Error if request fails
  */
@@ -23,6 +23,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     ...options,
     credentials: "include",
   });
+
+  // Check if request was aborted
+  if (options.signal && (options.signal as AbortSignal).aborted) {
+    throw new DOMException("Request aborted", "AbortError");
+  }
+
   if (!response.ok) {
     const message = await response.text();
     throw new Error(message || `Request failed (${response.status})`);

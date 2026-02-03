@@ -24,6 +24,28 @@ export const MESSAGE_SELECT_DECK = "デッキを選択してください。";
 
 // Timing constants
 export const SAVED_MESSAGE_TIMEOUT = 2000;
+export const STATUS_CHECK_INTERVAL = 5000;
+export const DEFAULT_REQUEST_TIMEOUT = 10000;
+export const SERVER_STARTUP_DELAY = 2000;
+export const COPY_FEEDBACK_TIMEOUT = 2000;
+export const RECONNECT_BASE_DELAY_MS = 1000;
+
+// Port configuration
+export const DEFAULT_SERVER_PORT = 8787;
+export const COMMON_PORTS_TO_CHECK = [3000, 5173, 5174, 5175, 5176, 8787] as const;
+
+// Terminal configuration
+export const TERMINAL_SCROLLBACK = 10000;
+export const TERMINAL_X10_MOUSE_MODE = 1000;
+export const TERMINAL_WEBSOCKET_NORMAL_CLOSE = 1000;
+
+// WebSocket configuration
+export const DEFAULT_WS_LIMIT = 1000;
+export const MAX_WS_LIMIT = 10000;
+export const MIN_WS_LIMIT = 1;
+
+// UI z-index
+export const MODAL_Z_INDEX = 1000;
 
 // Language mapping
 export const LANGUAGE_BY_EXTENSION: Record<string, string> = {
