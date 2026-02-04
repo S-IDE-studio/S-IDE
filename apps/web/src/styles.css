@@ -4498,3 +4498,160 @@ input:focus-visible {
 .editor-group-container:hover .group-close-button {
   opacity: 1;
 }
+
+/* ========================================
+   Unified Tab Panel System
+   ======================================== */
+
+/* Panel Groups Container */
+.panel-groups {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.panel-groups-horizontal {
+  flex-direction: row;
+}
+
+.panel-groups-vertical {
+  flex-direction: column;
+}
+
+/* Panel Group */
+.panel-group {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid transparent;
+  transition: border-color 0.15s ease;
+}
+
+.panel-group.focused {
+  border-top-color: var(--accent-primary, #007acc);
+  border-top-width: 2px;
+}
+
+/* Panel Tabs */
+.panel-tabs {
+  display: flex;
+  overflow-x: auto;
+  background: var(--bg-soft);
+  min-height: 30px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-tabs::-webkit-scrollbar {
+  height: 0;
+}
+
+.panel-tabs-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-soft);
+  min-height: 30px;
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-tabs-empty-text {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.panel-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  min-width: 80px;
+  height: 30px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--ink-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.panel-tab:hover {
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.panel-tab.active {
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.panel-tab-icon {
+  font-size: 10px;
+}
+
+.panel-tab-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-tab-close {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 3px;
+  color: var(--ink-muted);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.panel-tab:hover .panel-tab-close,
+.panel-tab.active .panel-tab-close {
+  opacity: 1;
+}
+
+.panel-tab.dirty .panel-tab-close {
+  opacity: 0;
+}
+
+/* Panel Content */
+.panel-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--ink-muted);
+}
+
+.panel-view-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--ink-muted);
+}
+
+/* Panel Content Placeholders */
+.agent-panel-content,
+.workspace-panel-content,
+.deck-panel-content,
+.terminal-panel-content {
+  padding: 16px;
+}
+
+.terminal-panel-content {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+}
