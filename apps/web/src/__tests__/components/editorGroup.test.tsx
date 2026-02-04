@@ -10,6 +10,14 @@ vi.mock("@monaco-editor/react", () => ({
   __monaco_editor_react__: true,
 }));
 
+// Mock lucide-react icons
+vi.mock("lucide-react", () => ({
+  X: ({ className }: { className?: string }) => <span data-icon="X" className={className}>X</span>,
+  Loader2: ({ className }: { className?: string }) => <span data-icon="Loader2" className={className}>Loader2</span>,
+  Plus: ({ className }: { className?: string }) => <span data-icon="Plus" className={className}>Plus</span>,
+  File: ({ className }: { className?: string }) => <span data-icon="File" className={className}>File</span>,
+}));
+
 // Mock @dnd-kit
 vi.mock("@dnd-kit/core", () => ({
   DndContext: ({ children }: { children: React.ReactNode }) => children,
