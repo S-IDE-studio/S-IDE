@@ -4355,3 +4355,97 @@ input:focus-visible {
     transform: rotate(360deg);
   }
 }
+
+/* Editor Groups Container */
+.editor-groups-container {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.editor-groups-container.vertical {
+  flex-direction: column;
+}
+
+/* Editor Group Container */
+.editor-group-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  border: 1px solid transparent;
+  transition: border-color 0.15s ease;
+  position: relative;
+}
+
+.editor-group-container.focused {
+  border-top-color: var(--accent-primary, #007acc);
+  border-top-width: 2px;
+}
+
+.editor-group-container:hover {
+  background-color: var(--layer-1, rgba(255, 255, 255, 0.03));
+}
+
+/* Group Resizer */
+.group-resizer {
+  background-color: var(--border, #3c3c3c);
+  flex-shrink: 0;
+  transition: background-color 0.15s ease;
+  z-index: 10;
+}
+
+.group-resizer.horizontal {
+  width: 4px;
+  cursor: ew-resize;
+}
+
+.group-resizer.vertical {
+  height: 4px;
+  cursor: ns-resize;
+}
+
+.group-resizer:hover,
+.group-resizer.dragging {
+  background-color: var(--accent-primary, #007acc);
+}
+
+/* Dragging states */
+.editor-tab.dragging {
+  opacity: 0.5;
+}
+
+.editor-tabs-list.drag-over {
+  background-color: rgba(0, 122, 204, 0.1);
+}
+
+/* Group split button */
+.group-split-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid var(--border, #3c3c3c);
+  border-radius: 4px;
+  color: var(--ink, #cccccc);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s ease;
+}
+
+.group-split-button:hover {
+  background-color: var(--layer-2, rgba(255, 255, 255, 0.08));
+  border-color: var(--ink, #cccccc);
+}
+
+.group-close-button {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.editor-group-container:hover .group-close-button {
+  opacity: 1;
+}
