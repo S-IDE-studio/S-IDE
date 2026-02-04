@@ -124,3 +124,34 @@ export interface LocalServer {
   status: string;
   type: string;
 }
+
+// Unified Tab Panel System
+export type TabKind = 'agent' | 'workspace' | 'deck' | 'terminal' | 'editor';
+
+export interface UnifiedTab {
+  id: string;
+  kind: TabKind;
+  title: string;
+  icon?: string;
+  dirty?: boolean;
+  data: {
+    agent?: { id: string; name: string; icon: string };
+    workspace?: { id: string; path: string; name: string };
+    deck?: { id: string; name: string; root: string; workspaceId: string };
+    terminal?: { id: string; command: string; cwd: string };
+    editor?: EditorFile;
+  };
+}
+
+export interface PanelGroup {
+  id: string;
+  tabs: UnifiedTab[];
+  activeTabId: string | null;
+  focused: boolean;
+  percentage: number;
+}
+
+export interface PanelLayout {
+  direction: 'horizontal' | 'vertical' | 'single';
+  sizes: number[];
+}
