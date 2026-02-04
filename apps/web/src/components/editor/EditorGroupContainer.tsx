@@ -30,6 +30,7 @@ export function EditorGroupContainer({
   onSaveTab,
   savingTabId,
   onFocus,
+  onTabsReorder,
 }: EditorGroupContainerProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const cursorPositionRef = useRef({ line: 1, column: 1 });
@@ -131,7 +132,7 @@ export function EditorGroupContainer({
         onTabSelect={onSelectTab}
         onTabClose={onCloseTab}
         savingFileId={savingTabId}
-        isDraggable={false}
+        onTabsReorder={onTabsReorder ?? (() => {})}
       />
 
       {/* Breadcrumb */}

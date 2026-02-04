@@ -1,5 +1,21 @@
 import { X, Loader2 } from "lucide-react";
 import { memo, useCallback } from "react";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { EditorFile } from "../../types";
 
 interface EditorTabListProps {
@@ -8,7 +24,7 @@ interface EditorTabListProps {
   onTabSelect: (tabId: string) => void;
   onTabClose: (tabId: string) => void;
   savingFileId: string | null;
-  isDraggable?: boolean; // Will be enabled in later task
+  onTabsReorder: (tabs: EditorFile[]) => void;
 }
 
 // File extension to icon mapping (same as EditorPane)
@@ -38,30 +54,119 @@ function getFileIcon(filename: string): { icon: string; color: string } {
   return iconMap[ext] || { icon: "📄", color: "var(--ink-muted)" };
 }
 
+// Sortable Tab Component
+interface SortableTabProps {
+  file: EditorFile;
+  isActive: boolean;
+  isSaving: boolean;
+  onSelect: () => void;
+  onClose: (e: React.MouseEvent) => void;
+}
+
+function SortableTab({ file, isActive, isSaving, onSelect, onClose }: SortableTabProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: file.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const { icon, color } = getFileIcon(file.name);
+
+  // Exclude 'role' and 'tabIndex' from dnd-kit attributes to use our own
+  const { role, tabIndex, ...dndAttributes } = attributes;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`editor-tab ${isActive ? "active" : ""} ${file.dirty ? "dirty" : ""}`}
+      role="tab"
+      aria-selected={isActive}
+      tabIndex={0}
+      onClick={onSelect}
+      onMouseDown={(e) => {
+        // Middle click to close
+        if (e.button === 1) {
+          e.preventDefault();
+          onClose(e);
+        }
+      }}
+      {...dndAttributes}
+      {...listeners}
+    >
+      <span className="editor-tab-icon" style={{ color }}>
+        {icon}
+      </span>
+      <span className="editor-tab-name">{file.name}</span>
+      {file.dirty && !isSaving && (
+        <span className="editor-tab-dirty" aria-label="未保存">
+          ●
+        </span>
+      )}
+      {isSaving && (
+        <span className="editor-tab-saving" aria-label="保存中">
+          <Loader2 size={14} className="spin" />
+        </span>
+      )}
+      <button
+        type="button"
+        className="editor-tab-close"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose(e);
+        }}
+        aria-label="閉じる"
+      >
+        <X size={14} />
+      </button>
+    </div>
+  );
+}
+
 export function EditorTabList({
   tabs,
   activeTabId,
   onTabSelect,
   onTabClose,
   savingFileId,
-  isDraggable = false,
+  onTabsReorder,
 }: EditorTabListProps) {
-  const handleCloseTab = useCallback(
-    (e: React.MouseEvent, fileId: string) => {
-      e.stopPropagation();
-      onTabClose(fileId);
-    },
-    [onTabClose]
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 5px movement before drag starts
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
   );
 
-  const handleTabMiddleClick = useCallback(
-    (e: React.MouseEvent, fileId: string) => {
-      if (e.button === 1) {
-        e.preventDefault();
-        onTabClose(fileId);
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+
+      if (over && active.id !== over.id) {
+        const oldIndex = tabs.findIndex((tab) => tab.id === active.id);
+        const newIndex = tabs.findIndex((tab) => tab.id === over.id);
+
+        const newTabs = [...tabs];
+        const [removed] = newTabs.splice(oldIndex, 1);
+        newTabs.splice(newIndex, 0, removed);
+
+        onTabsReorder(newTabs);
       }
     },
-    [onTabClose]
+    [tabs, onTabsReorder]
   );
 
   if (tabs.length === 0) {
@@ -70,48 +175,34 @@ export function EditorTabList({
 
   return (
     <div className="editor-tabs">
-      <div className="editor-tabs-list" role="tablist">
-        {tabs.map((file) => {
-          const { icon, color } = getFileIcon(file.name);
-          const isActive = file.id === activeTabId;
-          const isSaving = savingFileId === file.id;
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={tabs.map((t) => t.id)} strategy={rectSortingStrategy}>
+          <div className="editor-tabs-list" role="tablist">
+            {tabs.map((file) => {
+              const isActive = file.id === activeTabId;
+              const isSaving = savingFileId === file.id;
 
-          return (
-            <div
-              key={file.id}
-              className={`editor-tab ${isActive ? "active" : ""} ${file.dirty ? "dirty" : ""}`}
-              onClick={() => onTabSelect(file.id)}
-              onMouseDown={(e) => handleTabMiddleClick(e, file.id)}
-              role="tab"
-              aria-selected={isActive}
-              tabIndex={0}
-            >
-              <span className="editor-tab-icon" style={{ color }}>
-                {icon}
-              </span>
-              <span className="editor-tab-name">{file.name}</span>
-              {file.dirty && !isSaving && (
-                <span className="editor-tab-dirty" aria-label="未保存">
-                  ●
-                </span>
-              )}
-              {isSaving && (
-                <span className="editor-tab-saving" aria-label="保存中">
-                  <Loader2 size={14} className="spin" />
-                </span>
-              )}
-              <button
-                type="button"
-                className="editor-tab-close"
-                onClick={(e) => handleCloseTab(e, file.id)}
-                aria-label="閉じる"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          );
-        })}
-      </div>
+              return (
+                <SortableTab
+                  key={file.id}
+                  file={file}
+                  isActive={isActive}
+                  isSaving={isSaving}
+                  onSelect={() => onTabSelect(file.id)}
+                  onClose={(e) => {
+                    e.stopPropagation();
+                    onTabClose(file.id);
+                  }}
+                />
+              );
+            })}
+          </div>
+        </SortableContext>
+      </DndContext>
     </div>
   );
 }
