@@ -50,7 +50,7 @@
 
 .title-bar {
   display: grid;
-  grid-template-columns: auto 1fr auto auto; /* Icon + Center + Actions + Controls */
+  grid-template-columns: auto 1fr auto; /* Mobile toggle + Menu + Controls */
   align-items: center;
   height: 32px;
   background: var(--title-bar);
@@ -69,57 +69,10 @@
   justify-content: center;
 }
 
-.title-bar-app-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 100%;
-}
-
-.app-icon-img {
-  width: 16px;
-  height: 16px;
-  display: block;
-}
-
-.title-bar-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-}
-
 .title-bar-title {
   font-size: 12px;
   color: var(--fg-dim);
   font-weight: 500;
-}
-
-.title-bar-right {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 100%;
-  padding-right: 8px;
-}
-
-.title-bar-action-btn {
-  display: flex;
-  align-items: center;
-  padding: 0 10px;
-  height: 100%;
-  background: transparent;
-  border: none;
-  color: var(--fg);
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.15s;
-  border-radius: 4px;
-}
-
-.title-bar-action-btn:hover {
-  background: var(--list-hover);
 }
 
 /* Mobile mode toggle button */
@@ -154,8 +107,7 @@
 }
 
 /* Mobile mode styles */
-.title-bar--mobile .title-bar-center,
-.title-bar--mobile .title-bar-right {
+.title-bar--mobile .title-bar-menu {
   display: none;
 }
 
@@ -166,6 +118,37 @@
 .title-bar--mobile .title-bar-mobile-toggle {
   width: 100%;
   justify-content: center;
+}
+
+.title-bar-menu {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 100%;
+}
+
+.title-bar-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  height: 100%;
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+  /* Prevent button from capturing drag events */
+  pointer-events: auto;
+}
+
+.title-bar-menu-item:hover {
+  background: var(--list-hover);
+}
+
+.title-bar-menu-item svg {
+  flex-shrink: 0;
 }
 
 .title-bar-controls {
@@ -4371,102 +4354,4 @@ input:focus-visible {
   to {
     transform: rotate(360deg);
   }
-}
-
-/* ========================================
-   Editor Groups Container
-   ======================================== */
-
-/* Editor Groups Container */
-.editor-groups-container {
-  display: flex;
-  flex-direction: row;
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-}
-
-.editor-groups-container.vertical {
-  flex-direction: column;
-}
-
-/* Editor Group Container */
-.editor-group-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  width: 100%;
-  border: 1px solid transparent;
-  transition: border-color 0.15s ease;
-  position: relative;
-}
-
-.editor-group-container.focused {
-  border-top-color: var(--accent-primary, #007acc);
-  border-top-width: 2px;
-}
-
-.editor-group-container:hover {
-  background-color: var(--layer-1, rgba(255, 255, 255, 0.03));
-}
-
-/* Group Resizer */
-.group-resizer {
-  background-color: var(--border, #3c3c3c);
-  flex-shrink: 0;
-  transition: background-color 0.15s ease;
-  z-index: 10;
-}
-
-.group-resizer.horizontal {
-  width: 4px;
-  cursor: ew-resize;
-}
-
-.group-resizer.vertical {
-  height: 4px;
-  cursor: ns-resize;
-}
-
-.group-resizer:hover,
-.group-resizer.dragging {
-  background-color: var(--accent-primary, #007acc);
-}
-
-/* Dragging states */
-.editor-tab.dragging {
-  opacity: 0.5;
-}
-
-.editor-tabs-list.drag-over {
-  background-color: rgba(0, 122, 204, 0.1);
-}
-
-/* Group split button (context menu/action bar) */
-.group-split-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px 8px;
-  background: transparent;
-  border: 1px solid var(--border, #3c3c3c);
-  border-radius: 4px;
-  color: var(--ink, #cccccc);
-  cursor: pointer;
-  font-size: 12px;
-  transition: all 0.15s ease;
-}
-
-.group-split-button:hover {
-  background-color: var(--layer-2, rgba(255, 255, 255, 0.08));
-  border-color: var(--ink, #cccccc);
-}
-
-.group-close-button {
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-.editor-group-container:hover .group-close-button {
-  opacity: 1;
 }
