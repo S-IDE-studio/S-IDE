@@ -50,6 +50,7 @@ describe("EditorPane with Groups", () => {
     path: "/path/to/test.ts",
     language: "typescript",
     contents: "test content",
+    dirty: false,
   };
 
   const mockFile2: EditorFile = {
@@ -58,6 +59,7 @@ describe("EditorPane with Groups", () => {
     path: "/path/to/test2.ts",
     language: "typescript",
     contents: "test content 2",
+    dirty: false,
   };
 
   const defaultProps = {
