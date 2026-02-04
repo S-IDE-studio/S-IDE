@@ -14,6 +14,7 @@ export type {
   Deck,
   DeckState,
   EditorFile,
+  EditorGroup,
   FileEntryType,
   FileSystemEntry,
   FileTreeNode,
@@ -26,6 +27,7 @@ export type {
   GitFileStatusWithRepo,
   GitRepoInfo,
   GitStatus,
+  GroupLayout,
   MultiRepoGitStatus,
   SaveFileRequest,
   TerminalGroup,
@@ -47,20 +49,6 @@ export type AppView = "workspace" | "terminal";
 export type WorkspaceMode = "list" | "editor";
 export type ThemeMode = "light" | "dark";
 export type SidebarPanel = "files" | "git" | "ai" | "settings" | "servers" | "mcp";
-
-// Editor Groups for VSCode-style tab management
-export interface EditorGroup {
-  id: string;
-  tabs: EditorFile[];
-  activeTabId: string | null;
-  focused: boolean;
-  percentage: number; // Split size percentage (for resize)
-}
-
-export interface GroupLayout {
-  direction: 'horizontal' | 'vertical' | 'single';
-  sizes: number[]; // Size percentages for each group
-}
 
 export interface DragTabData {
   tabId: string;
