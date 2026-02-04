@@ -91,6 +91,14 @@ export function EditorPane({
     [handleFocusGroup]
   );
 
+  // Create tabs reorder handler for specific group
+  const createReorderHandler = useCallback(
+    (groupId: string) => (tabs: EditorFile[]) => {
+      onReorderTabsInGroup?.(groupId, tabs);
+    },
+    [onReorderTabsInGroup]
+  );
+
   // Single group layout (same as existing UI)
   if (layout.direction === "single" || groups.length === 1) {
     const group = groups[0];
@@ -115,6 +123,9 @@ export function EditorPane({
         onSaveTab={handleSaveTab}
         savingTabId={savingFileId}
         onFocus={createFocusHandler(group.id)}
+        onTabsReorder={createReorderHandler(group.id)}
+        onSplitGroup={onSplitGroup}
+        groupId={group.id}
       />
     );
   }
@@ -133,6 +144,9 @@ export function EditorPane({
           onSaveTab={handleSaveTab}
           savingTabId={savingFileId}
           onFocus={createFocusHandler(group.id)}
+          onTabsReorder={createReorderHandler(group.id)}
+          onSplitGroup={onSplitGroup}
+          groupId={group.id}
         />
       ))}
     </div>

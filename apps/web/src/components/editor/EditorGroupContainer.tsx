@@ -1,4 +1,4 @@
-import { File as FileIcon } from "lucide-react";
+import { File as FileIcon, Plus } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
@@ -16,6 +16,8 @@ interface EditorGroupContainerProps {
   savingTabId: string | null;
   onFocus: () => void;
   onTabsReorder?: (tabs: EditorFile[]) => void;
+  onSplitGroup?: (groupId: string, direction: "horizontal" | "vertical") => void;
+  groupId: string;
 }
 
 const LABEL_EMPTY = "ファイルを選択してください";
@@ -31,6 +33,8 @@ export function EditorGroupContainer({
   savingTabId,
   onFocus,
   onTabsReorder,
+  onSplitGroup,
+  groupId,
 }: EditorGroupContainerProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const cursorPositionRef = useRef({ line: 1, column: 1 });
@@ -100,6 +104,15 @@ export function EditorGroupContainer({
     onFocus();
   }, [onFocus]);
 
+  // Split group handlers
+  const handleSplitHorizontal = useCallback(() => {
+    onSplitGroup?.(groupId, "horizontal");
+  }, [groupId, onSplitGroup]);
+
+  const handleSplitVertical = useCallback(() => {
+    onSplitGroup?.(groupId, "vertical");
+  }, [groupId, onSplitGroup]);
+
   // Empty state
   if (group.tabs.length === 0) {
     return (
@@ -126,14 +139,29 @@ export function EditorGroupContainer({
       onClick={handleContainerClick}
     >
       {/* Tab Bar */}
-      <EditorTabList
-        tabs={group.tabs}
-        activeTabId={group.activeTabId}
-        onTabSelect={onSelectTab}
-        onTabClose={onCloseTab}
-        savingFileId={savingTabId}
-        onTabsReorder={onTabsReorder ?? (() => {})}
-      />
+      <div className="editor-tabs-wrapper">
+        <EditorTabList
+          tabs={group.tabs}
+          activeTabId={group.activeTabId}
+          onTabSelect={onSelectTab}
+          onTabClose={onCloseTab}
+          savingFileId={savingTabId}
+          onTabsReorder={onTabsReorder ?? (() => {})}
+        />
+        {onSplitGroup && (
+          <div className="editor-tab-actions">
+            <button
+              type="button"
+              className="editor-tab-action-button"
+              onClick={handleSplitHorizontal}
+              title="Split horizontally"
+              aria-label="Split horizontally"
+            >
+              <Plus size={14} />
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Breadcrumb */}
       {activeFile && (
