@@ -74,6 +74,19 @@ export function createAgentRouter() {
   });
 
   /**
+   * GET /mcp-status - Get MCP servers status for UI
+   */
+  router.get("/mcp-status", (c) => {
+    const agents = getAllAgents();
+    const servers = agents.map((agent) => ({
+      name: agent.id,
+      status: "active",
+      capabilities: ["messaging", "broadcast", "task-handoff"],
+    }));
+    return c.json(servers);
+  });
+
+  /**
    * GET /api/agents/:id - Get agent details
    */
   router.get("/:id", async (c) => {

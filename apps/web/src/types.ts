@@ -43,7 +43,7 @@ export type {
 export type AppView = "workspace" | "terminal";
 export type WorkspaceMode = "list" | "editor";
 export type ThemeMode = "light" | "dark";
-export type SidebarPanel = "files" | "git" | "ai" | "settings";
+export type SidebarPanel = "files" | "git" | "ai" | "settings" | "servers" | "mcp";
 
 export interface UrlState {
   view: AppView;
@@ -93,4 +93,13 @@ export interface Skill {
   description?: string;
   enabled?: boolean;
   status?: "active" | "inactive" | "error";
+}
+
+// Local server detection types
+export interface LocalServer {
+  name: string;
+  url: string;
+  port: number;
+  status: string;
+  type: string;
 }

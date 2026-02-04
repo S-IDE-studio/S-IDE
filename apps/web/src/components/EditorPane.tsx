@@ -1,7 +1,7 @@
 import Editor, { type OnMount } from "@monaco-editor/react";
 import { File as FileIcon, GitBranch, Loader2, X } from "lucide-react";
 import type monaco from "monaco-editor";
-import { memo, useCallback, useEffect, useRef } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { EDITOR_FONT_FAMILY, EDITOR_FONT_SIZE } from "../constants";
 import type { EditorFile } from "../types";
 
@@ -82,13 +82,31 @@ export function EditorPane({
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const cursorPositionRef = useRef({ line: 1, column: 1 });
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const [isEditorReady, setIsEditorReady] = useState(false);
+
+  // Delay editor rendering until container has proper dimensions
+  useEffect(() => {
+    const timer = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setIsEditorReady(true);
+      });
+    });
+    return () => cancelAnimationFrame(timer);
+  }, [activeFileId]);
 
   const handleEditorMount: OnMount = useCallback((editor) => {
     editorRef.current = editor;
 
-    // Manually handle layout resize since automaticLayout is disabled
+    // Set up resize observer to handle layout changes
     const resizeObserver = new ResizeObserver(() => {
-      editor.layout();
+      // Use requestAnimationFrame to ensure DOM has updated before layout
+      requestAnimationFrame(() => {
+        try {
+          editor.layout();
+        } catch {
+          // Ignore layout errors during initialization
+        }
+      });
     });
     resizeObserverRef.current = resizeObserver;
     const container = editor.getContainerDomNode();
@@ -206,36 +224,56 @@ export function EditorPane({
       {/* Editor Area */}
       <div className="editor-content">
         {activeFile ? (
-          <div style={{ height: "100%", overflow: "hidden" }}>
-            <Editor
-              key={activeFile.id}
-              height="100%"
-              theme={MONACO_THEME}
-              language={activeFile.language}
-              value={activeFile.contents}
-              onChange={(value) => onChangeFile(activeFile.id, value ?? "")}
-              onMount={handleEditorMount}
-              options={{
-                fontFamily: EDITOR_FONT_FAMILY,
-                fontSize: EDITOR_FONT_SIZE,
-                fontLigatures: true,
-                minimap: { enabled: true, scale: 1, showSlider: "mouseover" },
-                smoothScrolling: true,
-                cursorBlinking: "smooth",
-                cursorSmoothCaretAnimation: "on",
-                renderLineHighlight: "all",
-                scrollBeyondLastLine: false,
-                automaticLayout: false,
-                padding: { top: 8, bottom: 8 },
-                lineNumbers: "on",
-                renderWhitespace: "selection",
-                bracketPairColorization: { enabled: true },
-                guides: {
-                  bracketPairs: true,
-                  indentation: true,
-                },
-              }}
-            />
+          <div style={{ height: "100%", width: "100%", overflow: "hidden" }}>
+            {isEditorReady ? (
+              <Editor
+                key={activeFile.id}
+                height="100%"
+                width="100%"
+                theme={MONACO_THEME}
+                language={activeFile.language}
+                value={activeFile.contents}
+                onChange={(value) => onChangeFile(activeFile.id, value ?? "")}
+                onMount={handleEditorMount}
+                options={{
+                  fontFamily: EDITOR_FONT_FAMILY,
+                  fontSize: EDITOR_FONT_SIZE,
+                  fontLigatures: true,
+                  minimap: { enabled: false },
+                  smoothScrolling: false,
+                  cursorBlinking: "smooth",
+                  cursorSmoothCaretAnimation: "on",
+                  renderLineHighlight: "all",
+                  scrollBeyondLastLine: false,
+                  automaticLayout: true,
+                  padding: { top: 8, bottom: 8 },
+                  lineNumbers: "on",
+                  renderWhitespace: "selection",
+                  bracketPairColorization: { enabled: true },
+                  guides: {
+                    bracketPairs: true,
+                    indentation: true,
+                  },
+                  scrollbar: {
+                    useShadows: false,
+                    vertical: "auto",
+                    horizontal: "auto",
+                  },
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  height: "100%",
+                  color: "var(--ink-muted)",
+                }}
+              >
+                エディターを初期化中...
+              </div>
+            )}
           </div>
         ) : (
           <div className="editor-no-file">

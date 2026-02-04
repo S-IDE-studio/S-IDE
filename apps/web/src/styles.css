@@ -1401,6 +1401,7 @@ textarea {
 .editor-content {
   flex: 1;
   min-height: 0;
+  min-height: 200px;
   position: relative;
 }
 
@@ -3989,4 +3990,368 @@ input:focus-visible {
 .env-action-btn:hover {
   background: var(--list-hover);
   border-color: var(--accent);
+}
+
+/* ========================================
+   Server List Panel
+   ======================================== */
+
+.server-list-panel {
+  background: var(--bg-soft);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.server-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.server-list-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.server-list-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.icon-button {
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.2s;
+  color: var(--ink-muted);
+}
+
+.icon-button:hover:not(:disabled) {
+  background: var(--list-hover);
+  color: var(--ink);
+}
+
+.icon-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.server-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.server-list-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.server-list-item {
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border: 1px solid transparent;
+}
+
+.server-list-item:hover {
+  background: var(--list-hover);
+}
+
+.server-list-item.selected {
+  background: var(--list-active);
+  border-color: var(--border-active);
+}
+
+.server-item-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.server-status-indicator {
+  font-size: 10px;
+}
+
+.server-status-indicator[data-status="running"] {
+  color: #22c55e;
+}
+
+.server-status-indicator[data-status="error"] {
+  color: #ef4444;
+}
+
+.server-status-indicator[data-status="unknown"] {
+  color: var(--ink-muted);
+}
+
+.server-name {
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.server-item-details {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.server-item-url {
+  font-size: 10px;
+  color: var(--ink-muted);
+  word-break: break-all;
+  opacity: 0.8;
+}
+
+/* MCP badge in server header */
+.server-mcp-badge {
+  margin-left: auto;
+  padding: 2px 6px;
+  font-size: 9px;
+  background: rgba(124, 58, 237, 0.2);
+  color: #a78bfa;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+/* MCP server list */
+.server-mcp-list {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.server-mcp-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.2);
+  font-size: 10px;
+}
+
+.server-mcp-item.status-active {
+  background: rgba(34, 197, 94, 0.15);
+}
+
+.server-mcp-item.status-inactive {
+  background: rgba(234, 179, 8, 0.15);
+}
+
+.server-mcp-item.status-error {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.mcp-status-indicator {
+  font-size: 8px;
+}
+
+.mcp-status-indicator[data-status="active"] {
+  color: #22c55e;
+}
+
+.mcp-status-indicator[data-status="inactive"] {
+  color: #eab308;
+}
+
+.mcp-status-indicator[data-status="error"] {
+  color: #ef4444;
+}
+
+.mcp-name {
+  flex: 1;
+  color: var(--ink-dim);
+}
+
+/* MCP Panel */
+.mcp-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-soft);
+}
+
+.mcp-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-soft);
+}
+
+.mcp-panel-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.mcp-panel-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+.mcp-server-selector {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mcp-server-selector label {
+  font-size: 12px;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.mcp-server-selector select {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.mcp-selected-server {
+  padding: 8px 16px;
+  background: rgba(124, 58, 237, 0.1);
+  border-bottom: 1px solid var(--border);
+}
+
+.mcp-server-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mcp-server-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.mcp-server-url {
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.mcp-server-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mcp-server-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  transition: all 0.15s ease;
+}
+
+.mcp-server-item:hover {
+  border-color: rgba(124, 58, 237, 0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.mcp-server-item.status-active {
+  border-left: 3px solid #22c55e;
+}
+
+.mcp-server-item.status-inactive {
+  border-left: 3px solid #eab308;
+}
+
+.mcp-server-item.status-error {
+  border-left: 3px solid #ef4444;
+}
+
+.mcp-server-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mcp-server-item-header .status-active {
+  color: #22c55e;
+}
+
+.mcp-server-item-header .status-inactive {
+  color: #eab308;
+}
+
+.mcp-server-item-header .status-error {
+  color: #ef4444;
+}
+
+.mcp-server-item-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.mcp-server-item-status {
+  font-size: 11px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: var(--bg-soft);
+  color: var(--ink-muted);
+}
+
+.mcp-server-capabilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.mcp-capability-tag {
+  font-size: 10px;
+  padding: 2px 6px;
+  background: rgba(124, 58, 237, 0.15);
+  color: #a78bfa;
+  border-radius: 10px;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

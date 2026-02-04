@@ -43,7 +43,25 @@ export function TerminalTile({ session, wsUrl, onDelete, onError }: TerminalTile
     if (!containerRef.current) {
       return;
     }
+
+    // Initialize cleanup flags at the start
+    let cancelled = false;
+    let isIntentionalClose = false;
+    let reconnectAttempts = 0;
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    let hasConnectedOnce = false;
+
+    // Clear container and set explicit dimensions BEFORE opening terminal
+    // This prevents "Cannot read properties of undefined (reading 'dimensions')" error
     containerRef.current.innerHTML = "";
+    containerRef.current.style.width = "100%";
+    containerRef.current.style.height = "100%";
+    containerRef.current.style.minWidth = "300px";
+    containerRef.current.style.minHeight = "200px";
+
+    // Force a layout reflow to ensure dimensions are applied
+    void containerRef.current.offsetWidth;
+
     const term = new Terminal({
       cursorBlink: true,
       fontFamily: TERMINAL_FONT_FAMILY,
@@ -53,16 +71,14 @@ export function TerminalTile({ session, wsUrl, onDelete, onError }: TerminalTile
       convertEol: false,
       // Don't use windowsMode with ConPTY - it handles line discipline itself
       windowsMode: false,
+      // Provide explicit cols/rows to avoid auto-sizing during initialization
+      cols: 80,
+      rows: 24,
       theme: {
         background: TERMINAL_BACKGROUND_COLOR,
         foreground: TERMINAL_FOREGROUND_COLOR,
       },
-      // CRITICAL: Enable window operations for rich TUI mode
-      windowOptions: {
-        getWinSizePixels: true, // CSI 14t - pixel dimensions
-        getCellSizePixels: true, // CSI 16t - cell size for box drawing
-        getWinSizeChars: true, // CSI 18t - character grid size
-      },
+      // windowOptions disabled due to initialization issues
     });
 
     // Load addons for better TUI support
@@ -78,28 +94,32 @@ export function TerminalTile({ session, wsUrl, onDelete, onError }: TerminalTile
     term.unicode.activeVersion = "11";
 
     fitAddonRef.current = fitAddon;
-    term.open(containerRef.current);
 
-    // Load WebGL addon for better rendering performance (may fail on some systems)
-    // IMPORTANT: Must be loaded AFTER term.open() to ensure terminal is initialized
-    try {
-      const webglAddon = new WebglAddon();
-      term.loadAddon(webglAddon);
-      webglAddonRef.current = webglAddon;
-      // Set up context loss handler only after successful load
-      webglAddon.onContextLoss(() => {
-        console.warn("[WebGL] Context lost, disposing addon");
-        try {
-          webglAddon.dispose();
-          webglAddonRef.current = null;
-        } catch (err) {
-          console.error("[WebGL] Error disposing after context loss:", err);
+    // Open terminal in next tick to ensure container layout is complete
+    // This helps prevent "Cannot read properties of undefined (reading 'dimensions')" error
+    setTimeout(() => {
+      if (cancelled) return;
+      try {
+        term.open(containerRef.current);
+      } catch (err) {
+        console.warn("[Terminal] Error during terminal open:", err);
+      }
+
+      // Write boot message after terminal is opened
+      requestAnimationFrame(() => {
+        if (!cancelled) {
+          try {
+            term.write(`${TEXT_BOOT}${session.title}\r\n\r\n`);
+          } catch (err) {
+            console.warn("[Terminal] Error during initial write:", err);
+          }
         }
       });
-    } catch (error) {
-      console.warn("[WebGL] Failed to load WebGL addon, using canvas renderer:", error);
-      webglAddonRef.current = null;
-    }
+    }, 0);
+
+    // WebGL addon disabled due to initialization issues
+    // The canvas renderer provides stable rendering without WebGL context issues
+    webglAddonRef.current = null;
 
     // Register terminal query handlers to prevent TUI apps from hanging
     const sendResponse = (response: string) => {
@@ -414,8 +434,8 @@ export function TerminalTile({ session, wsUrl, onDelete, onError }: TerminalTile
       return false;
     });
 
-    fitAddon.fit();
-    term.write(`${TEXT_BOOT}${session.title}\r\n\r\n`);
+    // fitAddon.fit() and term.write() are called in requestAnimationFrame above
+    // to ensure proper initialization timing
 
     const sendResize = () => {
       const socket = socketRef.current;
@@ -427,18 +447,19 @@ export function TerminalTile({ session, wsUrl, onDelete, onError }: TerminalTile
     };
 
     const resizeObserver = new ResizeObserver(() => {
-      fitAddon.fit();
-      sendResize();
+      if (!cancelled && fitAddonRef.current) {
+        try {
+          fitAddon.fit();
+          sendResize();
+        } catch (err) {
+          console.warn("[Terminal] Error during resize:", err);
+        }
+      }
     });
     resizeObserver.observe(containerRef.current);
 
     let socket: WebSocket | null = null;
     let dataDisposable: IDisposable | null = null;
-    let cancelled = false;
-    let reconnectAttempts = 0;
-    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
-    let isIntentionalClose = false;
-    let hasConnectedOnce = false;
 
     // Fetch WebSocket token and connect
     const connect = async (isReconnect = false) => {

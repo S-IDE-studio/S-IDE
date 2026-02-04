@@ -1,19 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
-  <!-- Background - Cursor dark -->
-  <rect width="64" height="64" rx="12" fill="#1B1913"/>
-
-  <!-- Cursor cube mark - isometric cube with lightning bolt -->
-  <g transform="translate(32, 32)">
-    <!-- Top face -->
-    <path d="M0 -12 L10 -6 L0 0 L-10 -6 Z" fill="#EDECEC"/>
-
-    <!-- Left face -->
-    <path d="M-10 -6 L0 0 L0 12 L-10 6 Z" fill="#C4C4C4"/>
-
-    <!-- Right face -->
-    <path d="M0 0 L10 -6 L10 6 L0 12 Z" fill="#A8A8A8"/>
-
-    <!-- Lightning bolt cutout (from Cursor brand) -->
-    <path d="M-2 -7 L3 -7 L0 -2 L4 -2 L-2 7 L-2 7 L-4 2 L0 2 L-2 -7 Z" fill="#1B1913"/>
-  </g>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Ebene_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 466.73 532.09">
+  <!-- Generator: Adobe Illustrator 29.6.1, SVG Export Plug-In . SVG Version: 2.1.1 Build 9)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #edecec;
+      }
+    </style>
+  </defs>
+  <path class="st0" d="M457.43,125.94L244.42,2.96c-6.84-3.95-15.28-3.95-22.12,0L9.3,125.94c-5.75,3.32-9.3,9.46-9.3,16.11v247.99c0,6.65,3.55,12.79,9.3,16.11l213.01,122.98c6.84,3.95,15.28,3.95,22.12,0l213.01-122.98c5.75-3.32,9.3-9.46,9.3-16.11v-247.99c0-6.65-3.55-12.79-9.3-16.11h-.01ZM444.05,151.99l-205.63,356.16c-1.39,2.4-5.06,1.42-5.06-1.36v-233.21c0-4.66-2.49-8.97-6.53-11.31L24.87,145.67c-2.4-1.39-1.42-5.06,1.36-5.06h411.26c5.84,0,9.49,6.33,6.57,11.39h-.01Z"/>
 </svg>

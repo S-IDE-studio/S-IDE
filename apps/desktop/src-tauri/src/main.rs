@@ -4,6 +4,7 @@
 
 mod common;
 mod commands;
+mod scanner;
 mod server;
 mod tunnel;
 mod window;
@@ -43,6 +44,10 @@ pub fn run() {
             commands::get_tunnel_status,
             commands::check_environment,
             commands::check_port,
+            commands::scan_local_servers,
+            commands::get_mcp_servers,
+            commands::scan_local_servers_advanced,
+            commands::check_nmap_available,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

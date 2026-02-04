@@ -11,6 +11,33 @@ import type { AgentId } from "../types.js";
 const app = new Hono();
 
 /**
+ * Get registered agents
+ */
+app.get("/registered", (c) => {
+  const mcpServer = getMCPServer();
+  const agents = mcpServer.getRegisteredAgents();
+  return c.json({ agents });
+});
+
+/**
+ * Get MCP servers status for UI
+ * Returns list of registered agents with their status
+ */
+app.get("/servers", (c) => {
+  const mcpServer = getMCPServer();
+  const agents = mcpServer.getRegisteredAgents();
+
+  // Map agents to MCP status format
+  const servers = agents.map((agentId) => ({
+    name: agentId,
+    status: "active",
+    capabilities: ["messaging", "broadcast", "task-handoff"],
+  }));
+
+  return c.json(servers);
+});
+
+/**
  * Send a message to a specific agent
  */
 app.post("/:from/send/:to", async (c) => {
@@ -103,15 +130,6 @@ app.post("/:from/handoff/:to", async (c) => {
       500
     );
   }
-});
-
-/**
- * Get registered agents
- */
-app.get("/registered", (c) => {
-  const mcpServer = getMCPServer();
-  const agents = mcpServer.getRegisteredAgents();
-  return c.json({ agents });
 });
 
 export function createAgentBridgeRouter() {
