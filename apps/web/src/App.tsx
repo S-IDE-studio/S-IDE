@@ -48,7 +48,13 @@ import { createEditorGroup, createSingleGroupLayout } from "./utils/editorGroupU
 import { createEmptyDeckState, createEmptyWorkspaceState } from "./utils/stateUtils";
 import { parseUrlState } from "./utils/urlUtils";
 import { MemoizedUnifiedPanelView } from "./components/panel/UnifiedPanelView";
-import { createSinglePanelLayout } from "./utils/unifiedTabUtils";
+import {
+  createSinglePanelLayout,
+  agentToTab,
+  workspaceToTab,
+  deckToTab,
+  editorToTab,
+} from "./utils/unifiedTabUtils";
 import type { PanelGroup, PanelLayout } from "./types";
 
 export default function App() {
@@ -140,7 +146,7 @@ export default function App() {
     savingFileId,
     handleRefreshTree,
     handleToggleDir,
-    handleOpenFile,
+    handleOpenFile: baseHandleOpenFile,
     handleFileChange,
     handleSaveFile,
     handleCloseFile,
@@ -154,6 +160,13 @@ export default function App() {
     updateWorkspaceState,
     setStatusMessage,
   });
+
+  // Wrap handleOpenFile to add tab to panel
+  const handleOpenFile = useCallback((...args: Parameters<typeof baseHandleOpenFile>) => {
+    const result = baseHandleOpenFile(...args);
+    // Add tab after file is opened (activeWorkspaceState.files will be updated)
+    return result;
+  }, [baseHandleOpenFile]);
 
   // Editor group handlers
   const handleSplitGroup = useCallback(
@@ -320,6 +333,76 @@ export default function App() {
     setFocusedPanelId(groupId);
   }, []);
 
+  // Tab population helpers
+  const addTabToPanel = useCallback((tab: import('./types').UnifiedTab) => {
+    setPanelGroups(prev => {
+      if (prev.length === 0) {
+        return createSinglePanelLayout().groups;
+      }
+
+      // Add to first panel for now (can be extended later)
+      const newGroups = [...prev];
+      newGroups[0] = {
+        ...newGroups[0],
+        tabs: [...newGroups[0].tabs, tab],
+        activeTabId: tab.id,
+      };
+      return newGroups;
+    });
+  }, []);
+
+  // Handler for adding agent tab
+  const handleAddAgentTab = useCallback((agent: import('./types').Agent) => {
+    const tab = agentToTab(agent);
+    addTabToPanel(tab);
+  }, [addTabToPanel]);
+
+  // Handler for adding workspace tab
+  const handleAddWorkspaceTab = useCallback((workspace: import('./types').Workspace) => {
+    const tab = workspaceToTab(workspace);
+    addTabToPanel(tab);
+  }, [addTabToPanel]);
+
+  // Handler for adding deck tab
+  const handleAddDeckTab = useCallback((deck: import('./types').Deck) => {
+    const tab = deckToTab(deck);
+    addTabToPanel(tab);
+  }, [addTabToPanel]);
+
+  // Handler for adding editor tab
+  const handleAddEditorTab = useCallback((file: EditorFile) => {
+    const tab = editorToTab(file);
+    addTabToPanel(tab);
+  }, [addTabToPanel]);
+
+  // Initialize panels with existing data
+  useEffect(() => {
+    // Add existing workspaces as tabs
+    workspaces.forEach(workspace => {
+      handleAddWorkspaceTab(workspace);
+    });
+
+    // Add existing decks as tabs
+    decks.forEach(deck => {
+      handleAddDeckTab(deck);
+    });
+  }, []); // Only run on mount
+
+  // Add editor tabs when files change
+  useEffect(() => {
+    if (activeWorkspaceState.files && activeWorkspaceState.files.length > 0) {
+      activeWorkspaceState.files.forEach(file => {
+        // Check if tab doesn't already exist
+        const tabExists = panelGroups.some(group =>
+          group.tabs.some(tab => tab.kind === 'editor' && tab.data.editor?.id === file.id)
+        );
+        if (!tabExists) {
+          handleAddEditorTab(file);
+        }
+      });
+    }
+  }, [activeWorkspaceState.files, panelGroups, handleAddEditorTab]);
+
   const {
     gitState,
     refreshGitStatus,
@@ -461,6 +544,12 @@ export default function App() {
           const data = await res.json();
           if (signal.aborted) return;
           setAgents(data);
+          // Add agent tabs for enabled agents
+          data.forEach((agent: import('./types').Agent) => {
+            if (agent.enabled) {
+              handleAddAgentTab(agent);
+            }
+          });
           // Set first enabled agent as active if none selected
           // This only runs when no agent is currently selected
           if (!activeAgent && data.length > 0) {
@@ -525,9 +614,10 @@ export default function App() {
       const deck = await handleCreateDeck(name, workspaceId);
       if (deck) {
         setIsDeckModalOpen(false);
+        handleAddDeckTab(deck);
       }
     },
-    [handleCreateDeck, setStatusMessage]
+    [handleCreateDeck, setStatusMessage, handleAddDeckTab]
   );
 
   const handleSaveSettings = useCallback(
@@ -589,9 +679,10 @@ export default function App() {
       const created = await handleCreateWorkspace(path);
       if (created) {
         setIsWorkspaceModalOpen(false);
+        handleAddWorkspaceTab(created);
       }
     },
-    [handleCreateWorkspace]
+    [handleCreateWorkspace, handleAddWorkspaceTab]
   );
 
   const handleNewTerminalForDeck = useCallback(
