@@ -1,16 +1,24 @@
-import { Smartphone } from "lucide-react";
+import { Smartphone, Plus, Folder, Layers, Square, Terminal } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface TitleBarProps {
   onOpenSettings?: () => void;
   onOpenServerModal?: () => void;
   onToggleContextStatus?: () => void;
+  onOpenWorkspaceModal?: () => void;
+  onOpenDeckModal?: () => void;
+  onCreateAgent?: () => void;
+  onNewTerminal?: () => void;
 }
 
 export function TitleBar({
   onOpenSettings,
   onOpenServerModal,
   onToggleContextStatus,
+  onOpenWorkspaceModal,
+  onOpenDeckModal,
+  onCreateAgent,
+  onNewTerminal,
 }: TitleBarProps) {
   const [isTauri, setIsTauri] = useState(false);
   const [isMobileMode, setIsMobileMode] = useState(false);
@@ -58,94 +66,102 @@ export function TitleBar({
     <div
       className={`title-bar ${isTauri ? "title-bar--tauri" : ""} ${isMobileMode ? "title-bar--mobile" : ""}`}
     >
-      {/* Left side - mobile mode toggle or empty */}
+      {/* Left side - app icon for Tauri, mobile mode toggle for web */}
       <div className="title-bar-left" data-tauri-drag-region={isTauri}>
-        <button
-          type="button"
-          className="title-bar-mobile-toggle"
-          onClick={handleToggleMobileMode}
-          title={isMobileMode ? "デスクトップモード" : "モバイルモード"}
-          aria-label="Toggle mobile mode"
-        >
-          <Smartphone size={14} />
-          <span className="mobile-mode-label">{isMobileMode ? "Desktop" : "Mobile"}</span>
-        </button>
+        {isTauri ? (
+          <div className="title-bar-app-icon" data-tauri-drag-region>
+            <img src="/icon-transparent.svg" alt="S-IDE" className="app-icon-img" />
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="title-bar-mobile-toggle"
+            onClick={handleToggleMobileMode}
+            title={isMobileMode ? "デスクトップモード" : "モバイルモード"}
+            aria-label="Toggle mobile mode"
+          >
+            <Smartphone size={14} />
+            <span className="mobile-mode-label">{isMobileMode ? "Desktop" : "Mobile"}</span>
+          </button>
+        )}
       </div>
 
-      {/* Menu items - VSCode style, draggable */}
-      <div className="title-bar-menu" data-tauri-drag-region={isTauri}>
-        <button
-          className="title-bar-menu-item"
-          data-tauri-drag-region={false}
-          onClick={() => {
-            /* TODO: File menu */
-          }}
-        >
-          File
-        </button>
-        <button
-          className="title-bar-menu-item"
-          data-tauri-drag-region={false}
-          onClick={() => {
-            /* TODO: Edit menu */
-          }}
-        >
-          Edit
-        </button>
-        <button
-          className="title-bar-menu-item"
-          data-tauri-drag-region={false}
-          onClick={() => {
-            /* TODO: Selection menu */
-          }}
-        >
-          Selection
-        </button>
-        <button
-          className="title-bar-menu-item"
-          data-tauri-drag-region={false}
-          onClick={() => {
-            /* TODO: View menu */
-          }}
-        >
-          View
-        </button>
-        <button
-          className="title-bar-menu-item"
-          data-tauri-drag-region={false}
-          onClick={() => {
-            /* TODO: Go menu */
-          }}
-        >
-          Go
-        </button>
-        <button
-          className="title-bar-menu-item"
-          data-tauri-drag-region={false}
-          onClick={() => {
-            /* TODO: Run menu */
-          }}
-        >
-          Run
-        </button>
-        <button
-          className="title-bar-menu-item"
-          data-tauri-drag-region={false}
-          onClick={() => {
-            /* TODO: Terminal menu */
-          }}
-        >
-          Terminal
-        </button>
-        <button
-          className="title-bar-menu-item"
-          data-tauri-drag-region={false}
-          onClick={() => {
-            /* TODO: Help menu */
-          }}
-        >
-          Help
-        </button>
+      {/* Center - draggable area */}
+      <div className="title-bar-center" data-tauri-drag-region={isTauri}>
+        <span className="title-bar-title">S-IDE</span>
+      </div>
+
+      {/* Right side - functional buttons */}
+      <div className="title-bar-right">
+        {/* Panel Management Buttons */}
+        <div className="title-bar-panel-actions">
+          {onOpenWorkspaceModal && (
+            <button
+              type="button"
+              className="title-bar-action-btn"
+              data-tauri-drag-region={false}
+              onClick={onOpenWorkspaceModal}
+              title="ワークスペースを追加"
+            >
+              <Folder size={14} />
+            </button>
+          )}
+          {onOpenDeckModal && (
+            <button
+              type="button"
+              className="title-bar-action-btn"
+              data-tauri-drag-region={false}
+              onClick={onOpenDeckModal}
+              title="デッキを追加"
+            >
+              <Layers size={14} />
+            </button>
+          )}
+          {onCreateAgent && (
+            <button
+              type="button"
+              className="title-bar-action-btn"
+              data-tauri-drag-region={false}
+              onClick={onCreateAgent}
+              title="エージェントを追加"
+            >
+              <Square size={14} />
+            </button>
+          )}
+          {onNewTerminal && (
+            <button
+              type="button"
+              className="title-bar-action-btn"
+              data-tauri-drag-region={false}
+              onClick={onNewTerminal}
+              title="ターミナルを追加"
+            >
+              <Terminal size={14} />
+            </button>
+          )}
+        </div>
+        {onOpenServerModal && (
+          <button
+            type="button"
+            className="title-bar-action-btn"
+            data-tauri-drag-region={false}
+            onClick={onOpenServerModal}
+            title="サーバー"
+          >
+            サーバー
+          </button>
+        )}
+        {onOpenSettings && (
+          <button
+            type="button"
+            className="title-bar-action-btn"
+            data-tauri-drag-region={false}
+            onClick={onOpenSettings}
+            title="設定"
+          >
+            設定
+          </button>
+        )}
       </div>
 
       {/* Window controls - only show in Tauri */}

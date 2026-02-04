@@ -1053,6 +1053,20 @@ export default function App() {
         onOpenSettings={() => setIsSettingsModalOpen(true)}
         onOpenServerModal={() => setIsServerModalOpen(true)}
         onToggleContextStatus={() => setShowContextStatus((prev) => !prev)}
+        onOpenWorkspaceModal={() => setIsWorkspaceModalOpen(true)}
+        onOpenDeckModal={() => setIsDeckModalOpen(true)}
+        onCreateAgent={() => {/* TODO: Implement agent creation */}}
+        onNewTerminal={() => {
+          // Create a new terminal in the first available deck
+          const firstDeckId = activeDeckIds[0];
+          if (firstDeckId) {
+            handleNewTerminalForDeck(firstDeckId);
+          } else if (decks.length > 0) {
+            handleNewTerminalForDeck(decks[0].id);
+          } else {
+            setIsDeckModalOpen(true);
+          }
+        }}
       />
       <main className="main">
         <div className="unified-layout">
