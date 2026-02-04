@@ -1,11 +1,10 @@
-import Editor, { type OnMount } from "@monaco-editor/react";
-import { File as FileIcon, GitBranch, Loader2, X } from "lucide-react";
-import type monaco from "monaco-editor";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { EDITOR_FONT_FAMILY, EDITOR_FONT_SIZE } from "../constants";
-import type { EditorFile } from "../types";
+import { memo, useCallback } from "react";
+import type { EditorFile, EditorGroup, GroupLayout } from "../types";
+import { createSingleGroupLayout } from "../utils/editorGroupUtils";
+import { MemoizedEditorGroupContainer } from "./editor/EditorGroupContainer";
 
 interface EditorPaneProps {
+  // Existing props for backward compatibility
   files: EditorFile[];
   activeFileId: string | null;
   onSelectFile: (fileId: string) => void;
@@ -13,60 +12,16 @@ interface EditorPaneProps {
   onChangeFile: (fileId: string, contents: string) => void;
   onSaveFile?: (fileId: string) => void;
   savingFileId: string | null;
-}
 
-const LABEL_EMPTY = "ファイルを選択してください";
-const MONACO_THEME = "vs-dark";
-
-// File extension to icon mapping
-function getFileIcon(filename: string): { icon: string; color: string } {
-  const ext = filename.split(".").pop()?.toLowerCase() || "";
-  const iconMap: Record<string, { icon: string; color: string }> = {
-    ts: { icon: "TS", color: "#3178c6" },
-    tsx: { icon: "TSX", color: "#3178c6" },
-    js: { icon: "JS", color: "#f7df1e" },
-    jsx: { icon: "JSX", color: "#61dafb" },
-    json: { icon: "{ }", color: "#cbcb41" },
-    html: { icon: "<>", color: "#e34c26" },
-    css: { icon: "#", color: "#264de4" },
-    scss: { icon: "S", color: "#cc6699" },
-    md: { icon: "M↓", color: "#083fa1" },
-    py: { icon: "PY", color: "#3776ab" },
-    go: { icon: "GO", color: "#00add8" },
-    rs: { icon: "RS", color: "#dea584" },
-    java: { icon: "J", color: "#b07219" },
-    sql: { icon: "SQL", color: "#e38c00" },
-    yml: { icon: "Y", color: "#cb171e" },
-    yaml: { icon: "Y", color: "#cb171e" },
-    sh: { icon: "$", color: "#89e051" },
-    bash: { icon: "$", color: "#89e051" },
-    txt: { icon: "TXT", color: "#6a737d" },
-  };
-  return iconMap[ext] || { icon: "📄", color: "var(--ink-muted)" };
-}
-
-// Get language display name
-function getLanguageDisplay(language: string): string {
-  const langMap: Record<string, string> = {
-    typescript: "TypeScript",
-    typescriptreact: "TypeScript React",
-    javascript: "JavaScript",
-    javascriptreact: "JavaScript React",
-    json: "JSON",
-    html: "HTML",
-    css: "CSS",
-    scss: "SCSS",
-    markdown: "Markdown",
-    python: "Python",
-    go: "Go",
-    rust: "Rust",
-    java: "Java",
-    sql: "SQL",
-    yaml: "YAML",
-    shell: "Shell",
-    plaintext: "Plain Text",
-  };
-  return langMap[language] || language;
+  // New props for group management
+  editorGroups?: EditorGroup[];
+  groupLayout?: GroupLayout;
+  onSplitGroup?: (groupId: string, direction: "horizontal" | "vertical") => void;
+  onCloseGroup?: (groupId: string) => void;
+  onFocusGroup?: (groupId: string) => void;
+  onResizeGroups?: (sizes: number[]) => void;
+  onMoveTabToGroup?: (tabId: string, fromGroupId: string, toGroupId: string) => void;
+  onReorderTabsInGroup?: (groupId: string, tabs: EditorFile[]) => void;
 }
 
 export function EditorPane({
@@ -77,240 +32,124 @@ export function EditorPane({
   onChangeFile,
   onSaveFile,
   savingFileId,
+  // New props (optional)
+  editorGroups,
+  groupLayout,
+  onSplitGroup,
+  onCloseGroup,
+  onFocusGroup,
+  onResizeGroups,
+  onMoveTabToGroup,
+  onReorderTabsInGroup,
 }: EditorPaneProps) {
-  const activeFile = files.find((file) => file.id === activeFileId);
-  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
-  const cursorPositionRef = useRef({ line: 1, column: 1 });
-  const resizeObserverRef = useRef<ResizeObserver | null>(null);
-  const [isEditorReady, setIsEditorReady] = useState(false);
+  // Backward compatibility: create single group layout if group info not provided
+  const groups = editorGroups ?? createSingleGroupLayout(files).groups;
+  const layout = groupLayout ?? { direction: "single" as const, sizes: [100] };
+  const focusedGroupId = groups.find((g) => g.focused)?.id ?? groups[0]?.id;
 
-  // Delay editor rendering until container has proper dimensions
-  useEffect(() => {
-    const timer = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        setIsEditorReady(true);
-      });
-    });
-    return () => cancelAnimationFrame(timer);
-  }, [activeFileId]);
+  // Convert existing API to group-based API
+  const handleSelectTab = useCallback(
+    (tabId: string) => {
+      onSelectFile(tabId);
+    },
+    [onSelectFile]
+  );
 
-  const handleEditorMount: OnMount = useCallback((editor) => {
-    editorRef.current = editor;
+  const handleCloseTab = useCallback(
+    (tabId: string) => {
+      onCloseFile(tabId);
+    },
+    [onCloseFile]
+  );
 
-    // Set up resize observer to handle layout changes
-    const resizeObserver = new ResizeObserver(() => {
-      // Use requestAnimationFrame to ensure DOM has updated before layout
-      requestAnimationFrame(() => {
-        try {
-          editor.layout();
-        } catch {
-          // Ignore layout errors during initialization
-        }
-      });
-    });
-    resizeObserverRef.current = resizeObserver;
-    const container = editor.getContainerDomNode();
-    if (container?.parentElement) {
-      resizeObserver.observe(container.parentElement);
-    }
+  const handleChangeTab = useCallback(
+    (tabId: string, contents: string) => {
+      onChangeFile(tabId, contents);
+    },
+    [onChangeFile]
+  );
 
-    editor.onDidChangeCursorPosition((e) => {
-      cursorPositionRef.current = {
-        line: e.position.lineNumber,
-        column: e.position.column,
-      };
-    });
-  }, []);
+  const handleSaveTab = useCallback(
+    (tabId: string) => {
+      onSaveFile?.(tabId);
+    },
+    [onSaveFile]
+  );
 
-  // Cleanup ResizeObserver when component unmounts
-  useEffect(() => {
-    return () => {
-      resizeObserverRef.current?.disconnect();
-    };
-  }, []);
+  const handleFocusGroup = useCallback(
+    (groupId: string) => {
+      onFocusGroup?.(groupId);
+    },
+    [onFocusGroup]
+  );
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!activeFile) return;
-      const isSave = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s";
-      if (!isSave) return;
-      event.preventDefault();
-      onSaveFile?.(activeFile.id);
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeFile, onSaveFile]);
+  // Create focus handler for specific group (for EditorGroupContainer)
+  const createFocusHandler = useCallback(
+    (groupId: string) => () => {
+      handleFocusGroup(groupId);
+    },
+    [handleFocusGroup]
+  );
 
-  const handleCloseTab = (e: React.MouseEvent, fileId: string) => {
-    e.stopPropagation();
-    onCloseFile(fileId);
-  };
-
-  const handleTabMiddleClick = (e: React.MouseEvent, fileId: string) => {
-    if (e.button === 1) {
-      e.preventDefault();
-      onCloseFile(fileId);
-    }
-  };
-
-  if (files.length === 0) {
-    return (
-      <div className="editor-container editor-empty">
-        <div className="editor-welcome">
-          <div className="editor-welcome-icon">
-            <FileIcon size={48} />
+  // Single group layout (same as existing UI)
+  if (layout.direction === "single" || groups.length === 1) {
+    const group = groups[0];
+    if (!group) {
+      return (
+        <div className="editor-container editor-empty">
+          <div className="editor-welcome">
+            <div className="editor-welcome-text">ファイルを選択してください</div>
           </div>
-          <div className="editor-welcome-text">{LABEL_EMPTY}</div>
-          <div className="editor-welcome-hint">左のファイルツリーからファイルを選択</div>
         </div>
-      </div>
+      );
+    }
+
+    return (
+      <MemoizedEditorGroupContainer
+        key={group.id}
+        group={group}
+        isFocused={group.id === focusedGroupId}
+        onSelectTab={handleSelectTab}
+        onCloseTab={handleCloseTab}
+        onChangeTab={handleChangeTab}
+        onSaveTab={handleSaveTab}
+        savingTabId={savingFileId}
+        onFocus={createFocusHandler(group.id)}
+      />
     );
   }
 
+  // Multiple group layout (TODO: implement in phase 5)
   return (
-    <div className="editor-container">
-      {/* Tab Bar */}
-      <div className="editor-tabs">
-        <div className="editor-tabs-list">
-          {files.map((file) => {
-            const { icon, color } = getFileIcon(file.name);
-            const isActive = file.id === activeFileId;
-            const isSaving = savingFileId === file.id;
-            return (
-              <div
-                key={file.id}
-                className={`editor-tab ${isActive ? "active" : ""} ${file.dirty ? "dirty" : ""}`}
-                onClick={() => onSelectFile(file.id)}
-                onMouseDown={(e) => handleTabMiddleClick(e, file.id)}
-                role="tab"
-                aria-selected={isActive}
-                tabIndex={0}
-              >
-                <span className="editor-tab-icon" style={{ color }}>
-                  {icon}
-                </span>
-                <span className="editor-tab-name">{file.name}</span>
-                {file.dirty && !isSaving && (
-                  <span className="editor-tab-dirty" aria-label="未保存">
-                    ●
-                  </span>
-                )}
-                {isSaving && (
-                  <span className="editor-tab-saving" aria-label="保存中">
-                    <Loader2 size={14} className="spin" />
-                  </span>
-                )}
-                <button
-                  type="button"
-                  className="editor-tab-close"
-                  onClick={(e) => handleCloseTab(e, file.id)}
-                  aria-label="閉じる"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Breadcrumb */}
-      {activeFile && (
-        <div className="editor-breadcrumb">
-          <span className="editor-breadcrumb-path">{activeFile.path}</span>
-        </div>
-      )}
-
-      {/* Editor Area */}
-      <div className="editor-content">
-        {activeFile ? (
-          <div style={{ height: "100%", width: "100%", overflow: "hidden" }}>
-            {isEditorReady ? (
-              <Editor
-                key={activeFile.id}
-                height="100%"
-                width="100%"
-                theme={MONACO_THEME}
-                language={activeFile.language}
-                value={activeFile.contents}
-                onChange={(value) => onChangeFile(activeFile.id, value ?? "")}
-                onMount={handleEditorMount}
-                options={{
-                  fontFamily: EDITOR_FONT_FAMILY,
-                  fontSize: EDITOR_FONT_SIZE,
-                  fontLigatures: true,
-                  minimap: { enabled: false },
-                  smoothScrolling: false,
-                  cursorBlinking: "smooth",
-                  cursorSmoothCaretAnimation: "on",
-                  renderLineHighlight: "all",
-                  scrollBeyondLastLine: false,
-                  automaticLayout: true,
-                  padding: { top: 8, bottom: 8 },
-                  lineNumbers: "on",
-                  renderWhitespace: "selection",
-                  bracketPairColorization: { enabled: true },
-                  guides: {
-                    bracketPairs: true,
-                    indentation: true,
-                  },
-                  scrollbar: {
-                    useShadows: false,
-                    vertical: "auto",
-                    horizontal: "auto",
-                  },
-                }}
-              />
-            ) : (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  height: "100%",
-                  color: "var(--ink-muted)",
-                }}
-              >
-                エディターを初期化中...
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="editor-no-file">
-            <span>{LABEL_EMPTY}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Status Bar */}
-      {activeFile && (
-        <div className="editor-statusbar">
-          <div className="editor-statusbar-left">
-            <span className="editor-status-item">
-              <GitBranch size={12} />
-              main
-            </span>
-          </div>
-          <div className="editor-statusbar-right">
-            <span className="editor-status-item">
-              Ln {cursorPositionRef.current.line}, Col {cursorPositionRef.current.column}
-            </span>
-            <span className="editor-status-item">UTF-8</span>
-            <span className="editor-status-item">{getLanguageDisplay(activeFile.language)}</span>
-          </div>
-        </div>
-      )}
+    <div className="editor-groups-container">
+      {groups.map((group) => (
+        <MemoizedEditorGroupContainer
+          key={group.id}
+          group={group}
+          isFocused={group.id === focusedGroupId}
+          onSelectTab={handleSelectTab}
+          onCloseTab={handleCloseTab}
+          onChangeTab={handleChangeTab}
+          onSaveTab={handleSaveTab}
+          savingTabId={savingFileId}
+          onFocus={createFocusHandler(group.id)}
+        />
+      ))}
     </div>
   );
 }
 
-// Memoize EditorPane to prevent unnecessary re-renders
-// Only re-render when files array reference changes or activeFileId changes
-const areEqual = (prevProps: EditorPaneProps, nextProps: EditorPaneProps) => {
+// Memoize for performance
+const areEqual = (
+  prevProps: EditorPaneProps,
+  nextProps: EditorPaneProps
+): boolean => {
   return (
     prevProps.files === nextProps.files &&
     prevProps.activeFileId === nextProps.activeFileId &&
-    prevProps.savingFileId === nextProps.savingFileId
+    prevProps.savingFileId === nextProps.savingFileId &&
+    prevProps.editorGroups === nextProps.editorGroups &&
+    prevProps.groupLayout === nextProps.groupLayout
   );
 };
 
