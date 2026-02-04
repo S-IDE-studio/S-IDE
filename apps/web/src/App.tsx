@@ -12,6 +12,8 @@ import { EditorPane } from "./components/EditorPane";
 import { EnvironmentModal } from "./components/EnvironmentModal";
 import { FileTree } from "./components/FileTree";
 import { GlobalStatusBar } from "./components/GlobalStatusBar";
+import { MCPPanel } from "./components/MCPPanel";
+import { ServerListPanel } from "./components/ServerListPanel";
 import { ServerModal } from "./components/ServerModal";
 import { ServerStartupScreen } from "./components/ServerStartupScreen";
 import { ServerStatus } from "./components/ServerStatus";
@@ -25,8 +27,6 @@ import { UpdateNotification, useUpdateCheck } from "./components/UpdateNotificat
 import { UpdateProgress } from "./components/UpdateProgress";
 import { WelcomeScreen } from "./components/WelcomeScreen";
 import { WorkspaceList } from "./components/WorkspaceList";
-import { ServerListPanel } from "./components/ServerListPanel";
-import { MCPPanel } from "./components/MCPPanel";
 import { WorkspaceModal } from "./components/WorkspaceModal";
 import {
   DEFAULT_ROOT_FALLBACK,
@@ -43,7 +43,8 @@ import { useFileOperations } from "./hooks/useFileOperations";
 import { useGitState } from "./hooks/useGitState";
 import { useServerStatus } from "./hooks/useServerStatus";
 import { useWorkspaces } from "./hooks/useWorkspaces";
-import type { SidebarPanel, WorkspaceMode } from "./types";
+import type { EditorFile, SidebarPanel, WorkspaceMode } from "./types";
+import { createEditorGroup, createSingleGroupLayout } from "./utils/editorGroupUtils";
 import { createEmptyDeckState, createEmptyWorkspaceState } from "./utils/stateUtils";
 import { parseUrlState } from "./utils/urlUtils";
 
@@ -145,6 +146,146 @@ export default function App() {
     updateWorkspaceState,
     setStatusMessage,
   });
+
+  // Editor group handlers
+  const handleSplitGroup = useCallback(
+    (groupId: string, direction: "horizontal" | "vertical") => {
+      if (!editorWorkspaceId) return;
+
+      updateWorkspaceState(editorWorkspaceId, (state) => {
+        const currentGroups = state.editorGroups || createSingleGroupLayout(state.files).groups;
+        const currentLayout = state.groupLayout || { direction: "single" as const, sizes: [100] };
+
+        // Find the group to split
+        const groupIndex = currentGroups.findIndex((g) => g.id === groupId);
+        if (groupIndex === -1) return state;
+
+        // Maximum 3 groups
+        if (currentGroups.length >= 3) return state;
+
+        const sourceGroup = currentGroups[groupIndex];
+        const activeTab = sourceGroup.tabs.find((t) => t.id === sourceGroup.activeTabId);
+
+        if (!activeTab) return state;
+
+        // Remove the active tab from source group
+        const newSourceTabs = sourceGroup.tabs.filter((t) => t.id !== sourceGroup.activeTabId);
+        const newSourceActiveTabId = newSourceTabs[0]?.id ?? null;
+
+        // Create new group with the active tab
+        const newGroup = createEditorGroup([activeTab], 50);
+
+        // Update source group (without the moved tab) and insert new group
+        const newGroups = [...currentGroups];
+        newGroups[groupIndex] = { ...sourceGroup, tabs: newSourceTabs, activeTabId: newSourceActiveTabId };
+        newGroups.splice(groupIndex + 1, 0, newGroup);
+
+        // Calculate split sizes with proper normalization
+        const calculateSplitSizes = (currentSizes: number[], splitIndex: number): number[] => {
+          const sizeOfGroupToSplit = currentSizes[splitIndex] || 50;
+          const halfSize = sizeOfGroupToSplit / 2;
+
+          const newSizes = [...currentSizes];
+          newSizes[splitIndex] = halfSize;
+          newSizes.splice(splitIndex + 1, 0, halfSize);
+
+          // Normalize to sum to 100
+          const total = newSizes.reduce((sum, size) => sum + size, 0);
+          return newSizes.map((size) => (size / total) * 100);
+        };
+
+        // Update layout
+        const newLayout = {
+          direction: currentGroups.length === 1 ? direction : currentLayout.direction,
+          sizes: calculateSplitSizes(currentLayout.sizes, groupIndex),
+        };
+
+        return {
+          ...state,
+          editorGroups: newGroups,
+          groupLayout: newLayout,
+          focusedGroupId: newGroup.id,
+        };
+      });
+    },
+    [editorWorkspaceId, updateWorkspaceState]
+  );
+
+  const handleCloseGroup = useCallback(
+    (groupId: string) => {
+      if (!editorWorkspaceId) return;
+
+      updateWorkspaceState(editorWorkspaceId, (state) => {
+        const currentGroups = state.editorGroups || createSingleGroupLayout(state.files).groups;
+
+        // Don't allow closing the last group
+        if (currentGroups.length <= 1) return state;
+
+        const newGroups = currentGroups.filter((g) => g.id !== groupId);
+        const closedGroup = currentGroups.find((g) => g.id === groupId);
+
+        // Move tabs from closed group to remaining groups
+        if (closedGroup && closedGroup.tabs.length > 0) {
+          // Add to first remaining group
+          newGroups[0].tabs.push(...closedGroup.tabs);
+          if (!newGroups[0].activeTabId) {
+            newGroups[0].activeTabId = closedGroup.activeTabId;
+          }
+        }
+
+        // Recalculate sizes to normalize
+        const newGroupCount = newGroups.length;
+        const normalizedSize = 100 / newGroupCount;
+        const newLayout = state.groupLayout
+          ? { ...state.groupLayout, sizes: newGroups.map(() => normalizedSize) }
+          : { direction: "single" as const, sizes: [100] };
+
+        return {
+          ...state,
+          editorGroups: newGroups,
+          groupLayout: newLayout,
+          focusedGroupId: newGroups[0].id,
+        };
+      });
+    },
+    [editorWorkspaceId, updateWorkspaceState]
+  );
+
+  const handleFocusGroup = useCallback(
+    (groupId: string) => {
+      if (!editorWorkspaceId) return;
+
+      updateWorkspaceState(editorWorkspaceId, (state) => {
+        const currentGroups = state.editorGroups || createSingleGroupLayout(state.files).groups;
+        return {
+          ...state,
+          editorGroups: currentGroups.map((g) => ({
+            ...g,
+            focused: g.id === groupId,
+          })),
+          focusedGroupId: groupId,
+        };
+      });
+    },
+    [editorWorkspaceId, updateWorkspaceState]
+  );
+
+  const handleReorderTabsInGroup = useCallback(
+    (groupId: string, tabs: EditorFile[]) => {
+      if (!editorWorkspaceId) return;
+
+      updateWorkspaceState(editorWorkspaceId, (state) => {
+        const currentGroups = state.editorGroups || createSingleGroupLayout(state.files).groups;
+        return {
+          ...state,
+          editorGroups: currentGroups.map((g) =>
+            g.id === groupId ? { ...g, tabs } : g
+          ),
+        };
+      });
+    },
+    [editorWorkspaceId, updateWorkspaceState]
+  );
 
   const {
     gitState,
@@ -641,6 +782,12 @@ export default function App() {
             onChangeFile={handleFileChange}
             onSaveFile={handleSaveFile}
             savingFileId={savingFileId}
+            editorGroups={activeWorkspaceState.editorGroups}
+            groupLayout={activeWorkspaceState.groupLayout}
+            onSplitGroup={handleSplitGroup}
+            onCloseGroup={handleCloseGroup}
+            onFocusGroup={handleFocusGroup}
+            onReorderTabsInGroup={handleReorderTabsInGroup}
           />
         </div>
         {gitState.diffPath && (
