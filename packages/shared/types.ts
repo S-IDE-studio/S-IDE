@@ -68,12 +68,31 @@ export interface TerminalGroup {
 
 // UI State types
 
+// Editor Groups for VSCode-style tab management
+
+export interface EditorGroup {
+  id: string;
+  tabs: EditorFile[];
+  activeTabId: string | null;
+  focused: boolean;
+  percentage: number; // Split size percentage (for resize)
+}
+
+export interface GroupLayout {
+  direction: 'horizontal' | 'vertical' | 'single';
+  sizes: number[]; // Size percentages for each group
+}
+
 export interface WorkspaceState {
   files: EditorFile[];
   activeFileId: string | null;
   tree: FileTreeNode[];
   treeLoading: boolean;
   treeError: string | null;
+  // Editor group management
+  editorGroups?: EditorGroup[];
+  focusedGroupId?: string | null;
+  groupLayout?: GroupLayout;
 }
 
 export interface DeckState {
