@@ -47,6 +47,9 @@ import type { EditorFile, SidebarPanel, WorkspaceMode } from "./types";
 import { createEditorGroup, createSingleGroupLayout } from "./utils/editorGroupUtils";
 import { createEmptyDeckState, createEmptyWorkspaceState } from "./utils/stateUtils";
 import { parseUrlState } from "./utils/urlUtils";
+import { MemoizedUnifiedPanelView } from "./components/panel/UnifiedPanelView";
+import { createSinglePanelLayout } from "./utils/unifiedTabUtils";
+import type { PanelGroup, PanelLayout } from "./types";
 
 export default function App() {
   const initialUrlState = parseUrlState();
@@ -86,6 +89,11 @@ export default function App() {
     Array<{ id: string; name: string; icon: string; description: string; enabled: boolean }>
   >([]);
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
+
+  // Unified panel state
+  const [panelGroups, setPanelGroups] = useState<PanelGroup[]>(createSinglePanelLayout().groups);
+  const [panelLayout, setPanelLayout] = useState<PanelLayout>(createSinglePanelLayout().layout);
+  const [focusedPanelId, setFocusedPanelId] = useState<string | null>(null);
 
   const { workspaceStates, setWorkspaceStates, updateWorkspaceState, initializeWorkspaceStates } =
     useWorkspaceContext();
@@ -251,7 +259,7 @@ export default function App() {
     [editorWorkspaceId, updateWorkspaceState]
   );
 
-  const handleFocusGroup = useCallback(
+  const handleFocusEditorGroup = useCallback(
     (groupId: string) => {
       if (!editorWorkspaceId) return;
 
@@ -286,6 +294,31 @@ export default function App() {
     },
     [editorWorkspaceId, updateWorkspaceState]
   );
+
+  // Unified panel handlers
+  const handleSelectTab = useCallback((groupId: string, tabId: string) => {
+    setPanelGroups(prev => prev.map(g =>
+      g.id === groupId ? { ...g, activeTabId: tabId, focused: true } : g
+    ).map(g => g.id === groupId ? g : { ...g, focused: false }));
+    setFocusedPanelId(groupId);
+  }, []);
+
+  const handleCloseTab = useCallback((groupId: string, tabId: string) => {
+    setPanelGroups(prev => prev.map(g => {
+      if (g.id === groupId) {
+        const newTabs = g.tabs.filter(t => t.id !== tabId);
+        return { ...g, tabs: newTabs, activeTabId: g.activeTabId === tabId ? newTabs[0]?.id ?? null : g.activeTabId };
+      }
+      return g;
+    }));
+  }, []);
+
+  const handleFocusGroup = useCallback((groupId: string) => {
+    setPanelGroups(prev => prev.map(g =>
+      g.id === groupId ? { ...g, focused: true } : { ...g, focused: false }
+    ));
+    setFocusedPanelId(groupId);
+  }, []);
 
   const {
     gitState,
@@ -768,26 +801,12 @@ export default function App() {
               ) : null}
             </div>
           </div>
-          <EditorPane
-            files={activeWorkspaceState.files}
-            activeFileId={activeWorkspaceState.activeFileId}
-            onSelectFile={(fileId) => {
-              if (!editorWorkspaceId) return;
-              updateWorkspaceState(editorWorkspaceId, (state) => ({
-                ...state,
-                activeFileId: fileId,
-              }));
-            }}
-            onCloseFile={handleCloseFile}
-            onChangeFile={handleFileChange}
-            onSaveFile={handleSaveFile}
-            savingFileId={savingFileId}
-            editorGroups={activeWorkspaceState.editorGroups}
-            groupLayout={activeWorkspaceState.groupLayout}
-            onSplitGroup={handleSplitGroup}
-            onCloseGroup={handleCloseGroup}
+          <MemoizedUnifiedPanelView
+            groups={panelGroups}
+            layout={panelLayout}
+            onSelectTab={handleSelectTab}
+            onCloseTab={handleCloseTab}
             onFocusGroup={handleFocusGroup}
-            onReorderTabsInGroup={handleReorderTabsInGroup}
           />
         </div>
         {gitState.diffPath && (
