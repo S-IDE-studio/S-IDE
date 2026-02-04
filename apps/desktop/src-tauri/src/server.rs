@@ -28,11 +28,12 @@ impl Drop for ServerHandle {
 }
 
 /// Path to the bundled Node.js server executable
-fn get_server_path() -> PathBuf {
+fn get_server_path() -> Result<PathBuf, String> {
     let exe_path = std::env::current_exe()
-        .expect("Failed to get exe path");
+        .map_err(|e| format!("Failed to get exe path: {e}"))?;
 
-    let exe_dir = exe_path.parent().expect("Failed to get exe directory");
+    let exe_dir = exe_path.parent()
+        .ok_or_else(|| "Failed to get exe directory".to_string())?;
 
     // In development/release builds, go up from target/debug or target/release to src-tauri
     let mut current: PathBuf = exe_dir.to_path_buf();
@@ -62,7 +63,7 @@ fn get_server_path() -> PathBuf {
     }
 
     // Fallback to exe_dir/resources/server
-    exe_dir.join("resources").join("server").join("index.js")
+    Ok(exe_dir.join("resources").join("server").join("index.js"))
 }
 
 /// Starts the server on the specified port
@@ -153,7 +154,7 @@ fn start_dev_server(port: u16) -> Result<ServerHandle, String> {
 ///
 /// Returns an error if the server executable is not found or fails to start
 fn start_production_server(port: u16) -> Result<ServerHandle, String> {
-    let server_path = get_server_path();
+    let server_path = get_server_path()?;
 
     if !server_path.exists() {
         return Err(format!(
@@ -186,6 +187,28 @@ fn start_production_server(port: u16) -> Result<ServerHandle, String> {
 fn find_project_root() -> Result<PathBuf, String> {
     let current_dir = std::env::current_dir()
         .map_err(|e| format!("Failed to get current dir: {e}"))?;
+
+    let mut path = current_dir;
+
+    // Search up for package.json
+    for _ in 0..MAX_SEARCH_DEPTH {
+        let package_json = path.join("package.json");
+        if package_json.exists() {
+            return Ok(path);
+        }
+        if !path.pop() {
+            break;
+        }
+    }
+
+    // Fallback: try relative paths from the exe
+    let exe_path = std::env::current_exe()
+        .map_err(|e| format!("Failed to get exe path: {e}"))?;
+
+    let mut search_path = exe_path;
+    if !search_path.pop() {
+        return Err("Could not determine exe parent directory".to_string());
+    }
 
     let mut path = current_dir;
 

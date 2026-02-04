@@ -1,5 +1,7 @@
 //! Tauri commands for server and tunnel management
 
+use std::time::Duration;
+
 use crate::common::DEFAULT_PORT;
 use crate::server;
 use crate::tunnel;
@@ -28,7 +30,28 @@ pub async fn start_server(
         return Err("Server is already running".to_string());
     }
 
-    let handle = server::start(port).map_err(|e| e.clone())?;
+    // Check if port is already in use by an external server
+    use std::net::TcpListener;
+    match TcpListener::bind(format!("127.0.0.1:{port}")) {
+        Ok(listener) => {
+            // Port is available, immediately release the listener
+            drop(listener);
+        }
+        Err(e) => {
+            // Check if it's specifically an "address in use" error
+            if e.kind() == std::io::ErrorKind::AddrInUse {
+                // Port is in use by an external process - this is actually OK
+                // We just can't manage it, but we should report the server as running
+                return Ok(format!("Server already running on port {port}"));
+            } else {
+                // Some other error (permission denied, network issue, etc.)
+                return Err(format!("Cannot check port: {}", e));
+            }
+        }
+    }
+
+    // Port is available, start our managed server
+    let handle = server::start(port).map_err(|e| e)?;
     *server_state = Some(handle);
     Ok(format!("Server started on port {port}"))
 }
@@ -42,13 +65,13 @@ pub async fn start_server(
 pub async fn stop_server(state: State<'_, ServerState>) -> CommandResult<String> {
     let mut server_state = state.0.lock().await;
 
-    if server_state.is_none() {
-        return Err("Server is not running".to_string());
+    // Use if let instead of unwrap to avoid race condition
+    if let Some(handle) = server_state.take() {
+        server::stop(handle).await.map_err(|e| e)?;
+        Ok("Server stopped".to_string())
+    } else {
+        Err("Server is not running".to_string())
     }
-
-    let handle = server_state.take().unwrap();
-    server::stop(handle).await.map_err(|e| e.clone())?;
-    Ok("Server stopped".to_string())
 }
 
 /// Gets the current server status
@@ -59,9 +82,22 @@ pub async fn stop_server(state: State<'_, ServerState>) -> CommandResult<String>
 #[tauri::command]
 pub async fn get_server_status(state: State<'_, ServerState>) -> CommandResult<ServerStatus> {
     let server_state = state.0.lock().await;
-    let running = server_state.is_some();
-    let port = server_state.as_ref().map_or(DEFAULT_PORT, |h| h.port);
-    Ok(ServerStatus { running, port })
+
+    // Check if we have a managed server
+    if server_state.is_some() {
+        let port = server_state.as_ref().map(|h| h.port).unwrap_or(DEFAULT_PORT);
+        return Ok(ServerStatus { running: true, port });
+    }
+
+    // Check if an external server is running on the default port
+    use std::net::TcpListener;
+    let port = DEFAULT_PORT;
+    let port_in_use = TcpListener::bind(format!("127.0.0.1:{port}")).is_err();
+
+    Ok(ServerStatus {
+        running: port_in_use,
+        port,
+    })
 }
 
 /// Gets the server logs
@@ -103,7 +139,7 @@ pub async fn start_tunnel(
         return Err("Tunnel is already running".to_string());
     }
 
-    let handle = tunnel::start(port).map_err(|e| e.clone())?;
+    let handle = tunnel::start(port).map_err(|e| e)?;
     let url = tunnel::get_url(&handle).await;
 
     *tunnel_state = Some(handle);
@@ -123,13 +159,13 @@ pub async fn start_tunnel(
 pub async fn stop_tunnel(state: State<'_, TunnelState>) -> CommandResult<String> {
     let mut tunnel_state = state.0.lock().await;
 
-    if tunnel_state.is_none() {
-        return Err("Tunnel is not running".to_string());
+    // Use if let instead of unwrap to avoid race condition
+    if let Some(handle) = tunnel_state.take() {
+        tunnel::stop(handle).await.map_err(|e| e)?;
+        Ok("Tunnel stopped".to_string())
+    } else {
+        Err("Tunnel is not running".to_string())
     }
-
-    let handle = tunnel_state.take().unwrap();
-    tunnel::stop(handle).await.map_err(|e| e.clone())?;
-    Ok("Tunnel stopped".to_string())
 }
 
 /// Gets the current tunnel status
@@ -250,4 +286,206 @@ async fn check_command_version(command: &str, args: &[&str]) -> CommandInfo {
             version: None,
         },
     }
+}
+
+// Server scanning commands
+
+/// Detected server information
+#[derive(serde::Serialize)]
+pub struct DetectedServer {
+    pub name: String,
+    pub url: String,
+    pub port: u16,
+    pub status: String,
+    pub type_: String,
+}
+
+/// Scan localhost for running servers
+#[tauri::command]
+pub async fn scan_local_servers() -> CommandResult<Vec<DetectedServer>> {
+    let mut servers = Vec::new();
+
+    // Common development ports to scan
+    let ports_to_scan = vec![
+        (3000, "dev"),
+        (3001, "dev"),
+        (5173, "vite"),
+        (5174, "vite"),
+        (8000, "dev"),
+        (8080, "dev"),
+        (8787, "side-ide"),
+        (9000, "dev"),
+    ];
+
+    // Scan ports in parallel
+    let mut scan_tasks = Vec::new();
+    for (port, default_type) in ports_to_scan {
+        scan_tasks.push(tokio::spawn(probe_server(port, default_type)));
+    }
+
+    // Collect results
+    for task in scan_tasks {
+        if let Ok(Some(server)) = task.await {
+            servers.push(server);
+        }
+    }
+
+    Ok(servers)
+}
+
+/// Probe a single port to detect a server
+async fn probe_server(port: u16, default_type: &str) -> Option<DetectedServer> {
+    use std::time::Duration;
+
+    // Try to connect with timeout
+    match tokio::time::timeout(
+        Duration::from_millis(200),
+        tokio::net::TcpStream::connect(&format!("127.0.0.1:{}", port))
+    ).await {
+        Ok(_) => {
+            // Port is open, try to get server info
+            fetch_server_info(port, default_type).await
+        }
+        Err(_) => None,
+    }
+}
+
+/// Fetch detailed server information via HTTP
+async fn fetch_server_info(port: u16, default_type: &str) -> Option<DetectedServer> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_millis(500))
+        .build()
+        .ok()?;
+
+    let base_url = format!("http://127.0.0.1:{}", port);
+
+    // Try /health endpoint first
+    if let Ok(resp) = client.get(&format!("{}/health", base_url)).send().await {
+        if resp.status().is_success() {
+            return Some(DetectedServer {
+                name: detect_server_name(&base_url, &client).await.unwrap_or_else(|| default_type.to_string()),
+                url: base_url,
+                port,
+                status: "running".to_string(),
+                type_: default_type.to_string(),
+            });
+        }
+    }
+
+    // Fallback: try root endpoint
+    if let Ok(resp) = client.get(&base_url).send().await {
+        if resp.status().is_success() {
+            return Some(DetectedServer {
+                name: detect_server_name(&base_url, &client).await.unwrap_or_else(|| default_type.to_string()),
+                url: base_url,
+                port,
+                status: "running".to_string(),
+                type_: default_type.to_string(),
+            });
+        }
+    }
+
+    None
+}
+
+/// Detect server name from HTML or response
+async fn detect_server_name(base_url: &str, client: &reqwest::Client) -> Option<String> {
+    // Try to get server name from HTML title
+    if let Ok(resp) = client.get(base_url).send().await {
+        if let Ok(html) = resp.text().await {
+            if let Some(title) = extract_title_from_html(&html) {
+                return Some(title);
+            }
+        }
+    }
+    None
+}
+
+/// Extract title from HTML
+fn extract_title_from_html(html: &str) -> Option<String> {
+    html.split("<title>")
+        .nth(1)
+        .and_then(|s| s.split("</title>").next())
+        .map(|s| s.trim().to_string())
+}
+
+/// Get MCP servers from a specific server
+#[tauri::command]
+pub async fn get_mcp_servers(server_url: String) -> CommandResult<Vec<MCPStatus>> {
+    // Validate URL is localhost only to prevent SSRF attacks
+    let parsed_url: url::Url = server_url.parse()
+        .map_err(|_| "Invalid URL format".to_string())?;
+
+    // Only allow localhost URLs
+    match parsed_url.host_str() {
+        Some("localhost") | Some("127.0.0.1") | Some("::1") | None => {
+            // Allow localhost or unspecified (file://)
+        }
+        Some(host) => {
+            return Err(format!("Only localhost URLs are allowed, got: {}", host));
+        }
+    }
+
+    // Only allow http/https schemes
+    if parsed_url.scheme() != "http" && parsed_url.scheme() != "https" {
+        return Err("Only http/https schemes are allowed".to_string());
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_millis(2000))
+        .build()
+        .map_err(|e| format!("Failed to create client: {}", e))?;
+
+    let mcp_url = format!("{}/api/mcp-status", server_url.trim_end_matches('/'));
+
+    let response = client
+        .get(&mcp_url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch MCP servers: {}", e))?;
+
+    if !response.status().is_success() {
+        return Ok(vec![]); // MCP not available
+    }
+
+    let servers: Vec<MCPStatus> = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse MCP response: {}", e))?;
+
+    Ok(servers)
+}
+
+/// MCP server status
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct MCPStatus {
+    pub name: String,
+    pub status: String,
+    pub capabilities: Vec<String>,
+}
+
+// Advanced scanning commands with nmap-style capabilities
+
+/// Advanced scan with OS detection and version detection
+/// Uses pistol-rs for port scanning with optional nmap subprocess fallback
+#[tauri::command]
+pub async fn scan_local_servers_advanced(
+    ports: Option<Vec<u16>>,
+    os_detection: bool,
+    version_detection: bool,
+    use_nmap: bool,
+) -> CommandResult<Vec<crate::scanner::ScanResult>> {
+    // Use nmap if requested and available
+    if use_nmap && crate::scanner::is_nmap_available() {
+        return crate::scanner::scan_with_nmap("127.0.0.1", ports, os_detection, version_detection).await;
+    }
+
+    // Use pistol-rs based scanner
+    crate::scanner::scan_localhost(ports, os_detection, version_detection).await
+}
+
+/// Check if nmap is available on the system
+#[tauri::command]
+pub async fn check_nmap_available() -> CommandResult<bool> {
+    Ok(crate::scanner::is_nmap_available())
 }

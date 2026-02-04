@@ -3,6 +3,7 @@
 use crate::common;
 use tokio::process::Child;
 use tokio::sync::Mutex;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use std::sync::Arc;
 
 /// Delay before checking tunnel URL (seconds)
@@ -36,7 +37,7 @@ pub fn start(port: u16) -> Result<TunnelHandle, String> {
 
     let npx_cmd = common::find_npx_command()?;
 
-    let child = tokio::process::Command::new(&npx_cmd)
+    let mut child = tokio::process::Command::new(&npx_cmd)
         .arg("localtunnel")
         .arg("--port")
         .arg(port.to_string())
@@ -46,17 +47,29 @@ pub fn start(port: u16) -> Result<TunnelHandle, String> {
         .spawn()
         .map_err(|e| format!("Failed to start tunnel: {e}"))?;
 
-    // Start a background task to monitor output
+    // Start a background task to monitor output and capture the URL
     let url = Arc::new(Mutex::new(None));
-
-    // Note: We can't easily read stdout after spawn in current design
-    // For now, users will see the URL in their terminal or we can add proper logging later
+    let url_clone = url.clone();
 
     tokio::spawn(async move {
-        // Give tunnel a moment to start and log its URL
-        tokio::time::sleep(tokio::time::Duration::from_secs(TUNNEL_URL_DELAY_SECS)).await;
-        // In production, you'd read stdout here and parse the URL
-        // For now, user can check the terminal where npx is running
+        // Take stdout from the child process
+        if let Some(stdout) = child.stdout.take() {
+            let reader = BufReader::new(stdout);
+            let mut lines = reader.lines();
+
+            // Read lines looking for the tunnel URL
+            while let Ok(Some(line)) = lines.next_line().await {
+                // localtunnel outputs: "your url is: https://xxx.loca.lt"
+                if line.contains("your url is:") {
+                    if let Some(url_str) = line.split("your url is:").nth(1) {
+                        let captured_url = url_str.trim().to_string();
+                        *url_clone.lock().await = Some(captured_url);
+                        println!("[Tunnel] URL captured: {}", captured_url);
+                        break;
+                    }
+                }
+            }
+        }
     });
 
     Ok(TunnelHandle { child, url })

@@ -26,7 +26,13 @@ export function handleError(c: Context, error: unknown) {
   return c.json({ error: message }, status);
 }
 
-export async function readJson<T>(c: Context): Promise<T | null> {
+export async function readJson<T>(c: Context): Promise<T> {
+  // Validate Content-Type header for security
+  const contentType = c.req.header("content-type");
+  if (!contentType?.includes("application/json")) {
+    throw createHttpError("Content-Type must be application/json", 415);
+  }
+
   try {
     return await c.req.json<T>();
   } catch (error) {
@@ -34,6 +40,6 @@ export async function readJson<T>(c: Context): Promise<T | null> {
     if (NODE_ENV === "development") {
       console.warn("JSON parse error:", getErrorMessage(error));
     }
-    return null;
+    throw createHttpError("Invalid JSON in request body", 400);
   }
 }

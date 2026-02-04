@@ -5,6 +5,9 @@ interface RateLimitEntry {
   resetTime: number;
 }
 
+// Maximum number of rate limit entries to prevent memory exhaustion
+const MAX_RATE_LIMIT_ENTRIES = 10000;
+
 // In-memory rate limiting store (for production, use Redis or similar)
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
@@ -12,9 +15,27 @@ const rateLimitStore = new Map<string, RateLimitEntry>();
 const CLEANUP_INTERVAL_MS = 60 * 1000;
 setInterval(() => {
   const now = Date.now();
+
+  // Clean expired entries
   for (const [key, entry] of rateLimitStore.entries()) {
     if (now > entry.resetTime) {
       rateLimitStore.delete(key);
+    }
+  }
+
+  // Prevent memory exhaustion by enforcing max entries with LRU eviction
+  if (rateLimitStore.size > MAX_RATE_LIMIT_ENTRIES) {
+    // Sort entries by reset time (oldest first) and remove excess
+    const entriesArray = Array.from(rateLimitStore.entries());
+    entriesArray.sort((a, b) => a[1].resetTime - b[1].resetTime);
+
+    const toRemove = entriesArray.slice(0, entriesArray.length - MAX_RATE_LIMIT_ENTRIES);
+    for (const [key] of toRemove) {
+      rateLimitStore.delete(key);
+    }
+
+    if (toRemove.length > 0) {
+      console.warn(`[RATE_LIMIT] Evicted ${toRemove.length} expired entries to prevent memory exhaustion`);
     }
   }
 }, CLEANUP_INTERVAL_MS).unref();

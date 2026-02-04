@@ -117,17 +117,19 @@ export function verifyWebSocketAuth(req: import("http").IncomingMessage): boolea
   const password = credentials.substring(colonIndex + 1);
 
   // Use timing-safe comparison for passwords to prevent timing attacks
-  if (
-    username.length !== BASIC_AUTH_USER.length ||
-    password.length !== BASIC_AUTH_PASSWORD.length
-  ) {
-    return false;
-  }
+  // Pad both strings to the same length for constant-time comparison regardless of actual length
+  const maxUsernameLen = Math.max(username.length, BASIC_AUTH_USER.length);
+  const maxPasswordLen = Math.max(password.length, BASIC_AUTH_PASSWORD.length);
 
-  const usernameBuffer = Buffer.from(username, "utf8");
-  const expectedUsernameBuffer = Buffer.from(BASIC_AUTH_USER, "utf8");
-  const passwordBuffer = Buffer.from(password, "utf8");
-  const expectedPasswordBuffer = Buffer.from(BASIC_AUTH_PASSWORD, "utf8");
+  const paddedUsername = username.padEnd(maxUsernameLen, "\0");
+  const expectedUsername = BASIC_AUTH_USER.padEnd(maxUsernameLen, "\0");
+  const paddedPassword = password.padEnd(maxPasswordLen, "\0");
+  const expectedPassword = BASIC_AUTH_PASSWORD.padEnd(maxPasswordLen, "\0");
+
+  const usernameBuffer = Buffer.from(paddedUsername, "utf8");
+  const expectedUsernameBuffer = Buffer.from(expectedUsername, "utf8");
+  const passwordBuffer = Buffer.from(paddedPassword, "utf8");
+  const expectedPasswordBuffer = Buffer.from(expectedPassword, "utf8");
 
   if (!crypto.timingSafeEqual(usernameBuffer, expectedUsernameBuffer)) {
     return false;

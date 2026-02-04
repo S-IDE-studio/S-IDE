@@ -3,6 +3,19 @@ import { DatabaseSync } from "node:sqlite";
 import type { Deck, Workspace } from "../types.js";
 import { getWorkspaceKey } from "./path.js";
 
+// UUID validation regex pattern
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Validates that a string is a valid UUID format
+ * @throws Error if the ID is not a valid UUID
+ */
+export function validateUUID(id: string): void {
+  if (!UUID_REGEX.test(id)) {
+    throw new Error(`Invalid ID format: ${id} (expected UUID format)`);
+  }
+}
+
 export type PersistedTerminal = {
   id: string;
   deckId: string;
@@ -166,6 +179,10 @@ export function saveTerminal(
   command: string | null,
   createdAt: string
 ): void {
+  // Validate IDs are UUIDs to prevent SQL injection via crafted IDs
+  validateUUID(id);
+  validateUUID(deckId);
+
   const stmt = db.prepare(
     "INSERT OR REPLACE INTO terminals (id, deck_id, title, command, buffer, created_at) VALUES (?, ?, ?, ?, ?, ?)"
   );
@@ -173,11 +190,13 @@ export function saveTerminal(
 }
 
 export function updateTerminalBuffer(db: DatabaseSync, id: string, buffer: string): void {
+  validateUUID(id);
   const stmt = db.prepare("UPDATE terminals SET buffer = ? WHERE id = ?");
   stmt.run(buffer, id);
 }
 
 export function deleteTerminal(db: DatabaseSync, id: string): void {
+  validateUUID(id);
   const stmt = db.prepare("DELETE FROM terminals WHERE id = ?");
   stmt.run(id);
 }

@@ -10,6 +10,8 @@ import { requireWorkspace } from "./workspaces.js";
 
 // Allowed file extensions for file operations
 // This prevents writing executable files or configuration files that could be exploited
+// Note: Shell script extensions (.sh, .bash, .zsh, .fish, .csh, .tcsh) are in FORBIDDEN_FILE_EXTENSIONS
+// for security reasons, as they could be executed on the server
 const _ALLOWED_FILE_EXTENSIONS = new Set([
   // Text files
   ".txt",
@@ -29,10 +31,6 @@ const _ALLOWED_FILE_EXTENSIONS = new Set([
   ".php",
   ".pl",
   ".pm",
-  ".sh",
-  ".bash",
-  ".zsh",
-  ".fish",
   ".java",
   ".kt",
   ".kts",

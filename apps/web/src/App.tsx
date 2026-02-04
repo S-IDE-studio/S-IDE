@@ -1,4 +1,4 @@
-import { Folder, GitBranch } from "lucide-react";
+import { Database, Folder, GitBranch, Network } from "lucide-react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getConfig, getWsBase } from "./api";
@@ -25,6 +25,8 @@ import { UpdateNotification, useUpdateCheck } from "./components/UpdateNotificat
 import { UpdateProgress } from "./components/UpdateProgress";
 import { WelcomeScreen } from "./components/WelcomeScreen";
 import { WorkspaceList } from "./components/WorkspaceList";
+import { ServerListPanel } from "./components/ServerListPanel";
+import { MCPPanel } from "./components/MCPPanel";
 import { WorkspaceModal } from "./components/WorkspaceModal";
 import {
   DEFAULT_ROOT_FALLBACK,
@@ -34,6 +36,8 @@ import {
   SAVED_MESSAGE_TIMEOUT,
   STORAGE_KEY_THEME,
 } from "./constants";
+import { useDeckContext } from "./contexts/DeckContext";
+import { useWorkspaceContext } from "./contexts/WorkspaceContext";
 import { useDecks } from "./hooks/useDecks";
 import { useFileOperations } from "./hooks/useFileOperations";
 import { useGitState } from "./hooks/useGitState";
@@ -74,6 +78,7 @@ export default function App() {
   const [isEnvironmentModalOpen, setIsEnvironmentModalOpen] = useState(false);
   const [isCommonSettingsOpen, setIsCommonSettingsOpen] = useState(false);
   const [sidebarPanel, setSidebarPanel] = useState<SidebarPanel>("files");
+  const [selectedServerUrl, setSelectedServerUrl] = useState<string | undefined>();
 
   // Agent state
   const [agents, setAgents] = useState<
@@ -82,8 +87,8 @@ export default function App() {
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
 
   const { workspaceStates, setWorkspaceStates, updateWorkspaceState, initializeWorkspaceStates } =
-    useWorkspaceState();
-  const { deckStates, setDeckStates, updateDeckState, initializeDeckStates } = useDeckState();
+    useWorkspaceContext();
+  const { deckStates, setDeckStates, updateDeckState, initializeDeckStates } = useDeckContext();
 
   const { workspaces, editorWorkspaceId, setEditorWorkspaceId, handleCreateWorkspace } =
     useWorkspaces({
@@ -268,7 +273,8 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [statusMessage]);
 
-  // Load available agents
+  // Load available agents (only once on mount)
+  // Note: activeAgent is intentionally in deps to prevent re-fetching when user changes active agent
   useEffect(() => {
     const abortController = new AbortController();
     const signal = abortController.signal;
@@ -282,6 +288,7 @@ export default function App() {
           if (signal.aborted) return;
           setAgents(data);
           // Set first enabled agent as active if none selected
+          // This only runs when no agent is currently selected
           if (!activeAgent && data.length > 0) {
             const firstEnabled = data.find((a: { enabled: boolean }) => a.enabled);
             if (firstEnabled) {
@@ -300,6 +307,7 @@ export default function App() {
     return () => {
       abortController.abort();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAgent]);
 
   useEffect(() => {
@@ -541,6 +549,22 @@ export default function App() {
               <GitBranch size={20} />
               {gitChangeCount > 0 && <span className="activity-bar-badge">{gitChangeCount}</span>}
             </button>
+            <button
+              type="button"
+              className={`activity-bar-item ${sidebarPanel === "servers" ? "active" : ""}`}
+              onClick={() => setSidebarPanel("servers")}
+              title="ローカルサーバー"
+            >
+              <Network size={20} />
+            </button>
+            <button
+              type="button"
+              className={`activity-bar-item ${sidebarPanel === "mcp" ? "active" : ""}`}
+              onClick={() => setSidebarPanel("mcp")}
+              title="MCPサーバー"
+            >
+              <Database size={20} />
+            </button>
           </div>
           <div className="sidebar-panel">
             <div className="sidebar-content">
@@ -593,6 +617,13 @@ export default function App() {
                 />
               ) : sidebarPanel === "ai" ? (
                 <AIWorkflowPanel workspaceId={editorWorkspaceId} />
+              ) : sidebarPanel === "servers" ? (
+                <ServerListPanel
+                  onServerSelect={(server) => setSelectedServerUrl(server.url)}
+                  selectedUrl={selectedServerUrl}
+                />
+              ) : sidebarPanel === "mcp" ? (
+                <MCPPanel />
               ) : null}
             </div>
           </div>

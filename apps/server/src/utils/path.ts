@@ -66,14 +66,18 @@ export async function resolveSafePath(workspacePath: string, inputPath = ""): Pr
   // Join root with normalized input
   const resolved = path.join(root, normalizedInput);
 
+  // Normalize path separators for cross-platform comparison
+  const normalizedRoot = root.replace(/\\/g, "/");
+  const normalizedResolved = resolved.replace(/\\/g, "/");
+
   // Double-check the resolved path is within root using path.relative
   const relative = path.relative(root, resolved);
   if (relative.startsWith("..") || path.isAbsolute(relative)) {
     throw createHttpError("Path escapes workspace root", 400);
   }
 
-  // Additional check: ensure resolved path starts with root
-  if (!resolved.startsWith(root + path.sep) && resolved !== root) {
+  // Additional check: ensure resolved path starts with root (with normalized separators)
+  if (!normalizedResolved.startsWith(normalizedRoot + "/") && normalizedResolved !== normalizedRoot) {
     throw createHttpError("Path escapes workspace root", 400);
   }
 
@@ -88,8 +92,10 @@ export async function resolveSafePath(workspacePath: string, inputPath = ""): Pr
       throw createHttpError("Symlink target escapes workspace root", 400);
     }
 
-    // Additional check: ensure real path starts with real root
-    if (!realPath.startsWith(realRoot + path.sep) && realPath !== realRoot) {
+    // Additional check: ensure real path starts with real root (with normalized separators)
+    const normalizedRealRoot = realRoot.replace(/\\/g, "/");
+    const normalizedRealPath = realPath.replace(/\\/g, "/");
+    if (!normalizedRealPath.startsWith(normalizedRealRoot + "/") && normalizedRealPath !== normalizedRealRoot) {
       throw createHttpError("Symlink target escapes workspace root", 400);
     }
 
@@ -113,8 +119,10 @@ export async function resolveSafePath(workspacePath: string, inputPath = ""): Pr
         throw createHttpError("Parent directory escapes workspace root", 400);
       }
 
-      // Additional check: ensure parent starts with real root
-      if (!realParent.startsWith(realRoot + path.sep) && realParent !== realRoot) {
+      // Additional check: ensure parent starts with real root (with normalized separators)
+      const normalizedRealRoot = realRoot.replace(/\\/g, "/");
+      const normalizedRealParent = realParent.replace(/\\/g, "/");
+      if (!normalizedRealParent.startsWith(normalizedRealRoot + "/") && normalizedRealParent !== normalizedRealRoot) {
         throw createHttpError("Parent directory escapes workspace root", 400);
       }
 

@@ -28,6 +28,35 @@ const DANGEROUS_COMMAND_PATTERNS = [
   /[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/,
 ];
 
+// Allowed prefixes for custom environment variables
+const ALLOWED_ENV_PREFIXES = ["CUSTOM_", "PROJECT_", "USER_", "npm_config_", "NODE_"];
+
+/**
+ * Sanitizes environment variables to prevent command injection
+ * Removes null bytes and control characters, and only allows safe prefixes
+ */
+function sanitizeEnvVars(env: Record<string, string> = {}): Record<string, string> {
+  const result: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(env)) {
+    // Remove null bytes and control characters from key and value
+    const cleanKey = key.replace(/[\x00-\x1F]/g, "");
+    const cleanValue = String(value).replace(/[\x00-\x1F]/g, "");
+
+    // Only allow variables with safe prefixes or built-in environment variables
+    const isAllowedPrefix = ALLOWED_ENV_PREFIXES.some(prefix => cleanKey.startsWith(prefix));
+    const isBuiltinEnv = ["PATH", "Path", "TERM", "HOME", "USER", "USERPROFILE", "LANG",
+      "LC_ALL", "LC_CTYPE", "COLORTERM", "TERM_PROGRAM", "TERM_PROGRAM_VERSION",
+      "MSYS2_PATH", "NODE_ENV", "DEBUG"].includes(cleanKey);
+
+    if (isAllowedPrefix || isBuiltinEnv) {
+      result[cleanKey] = cleanValue;
+    }
+  }
+
+  return result;
+}
+
 /**
  * Validate terminal command to prevent obvious injection attacks
  * Note: This allows shell metacharacters since terminals intentionally run shell commands
@@ -117,13 +146,21 @@ export function createTerminalRouter(
     if (command) {
       // Run custom command through shell
       const defaultShell = getDefaultShell();
+      const isBash = defaultShell.toLowerCase().includes("bash");
+
       if (process.platform === "win32") {
-        // Windows: use powershell to run the command
-        shell = defaultShell; // powershell.exe or cmd.exe
+        // Windows: check shell type
         if (defaultShell.toLowerCase().includes("powershell")) {
+          // PowerShell
+          shell = defaultShell;
           shellArgs = ["-NoExit", "-Command", command];
+        } else if (isBash) {
+          // Git Bash on Windows - use bash-style arguments
+          shell = defaultShell;
+          shellArgs = ["-c", command];
         } else {
           // cmd.exe
+          shell = defaultShell;
           shellArgs = ["/K", command];
         }
       } else {
@@ -144,6 +181,35 @@ export function createTerminalRouter(
         env[key] = value;
       }
     }
+
+    // Ensure PATH includes user's local bin for commands like claude
+    // On Windows with Git Bash, we need to add both Windows and Unix-style paths
+    if (process.platform === "win32") {
+      const userProfile = process.env.USERPROFILE || "C:\\Users\\rebui";
+      const userLocalBinWin = `${userProfile}\\.local\\bin`;
+
+      // For Windows commands (cmd.exe, PowerShell)
+      const currentPath = env.PATH || env.Path || "";
+      if (!currentPath.toLowerCase().includes(userLocalBinWin.toLowerCase())) {
+        env.PATH = `${userLocalBinWin};${currentPath}`;
+        if (env.Path) env.Path = env.PATH;
+      }
+
+      // For Git Bash, convert Windows path to Unix format: C:\Users\... -> /c/Users/...
+      const driveLetter = userProfile.charAt(0).toLowerCase();
+      const pathWithoutDrive = userProfile.substring(2).replace(/\\/g, "/");
+      const userLocalBinUnix = `/${driveLetter}${pathWithoutDrive}/.local/bin`;
+
+      // Git Bash uses MSYS2_PATH conversion, so we also need to ensure
+      // the path is accessible in Unix format
+      if (!env.MSYS2_PATH) {
+        env.MSYS2_PATH = "convert";
+      }
+
+      // Add to PATH for Git Bash as well (Unix format with colon separator)
+      env.PATH = `${userLocalBinUnix}:${env.PATH}`;
+    }
+
     // Set terminal capabilities for rich TUI support
     env.TERM = env.TERM || "xterm-256color";
     env.COLORTERM = "truecolor"; // Indicate 24-bit color support

@@ -32,7 +32,7 @@ import { corsMiddleware } from "./middleware/cors.js";
 import { mediumRateLimit, strictRateLimit } from "./middleware/rate-limiter.js";
 import { csrfProtection, generateCSRFToken, securityHeaders } from "./middleware/security.js";
 import { createAgentBridgeRouter } from "./routes/agent-bridge.js";
-import { initializeAgentRouter, registerAgent } from "./routes/agents.js";
+import { getAllAgents, initializeAgentRouter, registerAgent } from "./routes/agents.js";
 import { createContextManagerRouter } from "./routes/context-manager.js";
 import { createDeckRouter } from "./routes/decks.js";
 import { createFileRouter } from "./routes/files.js";
@@ -177,6 +177,7 @@ export function createServer(portOverride?: number) {
   app.route("/api/agents", agentRouter);
   app.route("/api/shared", createSharedResourcesRouter());
   app.route("/api/bridge", createAgentBridgeRouter());
+  app.route("/api/mcp", agentRouter);
 
   // Restore persisted terminals
   const persistedTerminals = loadPersistedTerminals(db, decks);
@@ -187,6 +188,17 @@ export function createServer(portOverride?: number) {
 
   // Config endpoint
   app.get("/api/config", getConfigHandler());
+
+  // MCP servers endpoint (for UI)
+  app.get("/api/mcp-status", (c) => {
+    const agents = agentRouter ? getAllAgents() : [];
+    const servers = agents.map((agent) => ({
+      name: agent.id,
+      status: "active",
+      capabilities: ["messaging", "broadcast", "task-handoff"],
+    }));
+    return c.json(servers);
+  });
 
   // WebSocket token endpoint (for authenticated WebSocket connections)
   app.get("/api/ws-token", (c) => {
@@ -292,12 +304,19 @@ export function createServer(portOverride?: number) {
     console.log(`  - Environment: ${NODE_ENV}`);
   });
 
-  // Graceful shutdown handler - save terminal buffers
+  // Graceful shutdown handler - save terminal buffers and close database
   const saveTerminalBuffersOnShutdown = () => {
     if (terminals.size > 0) {
       console.log(`[SHUTDOWN] Saving ${terminals.size} terminal buffer(s)...`);
       saveAllTerminalBuffers(db, terminals);
       console.log("[SHUTDOWN] Terminal buffers saved.");
+    }
+    // Close database connection to prevent corruption
+    try {
+      db.close();
+      console.log("[SHUTDOWN] Database closed.");
+    } catch (e) {
+      console.error("[SHUTDOWN] Error closing database:", e);
     }
   };
 
