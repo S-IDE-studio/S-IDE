@@ -1,3 +1,6 @@
+// Import types used internally in this file
+import type { EditorFile } from "@side-ide/shared/types";
+
 // Re-export shared types from @side-ide/shared
 export type {
   ApiConfig,
@@ -44,6 +47,36 @@ export type AppView = "workspace" | "terminal";
 export type WorkspaceMode = "list" | "editor";
 export type ThemeMode = "light" | "dark";
 export type SidebarPanel = "files" | "git" | "ai" | "settings" | "servers" | "mcp";
+
+// Editor Groups for VSCode-style tab management
+export interface EditorGroup {
+  id: string;
+  tabs: EditorFile[];
+  activeTabId: string | null;
+  focused: boolean;
+  percentage: number; // Split size percentage (for resize)
+}
+
+export interface GroupLayout {
+  direction: 'horizontal' | 'vertical' | 'single';
+  sizes: number[]; // Size percentages for each group
+}
+
+export interface DragTabData {
+  tabId: string;
+  sourceGroupId: string;
+}
+
+// Editor group actions
+export interface EditorGroupActions {
+  splitGroup: (groupId: string, direction: 'horizontal' | 'vertical') => void;
+  closeGroup: (groupId: string) => void;
+  focusGroup: (groupId: string) => void;
+  moveTabToGroup: (tabId: string, fromGroupId: string, toGroupId: string) => void;
+  duplicateTabInGroup: (tabId: string, targetGroupId: string) => void;
+  reorderTabsInGroup: (groupId: string, tabs: EditorFile[]) => void;
+  resizeGroups: (sizes: number[]) => void;
+}
 
 export interface UrlState {
   view: AppView;
