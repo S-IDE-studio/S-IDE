@@ -33,7 +33,13 @@ export function PanelTabList({
             className={`panel-tab ${isActive ? "active" : ""} ${tab.dirty ? "dirty" : ""}`}
             onClick={() => onTabSelect(tab.id)}
           >
-            <span className="panel-tab-icon">{tab.icon}</span>
+            <span className="panel-tab-icon">
+              {tab.icon?.startsWith("/") ? (
+                <img src={tab.icon} alt="" className="panel-tab-icon-img" />
+              ) : (
+                tab.icon
+              )}
+            </span>
             <span className="panel-tab-title">{tab.title}</span>
             <button
               type="button"

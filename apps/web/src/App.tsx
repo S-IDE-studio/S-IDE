@@ -375,33 +375,76 @@ export default function App() {
     addTabToPanel(tab);
   }, [addTabToPanel]);
 
-  // Initialize panels with existing data
+  // Initialize panels with existing data (run once on mount)
   useEffect(() => {
-    // Add existing workspaces as tabs
-    workspaces.forEach(workspace => {
-      handleAddWorkspaceTab(workspace);
-    });
+    setPanelGroups(currentGroups => {
+      const newGroups = currentGroups.length === 0 ? createSinglePanelLayout().groups : currentGroups;
+      const group = newGroups[0];
 
-    // Add existing decks as tabs
-    decks.forEach(deck => {
-      handleAddDeckTab(deck);
+      // Collect all existing tab IDs
+      const existingAgentIds = group.tabs.filter(t => t.kind === 'agent').map(t => t.data.agent?.id);
+      const existingWorkspaceIds = group.tabs.filter(t => t.kind === 'workspace').map(t => t.data.workspace?.id);
+      const existingDeckIds = group.tabs.filter(t => t.kind === 'deck').map(t => t.data.deck?.id);
+
+      const newTabs: typeof group.tabs = [...group.tabs];
+
+      // Add agents that don't exist
+      agents.forEach(agent => {
+        if (!existingAgentIds.includes(agent.id)) {
+          newTabs.push(agentToTab(agent));
+        }
+      });
+
+      // Add workspaces that don't exist
+      workspaces.forEach(workspace => {
+        if (!existingWorkspaceIds.includes(workspace.id)) {
+          newTabs.push(workspaceToTab(workspace));
+        }
+      });
+
+      // Add decks that don't exist
+      decks.forEach(deck => {
+        if (!existingDeckIds.includes(deck.id)) {
+          newTabs.push(deckToTab(deck));
+        }
+      });
+
+      // Set first tab as active if no active tab
+      const activeTabId = group.activeTabId || (newTabs.length > 0 ? newTabs[0].id : null);
+
+      return [
+        { ...group, tabs: newTabs, activeTabId },
+        ...newGroups.slice(1),
+      ];
     });
-  }, []); // Only run on mount
+  }, [agents, workspaces, decks]); // Only depend on data, not panelGroups
 
   // Add editor tabs when files change
   useEffect(() => {
     if (activeWorkspaceState.files && activeWorkspaceState.files.length > 0) {
-      activeWorkspaceState.files.forEach(file => {
-        // Check if tab doesn't already exist
-        const tabExists = panelGroups.some(group =>
-          group.tabs.some(tab => tab.kind === 'editor' && tab.data.editor?.id === file.id)
-        );
-        if (!tabExists) {
-          handleAddEditorTab(file);
-        }
+      setPanelGroups(currentGroups => {
+        const newGroups = [...currentGroups];
+        const group = newGroups[0];
+
+        // Collect existing editor tab IDs
+        const existingEditorIds = group.tabs
+          .filter(t => t.kind === 'editor')
+          .map(t => t.data.editor?.id);
+
+        const newTabs = [...group.tabs];
+
+        // Add files that don't exist
+        activeWorkspaceState.files.forEach(file => {
+          if (!existingEditorIds.includes(file.id)) {
+            newTabs.push(editorToTab(file));
+          }
+        });
+
+        newGroups[0] = { ...group, tabs: newTabs };
+        return newGroups;
       });
     }
-  }, [activeWorkspaceState.files, panelGroups, handleAddEditorTab]);
+  }, [activeWorkspaceState.files]); // Only depend on files, not panelGroups
 
   const {
     gitState,
@@ -544,12 +587,6 @@ export default function App() {
           const data = await res.json();
           if (signal.aborted) return;
           setAgents(data);
-          // Add agent tabs for enabled agents
-          data.forEach((agent: import('./types').Agent) => {
-            if (agent.enabled) {
-              handleAddAgentTab(agent);
-            }
-          });
           // Set first enabled agent as active if none selected
           // This only runs when no agent is currently selected
           if (!activeAgent && data.length > 0) {
@@ -1069,30 +1106,13 @@ export default function App() {
         }}
       />
       <main className="main">
-        <div className="unified-layout">
-          {/* Agent Tabs Section */}
-          {agents.length > 0 && (
-            <div className="agent-tabs-section">
-              <AgentTabBar
-                agents={agents}
-                activeAgent={activeAgent}
-                onAgentSelect={setActiveAgent}
-                onAgentClose={(agentId) => {
-                  if (activeAgent === agentId) {
-                    setActiveAgent(null);
-                  }
-                }}
-              />
-              {activeAgent && (
-                <div className="agent-content">
-                  {/* Agent-specific content can be rendered here */}
-                </div>
-              )}
-            </div>
-          )}
-          {workspaceView}
-          {terminalSection}
-        </div>
+        <MemoizedUnifiedPanelView
+          groups={panelGroups}
+          layout={panelLayout}
+          onSelectTab={handleSelectTab}
+          onCloseTab={handleCloseTab}
+          onFocusGroup={handleFocusGroup}
+        />
       </main>
       <StatusMessage message={statusMessage} />
       <GlobalStatusBar

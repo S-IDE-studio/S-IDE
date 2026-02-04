@@ -4589,6 +4589,15 @@ input:focus-visible {
 
 .panel-tab-icon {
   font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel-tab-icon-img {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
 }
 
 .panel-tab-title {
