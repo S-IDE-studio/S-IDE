@@ -1,6 +1,6 @@
 import { memo } from "react";
+import type { TerminalGroup, TerminalSession } from "../../types";
 import { TerminalPane } from "../TerminalPane";
-import type { TerminalSession, TerminalGroup } from "../../types";
 
 interface DeckPanelProps {
   deck: { id: string; name: string; root: string; workspaceId: string };

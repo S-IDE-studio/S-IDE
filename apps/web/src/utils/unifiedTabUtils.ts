@@ -3,8 +3,15 @@
  * Converts existing data structures to UnifiedTab format
  */
 
-import type { Agent, Deck, Workspace, EditorFile } from "../types";
-import type { UnifiedTab, TabKind, PanelGroup, PanelLayout } from "../types";
+import type {
+  Agent,
+  Deck,
+  EditorFile,
+  PanelGroup,
+  PanelLayout,
+  UnifiedTab,
+  Workspace,
+} from "../types";
 
 export function generateTabId(): string {
   return `tab-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
@@ -17,12 +24,14 @@ export function generatePanelGroupId(): string {
 /**
  * Convert Agent to UnifiedTab
  */
-export function agentToTab(agent: Agent | { id: string; name: string; icon: string; description?: string; enabled?: boolean }): UnifiedTab {
+export function agentToTab(
+  agent: Agent | { id: string; name: string; icon: string; description?: string; enabled?: boolean }
+): UnifiedTab {
   return {
     id: generateTabId(),
-    kind: 'agent',
+    kind: "agent",
     title: agent.name,
-    icon: agent.icon,
+    // Icon is rendered by DraggableTab based on kind
     data: { agent: { id: agent.id, name: agent.name, icon: agent.icon } },
   };
 }
@@ -34,9 +43,9 @@ export function workspaceToTab(workspace: Workspace): UnifiedTab {
   const name = workspace.path.split(/[/\\]/).pop() || workspace.path;
   return {
     id: generateTabId(),
-    kind: 'workspace',
+    kind: "workspace",
     title: name,
-    icon: '📁',
+    // Icon is rendered by DraggableTab based on kind
     data: { workspace: { id: workspace.id, path: workspace.path, name } },
   };
 }
@@ -47,50 +56,101 @@ export function workspaceToTab(workspace: Workspace): UnifiedTab {
 export function deckToTab(deck: Deck): UnifiedTab {
   return {
     id: generateTabId(),
-    kind: 'deck',
+    kind: "deck",
     title: deck.name,
-    icon: '📦',
-    data: { deck: { id: deck.id, name: deck.name, root: deck.root, workspaceId: deck.workspaceId } },
+    // Icon is rendered by DraggableTab based on kind
+    data: {
+      deck: { id: deck.id, name: deck.name, root: deck.root, workspaceId: deck.workspaceId },
+    },
   };
 }
 
 /**
  * Convert Terminal to UnifiedTab
  */
-export function terminalToTab(terminal: { id: string; command: string; cwd: string }, deckId: string): UnifiedTab {
+export function terminalToTab(
+  terminal: { id: string; command: string; cwd: string },
+  deckId: string
+): UnifiedTab {
   return {
     id: generateTabId(),
-    kind: 'terminal',
-    title: terminal.command || 'Terminal',
-    icon: '⚙️',
+    kind: "terminal",
+    title: terminal.command || "Terminal",
+    // Icon is rendered by DraggableTab based on kind
     data: { terminal: { id: terminal.id, command: terminal.command, cwd: terminal.cwd } },
   };
 }
 
 /**
  * Convert EditorFile to UnifiedTab
+ * Icon is optional and rendered by DraggableTab based on file extension
  */
 export function editorToTab(file: EditorFile): UnifiedTab {
   return {
     id: file.id,
-    kind: 'editor',
+    kind: "editor",
     title: file.name,
-    icon: getFileIcon(file.name).icon,
+    icon: getFileIconString(file.name), // Store file extension for icon mapping
     dirty: file.dirty,
     data: { editor: file },
   };
 }
 
-function getFileIcon(filename: string): { icon: string } {
-  const ext = filename.split(".").pop()?.toLowerCase() || "";
-  const iconMap: Record<string, string> = {
-    ts: 'TS', tsx: 'TSX', js: 'JS', jsx: 'JSX',
-    json: '{ }', html: '<>', css: '#', scss: 'S',
-    md: 'M↓', py: 'PY', go: 'GO', rs: 'RS',
-    java: 'J', sql: 'SQL', yml: 'Y', yaml: 'Y',
-    sh: '$', bash: '$', txt: 'TXT',
+/**
+ * Create server list tab
+ */
+export function serverToTab(): UnifiedTab {
+  return {
+    id: generateTabId(),
+    kind: "server",
+    title: "Local Servers",
+    // Icon is rendered by DraggableTab based on kind
+    data: { server: { id: "local-servers", name: "Local Servers" } },
   };
-  return { icon: iconMap[ext] || '📄' };
+}
+
+/**
+ * Create tunnel management tab
+ */
+export function tunnelToTab(): UnifiedTab {
+  return {
+    id: generateTabId(),
+    kind: "tunnel",
+    title: "Remote Access",
+    // Icon is rendered by DraggableTab based on kind
+    data: { tunnel: { id: "tunnel", name: "Remote Access" } },
+  };
+}
+
+/**
+ * Get file icon string for mapping to Lucide icons
+ * Returns a string identifier that can be used to select the appropriate icon
+ */
+function getFileIconString(filename: string): string | undefined {
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  // Return file type identifier for icon mapping in DraggableTab
+  const typeMap: Record<string, string> = {
+    ts: "typescript",
+    tsx: "typescript",
+    js: "javascript",
+    jsx: "javascript",
+    json: "json",
+    html: "html",
+    css: "css",
+    scss: "sass",
+    md: "markdown",
+    py: "python",
+    go: "go",
+    rs: "rust",
+    java: "java",
+    sql: "database",
+    yml: "yaml",
+    yaml: "yaml",
+    sh: "terminal",
+    bash: "terminal",
+    txt: "file",
+  };
+  return typeMap[ext] || "file";
 }
 
 /**
@@ -115,6 +175,6 @@ export function createSinglePanelLayout(): {
 } {
   return {
     groups: [createEmptyPanelGroup(100)],
-    layout: { direction: 'single', sizes: [100] },
+    layout: { direction: "single", sizes: [100] },
   };
 }

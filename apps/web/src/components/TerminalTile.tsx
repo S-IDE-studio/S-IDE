@@ -3,7 +3,7 @@ import { type IDisposable, Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import { Unicode11Addon } from "xterm-addon-unicode11";
 import { WebLinksAddon } from "xterm-addon-web-links";
-import { WebglAddon } from "xterm-addon-webgl";
+import type { WebglAddon } from "xterm-addon-webgl";
 import "xterm/css/xterm.css";
 import { getWsToken } from "../api";
 import {
@@ -100,7 +100,9 @@ export function TerminalTile({ session, wsUrl, onDelete, onError }: TerminalTile
     setTimeout(() => {
       if (cancelled) return;
       try {
-        term.open(containerRef.current);
+        if (containerRef.current) {
+          term.open(containerRef.current);
+        }
       } catch (err) {
         console.warn("[Terminal] Error during terminal open:", err);
       }

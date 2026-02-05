@@ -1,6 +1,6 @@
 import { memo } from "react";
-import { FileTree } from "../FileTree";
 import type { FileTreeNode, GitFileStatus } from "../../types";
+import { FileTree } from "../FileTree";
 
 interface WorkspacePanelProps {
   workspace: { id: string; path: string; name: string };

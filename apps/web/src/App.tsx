@@ -1,35 +1,25 @@
-import { Database, Folder, GitBranch, Network } from "lucide-react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getConfig, getWsBase } from "./api";
 import { CommonSettings } from "./components/AgentSettings";
-import { AgentTabBar } from "./components/AgentTabs";
-import { AIWorkflowPanel } from "./components/AIWorkflowPanel";
 import { ContextStatus } from "./components/ContextStatus";
 import { DeckModal } from "./components/DeckModal";
 import { DiffViewer } from "./components/DiffViewer";
-import { EditorPane } from "./components/EditorPane";
 import { EnvironmentModal } from "./components/EnvironmentModal";
-import { FileTree } from "./components/FileTree";
 import { GlobalStatusBar } from "./components/GlobalStatusBar";
-import { MCPPanel } from "./components/MCPPanel";
-import { ServerListPanel } from "./components/ServerListPanel";
+import { MemoizedUnifiedPanelView } from "./components/panel/UnifiedPanelView";
 import { ServerModal } from "./components/ServerModal";
 import { ServerStartupScreen } from "./components/ServerStartupScreen";
 import { ServerStatus } from "./components/ServerStatus";
 import { SettingsModal } from "./components/SettingsModal";
-import { SourceControl } from "./components/SourceControl";
-import { API_BASE } from "./constants";
 import { StatusMessage } from "./components/StatusMessage";
-import { TerminalPane } from "./components/TerminalPane";
 import { TitleBar } from "./components/TitleBar";
 import { TunnelControl } from "./components/TunnelControl";
 import { UpdateNotification, useUpdateCheck } from "./components/UpdateNotification";
 import { UpdateProgress } from "./components/UpdateProgress";
-import { WelcomeScreen } from "./components/WelcomeScreen";
-import { WorkspaceList } from "./components/WorkspaceList";
 import { WorkspaceModal } from "./components/WorkspaceModal";
 import {
+  API_BASE,
   DEFAULT_ROOT_FALLBACK,
   MESSAGE_SAVED,
   MESSAGE_SELECT_WORKSPACE,
@@ -44,19 +34,20 @@ import { useFileOperations } from "./hooks/useFileOperations";
 import { useGitState } from "./hooks/useGitState";
 import { useServerStatus } from "./hooks/useServerStatus";
 import { useWorkspaces } from "./hooks/useWorkspaces";
-import type { EditorFile, SidebarPanel, WorkspaceMode } from "./types";
+import type { EditorFile, PanelGroup, PanelLayout, SidebarPanel, WorkspaceMode } from "./types";
 import { createEditorGroup, createSingleGroupLayout } from "./utils/editorGroupUtils";
 import { createEmptyDeckState, createEmptyWorkspaceState } from "./utils/stateUtils";
-import { parseUrlState } from "./utils/urlUtils";
-import { MemoizedUnifiedPanelView } from "./components/panel/UnifiedPanelView";
 import {
-  createSinglePanelLayout,
   agentToTab,
-  workspaceToTab,
+  createEmptyPanelGroup,
+  createSinglePanelLayout,
   deckToTab,
   editorToTab,
+  serverToTab,
+  tunnelToTab,
+  workspaceToTab,
 } from "./utils/unifiedTabUtils";
-import type { PanelGroup, PanelLayout } from "./types";
+import { parseUrlState } from "./utils/urlUtils";
 
 export default function App() {
   const initialUrlState = parseUrlState();
@@ -163,11 +154,14 @@ export default function App() {
   });
 
   // Wrap handleOpenFile to add tab to panel
-  const handleOpenFile = useCallback((...args: Parameters<typeof baseHandleOpenFile>) => {
-    const result = baseHandleOpenFile(...args);
-    // Add tab after file is opened (activeWorkspaceState.files will be updated)
-    return result;
-  }, [baseHandleOpenFile]);
+  const handleOpenFile = useCallback(
+    (...args: Parameters<typeof baseHandleOpenFile>) => {
+      const result = baseHandleOpenFile(...args);
+      // Add tab after file is opened (activeWorkspaceState.files will be updated)
+      return result;
+    },
+    [baseHandleOpenFile]
+  );
 
   // Editor group handlers
   const handleSplitGroup = useCallback(
@@ -199,7 +193,11 @@ export default function App() {
 
         // Update source group (without the moved tab) and insert new group
         const newGroups = [...currentGroups];
-        newGroups[groupIndex] = { ...sourceGroup, tabs: newSourceTabs, activeTabId: newSourceActiveTabId };
+        newGroups[groupIndex] = {
+          ...sourceGroup,
+          tabs: newSourceTabs,
+          activeTabId: newSourceActiveTabId,
+        };
         newGroups.splice(groupIndex + 1, 0, newGroup);
 
         // Calculate split sizes with proper normalization
@@ -300,9 +298,7 @@ export default function App() {
         const currentGroups = state.editorGroups || createSingleGroupLayout(state.files).groups;
         return {
           ...state,
-          editorGroups: currentGroups.map((g) =>
-            g.id === groupId ? { ...g, tabs } : g
-          ),
+          editorGroups: currentGroups.map((g) => (g.id === groupId ? { ...g, tabs } : g)),
         };
       });
     },
@@ -311,32 +307,248 @@ export default function App() {
 
   // Unified panel handlers
   const handleSelectTab = useCallback((groupId: string, tabId: string) => {
-    setPanelGroups(prev => prev.map(g =>
-      g.id === groupId ? { ...g, activeTabId: tabId, focused: true } : g
-    ).map(g => g.id === groupId ? g : { ...g, focused: false }));
+    setPanelGroups((prev) =>
+      prev
+        .map((g) => (g.id === groupId ? { ...g, activeTabId: tabId, focused: true } : g))
+        .map((g) => (g.id === groupId ? g : { ...g, focused: false }))
+    );
     setFocusedPanelId(groupId);
   }, []);
 
   const handleCloseTab = useCallback((groupId: string, tabId: string) => {
-    setPanelGroups(prev => prev.map(g => {
-      if (g.id === groupId) {
-        const newTabs = g.tabs.filter(t => t.id !== tabId);
-        return { ...g, tabs: newTabs, activeTabId: g.activeTabId === tabId ? newTabs[0]?.id ?? null : g.activeTabId };
-      }
-      return g;
-    }));
+    setPanelGroups((prev) =>
+      prev.map((g) => {
+        if (g.id === groupId) {
+          const newTabs = g.tabs.filter((t) => t.id !== tabId);
+          return {
+            ...g,
+            tabs: newTabs,
+            activeTabId: g.activeTabId === tabId ? (newTabs[0]?.id ?? null) : g.activeTabId,
+          };
+        }
+        return g;
+      })
+    );
   }, []);
 
   const handleFocusGroup = useCallback((groupId: string) => {
-    setPanelGroups(prev => prev.map(g =>
-      g.id === groupId ? { ...g, focused: true } : { ...g, focused: false }
-    ));
+    setPanelGroups((prev) =>
+      prev.map((g) => (g.id === groupId ? { ...g, focused: true } : { ...g, focused: false }))
+    );
     setFocusedPanelId(groupId);
   }, []);
 
+  // Tab reorder handler
+  const handleTabsReorder = useCallback((groupId: string, oldIndex: number, newIndex: number) => {
+    setPanelGroups((prev) =>
+      prev.map((g) => {
+        if (g.id === groupId) {
+          const newTabs = [...g.tabs];
+          const [removed] = newTabs.splice(oldIndex, 1);
+          newTabs.splice(newIndex, 0, removed);
+          return { ...g, tabs: newTabs };
+        }
+        return g;
+      })
+    );
+  }, []);
+
+  // Tab move between panels handler
+  const handleTabMove = useCallback(
+    (tabId: string, sourceGroupId: string, targetGroupId: string) => {
+      if (sourceGroupId === targetGroupId) return;
+
+      setPanelGroups((prev) => {
+        const sourceGroup = prev.find((g) => g.id === sourceGroupId);
+        const targetGroup = prev.find((g) => g.id === targetGroupId);
+        if (!sourceGroup || !targetGroup) return prev;
+
+        const tab = sourceGroup.tabs.find((t) => t.id === tabId);
+        if (!tab) return prev;
+
+        return prev.map((g) => {
+          if (g.id === sourceGroupId) {
+            const newTabs = g.tabs.filter((t) => t.id !== tabId);
+            const newActiveId = g.activeTabId === tabId ? (newTabs[0]?.id ?? null) : g.activeTabId;
+            return { ...g, tabs: newTabs, activeTabId: newActiveId };
+          }
+          if (g.id === targetGroupId) {
+            return { ...g, tabs: [...g.tabs, tab], activeTabId: tab.id };
+          }
+          return g;
+        });
+      });
+    },
+    []
+  );
+
+  // Panel split handler
+  const handleSplitPanel = useCallback(
+    (groupId: string, direction: import("./types").SplitDirection) => {
+      setPanelGroups((prev) => {
+        const groupIndex = prev.findIndex((g) => g.id === groupId);
+        if (groupIndex === -1) return prev;
+
+        const currentGroup = prev[groupIndex];
+        const newGroup = createEmptyPanelGroup(50);
+
+        // Determine new layout direction
+        let newDirection: "horizontal" | "vertical" = "horizontal";
+        if (direction === "up" || direction === "down") {
+          newDirection = "vertical";
+        }
+
+        // Calculate insert position
+        let insertIndex = groupIndex + 1;
+        if (direction === "left" || direction === "up") {
+          insertIndex = groupIndex;
+        }
+
+        // Update percentages
+        const updatedGroups = prev.map((g, i) => {
+          if (
+            i === groupIndex ||
+            (i === insertIndex && direction === "right") ||
+            direction === "down"
+          ) {
+            return { ...g, percentage: 50 };
+          }
+          return g;
+        });
+
+        // Insert new group
+        const newGroups = [
+          ...updatedGroups.slice(0, insertIndex),
+          { ...newGroup, percentage: 50 },
+          ...updatedGroups.slice(insertIndex),
+        ];
+
+        setPanelLayout({ direction: newDirection, sizes: newGroups.map((g) => g.percentage) });
+        return newGroups;
+      });
+    },
+    []
+  );
+
+  // Panel close handler
+  const handleClosePanel = useCallback((groupId: string) => {
+    setPanelGroups((prev) => {
+      if (prev.length <= 1) {
+        // Don't close the last panel, just clear it
+        return prev.map((g) => ({ ...g, tabs: [], activeTabId: null }));
+      }
+
+      const newGroups = prev.filter((g) => g.id !== groupId);
+      if (newGroups.length === 1) {
+        setPanelLayout({ direction: "single", sizes: [100] });
+      } else {
+        // Redistribute percentages
+        const totalPercentage = newGroups.reduce((sum, g) => sum + g.percentage, 0);
+        newGroups.forEach((g) => {
+          g.percentage = (g.percentage / totalPercentage) * 100;
+        });
+      }
+      return newGroups;
+    });
+  }, []);
+
+  // Panel resize handler
+  const handleResizePanel = useCallback(
+    (groupId: string, delta: number) => {
+      setPanelGroups((prev) => {
+        const groupIndex = prev.findIndex((g) => g.id === groupId);
+        if (groupIndex === -1 || groupIndex === prev.length - 1) return prev;
+
+        const isHorizontal = panelLayout.direction === "horizontal";
+        const containerSize = isHorizontal ? window.innerWidth : window.innerHeight;
+        const percentageDelta = (delta / containerSize) * 100;
+
+        const newGroups = prev.map((g, i) => {
+          if (i === groupIndex) {
+            const newPercentage = Math.max(10, Math.min(90, g.percentage + percentageDelta));
+            return { ...g, percentage: newPercentage };
+          }
+          if (i === groupIndex + 1) {
+            const newPercentage = Math.max(10, Math.min(90, g.percentage - percentageDelta));
+            return { ...g, percentage: newPercentage };
+          }
+          return g;
+        });
+
+        return newGroups;
+      });
+    },
+    [panelLayout.direction]
+  );
+
+  // Context menu action handler
+  const handleContextMenuAction = useCallback(
+    (action: import("./types").TabContextMenuAction, groupId: string, tabId: string) => {
+      setPanelGroups((prev) => {
+        const group = prev.find((g) => g.id === groupId);
+        if (!group) return prev;
+
+        const tabIndex = group.tabs.findIndex((t) => t.id === tabId);
+        if (tabIndex === -1) return prev;
+
+        let newTabs = [...group.tabs];
+        let newActiveTabId = group.activeTabId;
+
+        switch (action) {
+          case "close":
+            newTabs = newTabs.filter((t) => t.id !== tabId);
+            newActiveTabId =
+              group.activeTabId === tabId
+                ? (newTabs[tabIndex]?.id ?? newTabs[tabIndex - 1]?.id ?? null)
+                : group.activeTabId;
+            break;
+          case "closeOthers":
+            newTabs = [group.tabs[tabIndex]];
+            newActiveTabId = tabId;
+            break;
+          case "closeToTheRight":
+            newTabs = newTabs.slice(0, tabIndex + 1);
+            break;
+          case "closeToTheLeft":
+            newTabs = newTabs.slice(tabIndex);
+            break;
+          case "closeAll":
+            newTabs = [];
+            newActiveTabId = null;
+            break;
+          case "pin":
+          case "unpin":
+            newTabs[tabIndex] = { ...newTabs[tabIndex], pinned: action === "pin" };
+            break;
+          case "splitRight":
+            // Trigger panel split
+            setTimeout(() => handleSplitPanel(groupId, "right"), 0);
+            return prev;
+          case "splitLeft":
+            setTimeout(() => handleSplitPanel(groupId, "left"), 0);
+            return prev;
+          case "splitUp":
+            setTimeout(() => handleSplitPanel(groupId, "up"), 0);
+            return prev;
+          case "splitDown":
+            setTimeout(() => handleSplitPanel(groupId, "down"), 0);
+            return prev;
+        }
+
+        return prev.map((g) => {
+          if (g.id === groupId) {
+            return { ...g, tabs: newTabs, activeTabId: newActiveTabId };
+          }
+          return g;
+        });
+      });
+    },
+    [handleSplitPanel]
+  );
+
   // Tab population helpers
-  const addTabToPanel = useCallback((tab: import('./types').UnifiedTab) => {
-    setPanelGroups(prev => {
+  const addTabToPanel = useCallback((tab: import("./types").UnifiedTab) => {
+    setPanelGroups((prev) => {
       if (prev.length === 0) {
         return createSinglePanelLayout().groups;
       }
@@ -353,58 +565,104 @@ export default function App() {
   }, []);
 
   // Handler for adding agent tab
-  const handleAddAgentTab = useCallback((agent: import('./types').Agent) => {
-    const tab = agentToTab(agent);
-    addTabToPanel(tab);
-  }, [addTabToPanel]);
+  const handleAddAgentTab = useCallback(
+    (agent: import("./types").Agent) => {
+      const tab = agentToTab(agent);
+      addTabToPanel(tab);
+    },
+    [addTabToPanel]
+  );
 
   // Handler for adding workspace tab
-  const handleAddWorkspaceTab = useCallback((workspace: import('./types').Workspace) => {
-    const tab = workspaceToTab(workspace);
-    addTabToPanel(tab);
-  }, [addTabToPanel]);
+  const handleAddWorkspaceTab = useCallback(
+    (workspace: import("./types").Workspace) => {
+      const tab = workspaceToTab(workspace);
+      addTabToPanel(tab);
+    },
+    [addTabToPanel]
+  );
 
   // Handler for adding deck tab
-  const handleAddDeckTab = useCallback((deck: import('./types').Deck) => {
-    const tab = deckToTab(deck);
-    addTabToPanel(tab);
-  }, [addTabToPanel]);
+  const handleAddDeckTab = useCallback(
+    (deck: import("./types").Deck) => {
+      const tab = deckToTab(deck);
+      addTabToPanel(tab);
+    },
+    [addTabToPanel]
+  );
 
   // Handler for adding editor tab
-  const handleAddEditorTab = useCallback((file: EditorFile) => {
-    const tab = editorToTab(file);
+  const handleAddEditorTab = useCallback(
+    (file: EditorFile) => {
+      const tab = editorToTab(file);
+      addTabToPanel(tab);
+    },
+    [addTabToPanel]
+  );
+
+  // Handler for adding server tab
+  const handleAddServerTab = useCallback(() => {
+    const tab = serverToTab();
     addTabToPanel(tab);
   }, [addTabToPanel]);
 
-  // Initialize panels with existing data (run once on mount)
+  // Handler for adding tunnel tab
+  const handleAddTunnelTab = useCallback(() => {
+    const tab = tunnelToTab();
+    addTabToPanel(tab);
+  }, [addTabToPanel]);
+
+  // Track if we've done initial panel setup
+  const initialPanelSetupDoneRef = useRef(false);
+
+  // Initialize panels with existing data (run after agents/workspaces/decks are loaded)
   useEffect(() => {
-    setPanelGroups(currentGroups => {
-      const newGroups = currentGroups.length === 0 ? createSinglePanelLayout().groups : currentGroups;
+    // Skip if we've already done initial setup
+    if (initialPanelSetupDoneRef.current) return;
+
+    // Skip if data hasn't loaded yet (check if any data exists)
+    const hasData = agents.length > 0 || workspaces.length > 0 || decks.length > 0;
+
+    // If no data at all, still mark as done to avoid infinite loop
+    if (!hasData) {
+      initialPanelSetupDoneRef.current = true;
+      return;
+    }
+
+    setPanelGroups((currentGroups) => {
+      const newGroups =
+        currentGroups.length === 0 ? createSinglePanelLayout().groups : currentGroups;
       const group = newGroups[0];
 
       // Collect all existing tab IDs
-      const existingAgentIds = group.tabs.filter(t => t.kind === 'agent').map(t => t.data.agent?.id);
-      const existingWorkspaceIds = group.tabs.filter(t => t.kind === 'workspace').map(t => t.data.workspace?.id);
-      const existingDeckIds = group.tabs.filter(t => t.kind === 'deck').map(t => t.data.deck?.id);
+      const existingAgentIds = group.tabs
+        .filter((t) => t.kind === "agent")
+        .map((t) => t.data.agent?.id);
+      const existingWorkspaceIds = group.tabs
+        .filter((t) => t.kind === "workspace")
+        .map((t) => t.data.workspace?.id);
+      const existingDeckIds = group.tabs
+        .filter((t) => t.kind === "deck")
+        .map((t) => t.data.deck?.id);
 
       const newTabs: typeof group.tabs = [...group.tabs];
 
       // Add agents that don't exist
-      agents.forEach(agent => {
+      agents.forEach((agent) => {
         if (!existingAgentIds.includes(agent.id)) {
           newTabs.push(agentToTab(agent));
         }
       });
 
       // Add workspaces that don't exist
-      workspaces.forEach(workspace => {
+      workspaces.forEach((workspace) => {
         if (!existingWorkspaceIds.includes(workspace.id)) {
           newTabs.push(workspaceToTab(workspace));
         }
       });
 
       // Add decks that don't exist
-      decks.forEach(deck => {
+      decks.forEach((deck) => {
         if (!existingDeckIds.includes(deck.id)) {
           newTabs.push(deckToTab(deck));
         }
@@ -413,39 +671,40 @@ export default function App() {
       // Set first tab as active if no active tab
       const activeTabId = group.activeTabId || (newTabs.length > 0 ? newTabs[0].id : null);
 
-      return [
-        { ...group, tabs: newTabs, activeTabId },
-        ...newGroups.slice(1),
-      ];
+      return [{ ...group, tabs: newTabs, activeTabId }, ...newGroups.slice(1)];
     });
-  }, [agents, workspaces, decks]); // Only depend on data, not panelGroups
+
+    // Mark initial setup as done
+    initialPanelSetupDoneRef.current = true;
+  }, [agents, workspaces, decks]); // Run when data is loaded
 
   // Add editor tabs when files change
   useEffect(() => {
     if (activeWorkspaceState.files && activeWorkspaceState.files.length > 0) {
-      setPanelGroups(currentGroups => {
+      setPanelGroups((currentGroups) => {
         const newGroups = [...currentGroups];
         const group = newGroups[0];
 
         // Collect existing editor tab IDs
         const existingEditorIds = group.tabs
-          .filter(t => t.kind === 'editor')
-          .map(t => t.data.editor?.id);
+          .filter((t) => t.kind === "editor")
+          .map((t) => t.data.editor?.id);
 
         const newTabs = [...group.tabs];
 
         // Add files that don't exist
-        activeWorkspaceState.files.forEach(file => {
+        activeWorkspaceState.files.forEach((file) => {
           if (!existingEditorIds.includes(file.id)) {
             newTabs.push(editorToTab(file));
           }
         });
 
-        newGroups[0] = { ...group, tabs: newTabs };
+        // Preserve activeTabId
+        newGroups[0] = { ...group, tabs: newTabs, activeTabId: group.activeTabId };
         return newGroups;
       });
     }
-  }, [activeWorkspaceState.files]); // Only depend on files, not panelGroups
+  }, [activeWorkspaceState.files]);
 
   const {
     gitState,
@@ -817,269 +1076,6 @@ export default function App() {
   // Check if welcome screen should be shown
   const showWelcomeScreen = workspaces.length === 0 && decks.length === 0;
 
-  const workspaceEditor =
-    workspaceMode === "editor" && Boolean(editorWorkspaceId) ? (
-      <div className="workspace-editor-overlay">
-        <div className="workspace-editor-header">
-          <button type="button" className="ghost-button" onClick={handleCloseWorkspaceEditor}>
-            {"\u4e00\u89a7\u306b\u623b\u308b"}
-          </button>
-          <div className="workspace-meta">
-            {activeWorkspace ? (
-              <span className="workspace-path">{activeWorkspace.path}</span>
-            ) : null}
-          </div>
-        </div>
-        <div className="workspace-editor-grid">
-          <div className="activity-bar">
-            <button
-              type="button"
-              className={`activity-bar-item ${sidebarPanel === "files" ? "active" : ""}`}
-              onClick={() => setSidebarPanel("files")}
-              title="エクスプローラー"
-            >
-              <Folder size={20} />
-            </button>
-            <button
-              type="button"
-              className={`activity-bar-item ${sidebarPanel === "git" ? "active" : ""}`}
-              onClick={() => {
-                setSidebarPanel("git");
-                refreshGitStatus();
-              }}
-              title="ソースコントロール"
-            >
-              <GitBranch size={20} />
-              {gitChangeCount > 0 && <span className="activity-bar-badge">{gitChangeCount}</span>}
-            </button>
-            <button
-              type="button"
-              className={`activity-bar-item ${sidebarPanel === "servers" ? "active" : ""}`}
-              onClick={() => setSidebarPanel("servers")}
-              title="ローカルサーバー"
-            >
-              <Network size={20} />
-            </button>
-            <button
-              type="button"
-              className={`activity-bar-item ${sidebarPanel === "mcp" ? "active" : ""}`}
-              onClick={() => setSidebarPanel("mcp")}
-              title="MCPサーバー"
-            >
-              <Database size={20} />
-            </button>
-          </div>
-          <div className="sidebar-panel">
-            <div className="sidebar-content">
-              {sidebarPanel === "files" ? (
-                <FileTree
-                  root={activeWorkspace?.path || defaultRoot || ""}
-                  entries={activeWorkspaceState.tree}
-                  loading={activeWorkspaceState.treeLoading}
-                  error={activeWorkspaceState.treeError}
-                  onToggleDir={handleToggleDir}
-                  onOpenFile={handleOpenFile}
-                  onRefresh={handleRefreshTree}
-                  onCreateFile={handleCreateFile}
-                  onCreateDirectory={handleCreateDirectory}
-                  onDeleteFile={handleDeleteFile}
-                  onDeleteDirectory={handleDeleteDirectory}
-                  gitFiles={gitState.status?.files}
-                />
-              ) : sidebarPanel === "git" ? (
-                <SourceControl
-                  status={gitState.status}
-                  loading={gitState.loading}
-                  error={gitState.error}
-                  workspaceId={editorWorkspaceId}
-                  branchStatus={gitState.branchStatus}
-                  hasRemote={gitState.hasRemote}
-                  pushing={gitState.pushing}
-                  pulling={gitState.pulling}
-                  branches={gitState.branches}
-                  branchesLoading={gitState.branchesLoading}
-                  logs={gitState.logs}
-                  logsLoading={gitState.logsLoading}
-                  repos={gitState.repos}
-                  selectedRepoPath={gitState.selectedRepoPath}
-                  onSelectRepo={handleSelectRepo}
-                  onRefresh={refreshGitStatus}
-                  onStageFile={handleStageFile}
-                  onUnstageFile={handleUnstageFile}
-                  onStageAll={handleStageAll}
-                  onUnstageAll={handleUnstageAll}
-                  onCommit={handleCommit}
-                  onDiscardFile={handleDiscardFile}
-                  onShowDiff={handleShowDiff}
-                  onPush={handlePush}
-                  onPull={handlePull}
-                  onLoadBranches={handleLoadBranches}
-                  onCheckoutBranch={handleCheckoutBranch}
-                  onCreateBranch={handleCreateBranch}
-                  onLoadLogs={handleLoadLogs}
-                />
-              ) : sidebarPanel === "ai" ? (
-                <AIWorkflowPanel workspaceId={editorWorkspaceId} />
-              ) : sidebarPanel === "servers" ? (
-                <ServerListPanel
-                  onServerSelect={(server) => setSelectedServerUrl(server.url)}
-                  selectedUrl={selectedServerUrl}
-                />
-              ) : sidebarPanel === "mcp" ? (
-                <MCPPanel />
-              ) : null}
-            </div>
-          </div>
-          <MemoizedUnifiedPanelView
-            groups={panelGroups}
-            layout={panelLayout}
-            onSelectTab={handleSelectTab}
-            onCloseTab={handleCloseTab}
-            onFocusGroup={handleFocusGroup}
-          />
-        </div>
-        {gitState.diffPath && (
-          <DiffViewer
-            diff={gitState.diff}
-            loading={gitState.diffLoading}
-            onClose={handleCloseDiff}
-          />
-        )}
-      </div>
-    ) : null;
-
-  const workspaceView = (
-    <div className={`workspace-view ${workspaceMode === "editor" ? "has-editor" : ""}`}>
-      {showWelcomeScreen ? (
-        <WelcomeScreen
-          onOpenWorkspaceModal={handleOpenWorkspaceModal}
-          onOpenDeckModal={handleOpenDeckModal}
-          hasWorkspace={workspaces.length > 0}
-          hasDeck={decks.length > 0}
-        />
-      ) : workspaceMode === "list" ? (
-        <div className="workspace-start">
-          <button type="button" className="primary-button" onClick={handleOpenWorkspaceModal}>
-            {"\u30ef\u30fc\u30af\u30b9\u30da\u30fc\u30b9\u8ffd\u52a0"}
-          </button>
-          <WorkspaceList
-            workspaces={workspaces}
-            selectedWorkspaceId={editorWorkspaceId}
-            onSelect={handleSelectWorkspace}
-          />
-        </div>
-      ) : null}
-      {workspaceEditor}
-    </div>
-  );
-
-  // Unified terminal section (always shown below editor)
-  const terminalSection = (
-    <div className="unified-terminal-section">
-      <div className="terminal-topbar">
-        <div className="topbar-left">
-          <div className="deck-tabs" role="tablist">
-            {decks.map((deck, index) => (
-              <button
-                key={deck.id}
-                type="button"
-                className={`deck-tab ${activeDeckIds.includes(deck.id) ? "active" : ""}`}
-                onClick={(e) => handleToggleDeck(deck.id, e.shiftKey)}
-                onKeyDown={(e) => handleDeckTabKeyDown(e, deck.id, index)}
-                title={`${workspaceById.get(deck.workspaceId)?.path || deck.root}\nShift+クリックで分割表示`}
-                role="tab"
-                aria-selected={activeDeckIds.includes(deck.id)}
-                tabIndex={activeDeckIds.includes(deck.id) ? 0 : -1}
-              >
-                {deck.name}
-              </button>
-            ))}
-            <button
-              type="button"
-              className="deck-tab deck-tab-add"
-              onClick={handleOpenDeckModal}
-              title="デッキ作成"
-              aria-label="デッキ作成"
-            >
-              +
-            </button>
-          </div>
-        </div>
-      </div>
-      <div
-        className="terminal-split-container"
-        style={{ gridTemplateColumns: `repeat(${activeDeckIds.length}, 1fr)` }}
-      >
-        {activeDeckIds.length === 0 ? (
-          <div className="panel empty-panel">{"デッキを作成してください。"}</div>
-        ) : (
-          activeDeckIds.map((deckId) => {
-            const deck = decks.find((d) => d.id === deckId);
-            const deckState = deckStates[deckId] || defaultDeckState;
-            if (!deck) return null;
-            return (
-              <div key={deckId} className="deck-split-pane">
-                <div className="deck-split-header">
-                  <span className="deck-split-title">{deck.name}</span>
-                  <div className="deck-split-actions">
-                    <button
-                      type="button"
-                      className="topbar-btn-sm"
-                      onClick={() => handleNewTerminalForDeck(deckId)}
-                      title="ターミナル追加"
-                    >
-                      +
-                    </button>
-                    <button
-                      type="button"
-                      className="topbar-btn-sm topbar-btn-claude"
-                      onClick={() => handleNewClaudeTerminalForDeck(deckId)}
-                      title="Claude"
-                    >
-                      C
-                    </button>
-                    <button
-                      type="button"
-                      className="topbar-btn-sm topbar-btn-codex"
-                      onClick={() => handleNewCodexTerminalForDeck(deckId)}
-                      title="Codex"
-                    >
-                      X
-                    </button>
-                  </div>
-                </div>
-                <TerminalPane
-                  terminals={deckState.terminals}
-                  wsBase={wsBase}
-                  deckId={deckId}
-                  onDeleteTerminal={(terminalId) => handleTerminalDeleteForDeck(deckId, terminalId)}
-                  onReorderTerminals={(deckId, newOrder) => {
-                    updateDeckState(deckId, (state) => ({
-                      ...state,
-                      terminals: newOrder,
-                    }));
-                  }}
-                  terminalGroups={terminalGroups}
-                  onToggleGroupCollapsed={handleToggleGroupCollapsed}
-                  onDeleteGroup={handleDeleteGroup}
-                  onRenameGroup={(groupId) => {
-                    // TODO: Implement rename dialog
-                    const newName = prompt("Enter new group name:");
-                    if (newName) {
-                      handleUpdateGroup(groupId, { name: newName });
-                    }
-                  }}
-                  onCreateTerminal={() => handleNewTerminalForDeck(deckId)}
-                  isCreatingTerminal={creatingTerminalDeckIds.has(deckId)}
-                />
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
-
   // Show startup screen first
   if (!serverReady) {
     return <ServerStartupScreen onComplete={() => setServerReady(true)} />;
@@ -1093,7 +1089,9 @@ export default function App() {
         onToggleContextStatus={() => setShowContextStatus((prev) => !prev)}
         onOpenWorkspaceModal={() => setIsWorkspaceModalOpen(true)}
         onOpenDeckModal={() => setIsDeckModalOpen(true)}
-        onCreateAgent={() => {/* TODO: Implement agent creation */}}
+        onCreateAgent={() => {
+          /* TODO: Implement agent creation */
+        }}
         onNewTerminal={() => {
           // Create a new terminal in the first available deck
           const firstDeckId = activeDeckIds[0];
@@ -1105,6 +1103,8 @@ export default function App() {
             setIsDeckModalOpen(true);
           }
         }}
+        onAddServerTab={handleAddServerTab}
+        onAddTunnelTab={handleAddTunnelTab}
       />
       <main className="main">
         <MemoizedUnifiedPanelView
@@ -1113,6 +1113,12 @@ export default function App() {
           onSelectTab={handleSelectTab}
           onCloseTab={handleCloseTab}
           onFocusGroup={handleFocusGroup}
+          onTabsReorder={handleTabsReorder}
+          onTabMove={handleTabMove}
+          onSplitPanel={handleSplitPanel}
+          onClosePanel={handleClosePanel}
+          onResizePanel={handleResizePanel}
+          onContextMenuAction={handleContextMenuAction}
           workspaceStates={workspaceStates}
           gitFiles={gitState.status?.files}
           onToggleDir={handleToggleDir}
@@ -1129,7 +1135,7 @@ export default function App() {
             // Find the deck that contains this terminal
             for (const deck of decks) {
               const deckState = deckStates[deck.id];
-              if (deckState?.terminals?.some(t => t.id === terminalId)) {
+              if (deckState?.terminals?.some((t) => t.id === terminalId)) {
                 handleDeleteTerminal(deck.id, terminalId);
                 break;
               }
@@ -1141,7 +1147,8 @@ export default function App() {
             // For now, we can ignore or implement proper terminal reordering
           }}
           onCreateTerminal={() => {
-            const activeDeck = activeDeckIds.length > 0 ? decks.find(d => d.id === activeDeckIds[0]) : null;
+            const activeDeck =
+              activeDeckIds.length > 0 ? decks.find((d) => d.id === activeDeckIds[0]) : null;
             if (activeDeck) {
               handleNewTerminalForDeck(activeDeck.id);
             }
@@ -1149,7 +1156,7 @@ export default function App() {
           onToggleGroupCollapsed={handleToggleGroupCollapsed}
           onDeleteGroup={handleDeleteGroup}
           onRenameGroup={(groupId) => {
-            const group = terminalGroups?.find(g => g.id === groupId);
+            const group = terminalGroups?.find((g) => g.id === groupId);
             if (group) {
               const newName = prompt("Enter new group name:");
               if (newName) {
@@ -1161,6 +1168,13 @@ export default function App() {
           onSaveFile={handleSaveFile}
           savingFileId={savingFileId}
         />
+        {gitState.diffPath && (
+          <DiffViewer
+            diff={gitState.diff}
+            loading={gitState.diffLoading}
+            onClose={handleCloseDiff}
+          />
+        )}
       </main>
       <StatusMessage message={statusMessage} />
       <GlobalStatusBar

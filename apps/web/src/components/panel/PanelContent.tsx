@@ -1,10 +1,12 @@
 import { memo } from "react";
 import type { UnifiedTab } from "../../types";
 import { AgentPanel } from "./AgentPanel";
-import { WorkspacePanel } from "./WorkspacePanel";
 import { DeckPanel } from "./DeckPanel";
-import { TerminalPanelContent } from "./TerminalPanelContent";
 import { EditorPanelContent } from "./EditorPanelContent";
+import { ServerPanelContent } from "./ServerPanelContent";
+import { TerminalPanelContent } from "./TerminalPanelContent";
+import { TunnelPanelContent } from "./TunnelPanelContent";
+import { WorkspacePanel } from "./WorkspacePanel";
 
 interface PanelContentProps {
   tab: UnifiedTab;
@@ -121,6 +123,10 @@ export function PanelContent({
           saving={savingFileId === tab.data.editor!.id}
         />
       );
+    case "server":
+      return <ServerPanelContent />;
+    case "tunnel":
+      return <TunnelPanelContent />;
     default:
       return <div>Unknown tab type</div>;
   }

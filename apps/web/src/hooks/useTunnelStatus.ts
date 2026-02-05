@@ -4,11 +4,13 @@ import { STATUS_CHECK_INTERVAL } from "../constants";
 export interface TunnelStatus {
   running: boolean;
   url: string | null;
+  password: string | null;
 }
 
 export function useTunnelStatus(): TunnelStatus {
   const [running, setRunning] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
+  const [password, setPassword] = useState<string | null>(null);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -22,17 +24,20 @@ export function useTunnelStatus(): TunnelStatus {
         const result = (await tauri.invoke("get_tunnel_status")) as {
           running: boolean;
           url: string | null;
+          password: string | null;
         };
 
         if (signal.aborted) return;
 
         setRunning(result.running);
         setUrl(result.url);
+        setPassword(result.password);
       } catch {
         // Not in Tauri environment
         if (!signal.aborted) {
           setRunning(false);
           setUrl(null);
+          setPassword(null);
         }
       }
     };
@@ -49,5 +54,5 @@ export function useTunnelStatus(): TunnelStatus {
     };
   }, []);
 
-  return { running, url };
+  return { running, url, password };
 }

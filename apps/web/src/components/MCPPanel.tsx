@@ -1,6 +1,6 @@
-import { useLocalServers, type MCPServer } from "../hooks/useLocalServers";
-import { useState, useEffect } from "react";
-import { Network, RefreshCw, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { AlertCircle, CheckCircle, Network, RefreshCw, XCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { type MCPServer, useLocalServers } from "../hooks/useLocalServers";
 
 interface MCPPanelProps {
   className?: string;

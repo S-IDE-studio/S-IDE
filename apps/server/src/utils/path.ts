@@ -77,7 +77,10 @@ export async function resolveSafePath(workspacePath: string, inputPath = ""): Pr
   }
 
   // Additional check: ensure resolved path starts with root (with normalized separators)
-  if (!normalizedResolved.startsWith(normalizedRoot + "/") && normalizedResolved !== normalizedRoot) {
+  if (
+    !normalizedResolved.startsWith(`${normalizedRoot}/`) &&
+    normalizedResolved !== normalizedRoot
+  ) {
     throw createHttpError("Path escapes workspace root", 400);
   }
 
@@ -95,7 +98,10 @@ export async function resolveSafePath(workspacePath: string, inputPath = ""): Pr
     // Additional check: ensure real path starts with real root (with normalized separators)
     const normalizedRealRoot = realRoot.replace(/\\/g, "/");
     const normalizedRealPath = realPath.replace(/\\/g, "/");
-    if (!normalizedRealPath.startsWith(normalizedRealRoot + "/") && normalizedRealPath !== normalizedRealRoot) {
+    if (
+      !normalizedRealPath.startsWith(`${normalizedRealRoot}/`) &&
+      normalizedRealPath !== normalizedRealRoot
+    ) {
       throw createHttpError("Symlink target escapes workspace root", 400);
     }
 
@@ -122,7 +128,10 @@ export async function resolveSafePath(workspacePath: string, inputPath = ""): Pr
       // Additional check: ensure parent starts with real root (with normalized separators)
       const normalizedRealRoot = realRoot.replace(/\\/g, "/");
       const normalizedRealParent = realParent.replace(/\\/g, "/");
-      if (!normalizedRealParent.startsWith(normalizedRealRoot + "/") && normalizedRealParent !== normalizedRealRoot) {
+      if (
+        !normalizedRealParent.startsWith(`${normalizedRealRoot}/`) &&
+        normalizedRealParent !== normalizedRealRoot
+      ) {
         throw createHttpError("Parent directory escapes workspace root", 400);
       }
 

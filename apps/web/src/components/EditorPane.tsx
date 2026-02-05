@@ -154,10 +154,7 @@ export function EditorPane({
 }
 
 // Memoize for performance
-const areEqual = (
-  prevProps: EditorPaneProps,
-  nextProps: EditorPaneProps
-): boolean => {
+const areEqual = (prevProps: EditorPaneProps, nextProps: EditorPaneProps): boolean => {
   return (
     prevProps.files === nextProps.files &&
     prevProps.activeFileId === nextProps.activeFileId &&

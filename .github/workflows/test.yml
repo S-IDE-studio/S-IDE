@@ -1,0 +1,180 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # TypeScript tests (Server, Web, Shared)
+  test-typescript:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node-version: [20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run TypeScript tests
+        run: pnpm run test:ci
+
+      - name: Upload coverage reports
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/coverage-final.json
+          flags: unittests
+          name: codecov-umbrella
+
+  # Rust tests (Desktop)
+  test-rust:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        rust:
+          - stable
+          - beta
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.rust }}
+          targets: x86_64-unknown-linux-gnu, x86_64-pc-windows-msvc
+
+      - name: Cache Rust cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache Rust cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache Rust cargo build
+        uses: actions/cache@v4
+        with:
+          path: apps/desktop/src-tauri/target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run Rust tests
+        working-directory: apps/desktop/src-tauri
+        run: cargo test --verbose --all-features
+
+      - name: Run Rust tests with coverage
+        if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
+        working-directory: apps/desktop/src-tauri
+        run: |
+          cargo install cargo-tarpaulin
+          cargo tarpaulin --out Xml -- --test-threads 1
+
+      - name: Upload coverage to Codecov
+        if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v4
+        with:
+          files: apps/desktop/src-tauri/cobertura.xml
+          flags: rust
+
+  # Lint and type check
+  lint-and-type-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Biome linter
+        run: pnpm run lint
+
+      - name: Run type check
+        run: pnpm run type-check
+
+  # Build verification
+  build:
+    runs-on: ubuntu-latest
+    needs: [test-typescript, test-rust, lint-and-type-check]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web
+        run: pnpm run build:web
+
+      - name: Build server
+        run: pnpm run build:server
+
+      - name: Verify build artifacts exist
+        run: |
+          test -d apps/web/dist
+          test -d apps/server/dist
+
+  # Security scan
+  security:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run security audit
+        run: pnpm audit
+
+      - name: Run Rust security audit
+        working-directory: apps/desktop/src-tauri
+        run: |
+          cargo install cargo-audit
+          cargo audit

@@ -1,6 +1,6 @@
 import { memo } from "react";
-import { DraggableTerminal } from "../DraggableTerminal";
 import type { TerminalSession } from "../../types";
+import { DraggableTerminal } from "../DraggableTerminal";
 
 interface TerminalPanelContentProps {
   terminal: { id: string; command: string; cwd: string };
@@ -16,7 +16,7 @@ export function TerminalPanelContent({
   // Convert terminal data to TerminalSession format
   const session: TerminalSession = {
     id: terminal.id,
-    title: terminal.command || 'Terminal',
+    title: terminal.command || "Terminal",
     shell: terminal.command,
   };
 

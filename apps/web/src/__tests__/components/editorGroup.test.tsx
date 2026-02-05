@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom";
 import { EditorPane } from "../../components/EditorPane";
 import type { EditorFile, EditorGroup, GroupLayout } from "../../types";
@@ -12,10 +12,26 @@ vi.mock("@monaco-editor/react", () => ({
 
 // Mock lucide-react icons
 vi.mock("lucide-react", () => ({
-  X: ({ className }: { className?: string }) => <span data-icon="X" className={className}>X</span>,
-  Loader2: ({ className }: { className?: string }) => <span data-icon="Loader2" className={className}>Loader2</span>,
-  Plus: ({ className }: { className?: string }) => <span data-icon="Plus" className={className}>Plus</span>,
-  File: ({ className }: { className?: string }) => <span data-icon="File" className={className}>File</span>,
+  X: ({ className }: { className?: string }) => (
+    <span data-icon="X" className={className}>
+      X
+    </span>
+  ),
+  Loader2: ({ className }: { className?: string }) => (
+    <span data-icon="Loader2" className={className}>
+      Loader2
+    </span>
+  ),
+  Plus: ({ className }: { className?: string }) => (
+    <span data-icon="Plus" className={className}>
+      Plus
+    </span>
+  ),
+  File: ({ className }: { className?: string }) => (
+    <span data-icon="File" className={className}>
+      File
+    </span>
+  ),
 }));
 
 // Mock @dnd-kit

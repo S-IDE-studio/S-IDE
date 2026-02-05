@@ -1,6 +1,9 @@
-import { memo, useCallback } from "react";
-import type { PanelGroup, PanelLayout } from "../../types";
-import { createEmptyPanelGroup } from "../../utils/unifiedTabUtils";
+/**
+ * Unified Panel View - VSCode-style panel layout with split and resize
+ */
+
+import { memo, useCallback, useMemo } from "react";
+import type { PanelGroup, PanelLayout, SplitDirection, TabContextMenuAction } from "../../types";
 import { MemoizedUnifiedPanelContainer } from "./UnifiedPanelContainer";
 
 interface UnifiedPanelViewProps {
@@ -9,12 +12,21 @@ interface UnifiedPanelViewProps {
   onSelectTab: (groupId: string, tabId: string) => void;
   onCloseTab: (groupId: string, tabId: string) => void;
   onFocusGroup: (groupId: string) => void;
+  onTabsReorder: (groupId: string, oldIndex: number, newIndex: number) => void;
+  onTabMove: (tabId: string, sourceGroupId: string, targetGroupId: string) => void;
+  onSplitPanel: (groupId: string, direction: SplitDirection) => void;
+  onClosePanel: (groupId: string) => void;
+  onResizePanel: (groupId: string, delta: number) => void;
+  onContextMenuAction: (action: TabContextMenuAction, groupId: string, tabId: string) => void;
   // Workspace data
-  workspaceStates?: Record<string, {
-    tree?: import("../../types").FileTreeNode[];
-    treeLoading?: boolean;
-    treeError?: string | null;
-  }>;
+  workspaceStates?: Record<
+    string,
+    {
+      tree?: import("../../types").FileTreeNode[];
+      treeLoading?: boolean;
+      treeError?: string | null;
+    }
+  >;
   gitFiles?: import("../../types").GitFileStatus[];
   // Workspace handlers
   onToggleDir?: (node: import("../../types").FileTreeNode) => void;
@@ -25,11 +37,14 @@ interface UnifiedPanelViewProps {
   onDeleteFile?: (filePath: string) => void;
   onDeleteDirectory?: (dirPath: string) => void;
   // Deck/Terminal data
-  deckStates?: Record<string, {
-    terminals?: import("../../types").TerminalSession[];
-    terminalGroups?: import("../../types").TerminalGroup[];
-    isCreatingTerminal?: boolean;
-  }>;
+  deckStates?: Record<
+    string,
+    {
+      terminals?: import("../../types").TerminalSession[];
+      terminalGroups?: import("../../types").TerminalGroup[];
+      isCreatingTerminal?: boolean;
+    }
+  >;
   wsBase?: string;
   // Deck/Terminal handlers
   onDeleteTerminal?: (terminalId: string) => void;
@@ -50,6 +65,12 @@ export function UnifiedPanelView({
   onSelectTab,
   onCloseTab,
   onFocusGroup,
+  onTabsReorder,
+  onTabMove,
+  onSplitPanel,
+  onClosePanel,
+  onResizePanel,
+  onContextMenuAction,
   workspaceStates,
   gitFiles,
   onToggleDir,
@@ -73,18 +94,87 @@ export function UnifiedPanelView({
 }: UnifiedPanelViewProps) {
   const focusedGroupId = groups.find((g) => g.focused)?.id ?? groups[0]?.id;
 
+  // Determine split capabilities based on current layout and group count
+  const canSplitHorizontal = useMemo(() => {
+    return layout.direction !== "vertical" && groups.length < 4;
+  }, [layout.direction, groups.length]);
+
+  const canSplitVertical = useMemo(() => {
+    return layout.direction !== "horizontal" && groups.length < 4;
+  }, [layout.direction, groups.length]);
+
   // Wrap callbacks with groupId
-  const createSelectHandler = useCallback((groupId: string) => (tabId: string) => {
-    onSelectTab(groupId, tabId);
-  }, [onSelectTab]);
+  const createSelectHandler = useCallback(
+    (groupId: string) => (tabId: string) => {
+      onSelectTab(groupId, tabId);
+    },
+    [onSelectTab]
+  );
 
-  const createCloseHandler = useCallback((groupId: string) => (tabId: string) => {
-    onCloseTab(groupId, tabId);
-  }, [onCloseTab]);
+  const createCloseHandler = useCallback(
+    (groupId: string) => (tabId: string) => {
+      onCloseTab(groupId, tabId);
+    },
+    [onCloseTab]
+  );
 
-  const createFocusHandler = useCallback((groupId: string) => () => {
-    onFocusGroup(groupId);
-  }, [onFocusGroup]);
+  const createFocusHandler = useCallback(
+    (groupId: string) => () => {
+      onFocusGroup(groupId);
+    },
+    [onFocusGroup]
+  );
+
+  const createReorderHandler = useCallback(
+    (groupId: string) => (oldIndex: number, newIndex: number) => {
+      onTabsReorder(groupId, oldIndex, newIndex);
+    },
+    [onTabsReorder]
+  );
+
+  const createMoveHandler = useCallback(
+    (sourceGroupId: string) => (tabId: string, targetGroupId: string) => {
+      onTabMove(tabId, sourceGroupId, targetGroupId);
+    },
+    [onTabMove]
+  );
+
+  const createSplitHandler = useCallback(
+    (groupId: string) => (direction: SplitDirection) => {
+      onSplitPanel(groupId, direction);
+    },
+    [onSplitPanel]
+  );
+
+  const createClosePanelHandler = useCallback(
+    (groupId: string) => () => {
+      onClosePanel(groupId);
+    },
+    [onClosePanel]
+  );
+
+  const createResizeHandler = useCallback(
+    (groupId: string) => (delta: number) => {
+      onResizePanel(groupId, delta);
+    },
+    [onResizePanel]
+  );
+
+  const createContextMenuHandler = useCallback(
+    (groupId: string) => (action: TabContextMenuAction, tabId: string) => {
+      onContextMenuAction(action, groupId, tabId);
+    },
+    [onContextMenuAction]
+  );
+
+  // Empty state
+  if (groups.length === 0) {
+    return (
+      <div className="panel-view-empty">
+        <p>No panels open. Open a file or create a new workspace to get started.</p>
+      </div>
+    );
+  }
 
   // Single group
   if (layout.direction === "single" || groups.length === 1) {
@@ -92,7 +182,7 @@ export function UnifiedPanelView({
     if (!group) {
       return (
         <div className="panel-view-empty">
-          <p>パネルを追加してください</p>
+          <p>No panels open</p>
         </div>
       );
     }
@@ -102,9 +192,20 @@ export function UnifiedPanelView({
         key={group.id}
         group={group}
         isFocused={group.id === focusedGroupId}
+        isFirstPanel={true}
+        isLastPanel={true}
+        canSplitHorizontal={canSplitHorizontal}
+        canSplitVertical={canSplitVertical}
+        layoutDirection={layout.direction}
         onSelectTab={createSelectHandler(group.id)}
         onCloseTab={createCloseHandler(group.id)}
         onFocus={createFocusHandler(group.id)}
+        onTabsReorder={createReorderHandler(group.id)}
+        onTabMove={createMoveHandler(group.id)}
+        onSplitPanel={createSplitHandler(group.id)}
+        onClosePanel={createClosePanelHandler(group.id)}
+        onResize={createResizeHandler(group.id)}
+        onContextMenuAction={createContextMenuHandler(group.id)}
         workspaceStates={workspaceStates}
         gitFiles={gitFiles}
         onToggleDir={onToggleDir}
@@ -132,14 +233,25 @@ export function UnifiedPanelView({
   // Multiple groups
   return (
     <div className={`panel-groups panel-groups-${layout.direction}`}>
-      {groups.map((group) => (
+      {groups.map((group, index) => (
         <MemoizedUnifiedPanelContainer
           key={group.id}
           group={group}
           isFocused={group.id === focusedGroupId}
+          isFirstPanel={index === 0}
+          isLastPanel={index === groups.length - 1}
+          canSplitHorizontal={canSplitHorizontal}
+          canSplitVertical={canSplitVertical}
+          layoutDirection={layout.direction}
           onSelectTab={createSelectHandler(group.id)}
           onCloseTab={createCloseHandler(group.id)}
           onFocus={createFocusHandler(group.id)}
+          onTabsReorder={createReorderHandler(group.id)}
+          onTabMove={createMoveHandler(group.id)}
+          onSplitPanel={createSplitHandler(group.id)}
+          onClosePanel={createClosePanelHandler(group.id)}
+          onResize={createResizeHandler(group.id)}
+          onContextMenuAction={createContextMenuHandler(group.id)}
           workspaceStates={workspaceStates}
           gitFiles={gitFiles}
           onToggleDir={onToggleDir}

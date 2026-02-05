@@ -1,20 +1,40 @@
+/**
+ * Unified Panel Container - VSCode-style panel with tabs, split, and resize
+ */
+
 import { memo, useCallback } from "react";
-import type { PanelGroup } from "../../types";
-import { PanelTabList } from "./PanelTabList";
+import type { PanelGroup, SplitDirection, TabContextMenuAction } from "../../types";
 import { PanelContent } from "./PanelContent";
+import { MemoizedPanelResizeHandle } from "./PanelResizeHandle";
+import { MemoizedPanelSplitButton } from "./PanelSplitButton";
+import { MemoizedPanelTabList } from "./PanelTabList";
 
 interface UnifiedPanelContainerProps {
   group: PanelGroup;
   isFocused: boolean;
+  isFirstPanel: boolean;
+  isLastPanel: boolean;
+  canSplitHorizontal: boolean;
+  canSplitVertical: boolean;
+  layoutDirection: "horizontal" | "vertical" | "single";
   onSelectTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
   onFocus: () => void;
+  onTabsReorder: (oldIndex: number, newIndex: number) => void;
+  onTabMove: (tabId: string, targetGroupId: string) => void;
+  onSplitPanel: (direction: SplitDirection) => void;
+  onClosePanel: () => void;
+  onResize: (delta: number) => void;
+  onContextMenuAction: (action: TabContextMenuAction, tabId: string) => void;
   // Workspace data
-  workspaceStates?: Record<string, {
-    tree?: import("../../types").FileTreeNode[];
-    treeLoading?: boolean;
-    treeError?: string | null;
-  }>;
+  workspaceStates?: Record<
+    string,
+    {
+      tree?: import("../../types").FileTreeNode[];
+      treeLoading?: boolean;
+      treeError?: string | null;
+    }
+  >;
   gitFiles?: import("../../types").GitFileStatus[];
   // Workspace handlers
   onToggleDir?: (node: import("../../types").FileTreeNode) => void;
@@ -25,11 +45,14 @@ interface UnifiedPanelContainerProps {
   onDeleteFile?: (filePath: string) => void;
   onDeleteDirectory?: (dirPath: string) => void;
   // Deck/Terminal data
-  deckStates?: Record<string, {
-    terminals?: import("../../types").TerminalSession[];
-    terminalGroups?: import("../../types").TerminalGroup[];
-    isCreatingTerminal?: boolean;
-  }>;
+  deckStates?: Record<
+    string,
+    {
+      terminals?: import("../../types").TerminalSession[];
+      terminalGroups?: import("../../types").TerminalGroup[];
+      isCreatingTerminal?: boolean;
+    }
+  >;
   wsBase?: string;
   // Deck/Terminal handlers
   onDeleteTerminal?: (terminalId: string) => void;
@@ -47,9 +70,20 @@ interface UnifiedPanelContainerProps {
 export function UnifiedPanelContainer({
   group,
   isFocused,
+  isFirstPanel,
+  isLastPanel,
+  canSplitHorizontal,
+  canSplitVertical,
+  layoutDirection,
   onSelectTab,
   onCloseTab,
   onFocus,
+  onTabsReorder,
+  onTabMove,
+  onSplitPanel,
+  onClosePanel,
+  onResize,
+  onContextMenuAction,
   workspaceStates,
   gitFiles,
   onToggleDir,
@@ -91,6 +125,27 @@ export function UnifiedPanelContainer({
     [onCloseTab]
   );
 
+  const handleTabsReorder = useCallback(
+    (oldIndex: number, newIndex: number) => {
+      onTabsReorder(oldIndex, newIndex);
+    },
+    [onTabsReorder]
+  );
+
+  const handleTabMove = useCallback(
+    (tabId: string, targetGroupId: string) => {
+      onTabMove(tabId, targetGroupId);
+    },
+    [onTabMove]
+  );
+
+  const handleContextMenuAction = useCallback(
+    (action: TabContextMenuAction, tabId: string) => {
+      onContextMenuAction(action, tabId);
+    },
+    [onContextMenuAction]
+  );
+
   // Get workspace state for workspace tabs
   const getWorkspaceState = () => {
     if (activeTab?.kind === "workspace" && activeTab.data.workspace) {
@@ -107,18 +162,39 @@ export function UnifiedPanelContainer({
     return undefined;
   };
 
+  const showResizeHandle = layoutDirection !== "single" && !isLastPanel;
+  const resizeDirection = layoutDirection === "horizontal" ? "horizontal" : "vertical";
+
   return (
     <div
       className={`panel-group ${isFocused ? "focused" : ""}`}
       onClick={handleContainerClick}
+      style={{ flex: `${group.percentage}%` }}
     >
-      {/* Tab List */}
-      <PanelTabList
-        tabs={group.tabs}
-        activeTabId={group.activeTabId}
-        onTabSelect={handleSelectTab}
-        onTabClose={handleCloseTab}
-      />
+      {/* Tab Bar */}
+      <div className="panel-tab-bar">
+        <MemoizedPanelTabList
+          groupId={group.id}
+          tabs={group.tabs}
+          activeTabId={group.activeTabId}
+          onTabSelect={handleSelectTab}
+          onTabClose={handleCloseTab}
+          onTabsReorder={handleTabsReorder}
+          onTabMove={handleTabMove}
+          onContextMenuAction={(action, tab) => handleContextMenuAction(action, tab.id)}
+        />
+
+        {/* Panel Controls */}
+        <div className="panel-controls">
+          <MemoizedPanelSplitButton
+            canSplitVertical={canSplitVertical}
+            canSplitHorizontal={canSplitHorizontal}
+            canClose={true}
+            onSplit={onSplitPanel}
+            onClose={onClosePanel}
+          />
+        </div>
+      </div>
 
       {/* Content */}
       <div className="panel-content">
@@ -148,10 +224,15 @@ export function UnifiedPanelContainer({
           />
         ) : (
           <div className="panel-empty">
-            <p>パネルを選択してください</p>
+            <p>Select a tab to view its content</p>
           </div>
         )}
       </div>
+
+      {/* Resize Handle */}
+      {showResizeHandle && (
+        <MemoizedPanelResizeHandle direction={resizeDirection} onResize={onResize} />
+      )}
     </div>
   );
 }

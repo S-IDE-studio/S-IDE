@@ -79,7 +79,7 @@ export interface EditorGroup {
 }
 
 export interface GroupLayout {
-  direction: 'horizontal' | 'vertical' | 'single';
+  direction: "horizontal" | "vertical" | "single";
   sizes: number[]; // Size percentages for each group
 }
 

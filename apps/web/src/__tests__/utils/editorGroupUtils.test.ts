@@ -5,13 +5,13 @@
 import { describe, expect, it } from "vitest";
 import type { EditorFile, EditorGroup } from "../../types";
 import {
-  generateGroupId,
   createEditorGroup,
   createSingleGroupLayout,
-  validateEditorGroups,
   findGroupByTabId,
+  generateGroupId,
   moveTabBetweenGroups,
   reorderTabsInGroup,
+  validateEditorGroups,
 } from "../../utils/editorGroupUtils";
 
 // Test fixtures
@@ -137,8 +137,22 @@ describe("validateEditorGroups", () => {
         id: "group-1",
         tabs: [
           file1,
-          { id: "", path: "/src/invalid.ts", name: "invalid.ts", language: "typescript", contents: "", dirty: false },
-          { id: "file-3", path: "", name: "invalid.ts", language: "typescript", contents: "", dirty: false },
+          {
+            id: "",
+            path: "/src/invalid.ts",
+            name: "invalid.ts",
+            language: "typescript",
+            contents: "",
+            dirty: false,
+          },
+          {
+            id: "file-3",
+            path: "",
+            name: "invalid.ts",
+            language: "typescript",
+            contents: "",
+            dirty: false,
+          },
         ],
         activeTabId: file1.id,
         focused: true,

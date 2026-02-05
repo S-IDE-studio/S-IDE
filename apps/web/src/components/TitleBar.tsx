@@ -1,5 +1,5 @@
-import { Smartphone, Plus, Folder, Layers, Square, Terminal } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Minus, Square, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface TitleBarProps {
   onOpenSettings?: () => void;
@@ -9,6 +9,123 @@ interface TitleBarProps {
   onOpenDeckModal?: () => void;
   onCreateAgent?: () => void;
   onNewTerminal?: () => void;
+  onAddServerTab?: () => void;
+  onAddTunnelTab?: () => void;
+}
+
+interface MenuItem {
+  label: string;
+  action?: () => void;
+  children?: MenuItem[];
+}
+
+interface MenuBarProps {
+  items: MenuItem[];
+}
+
+function MenuBar({ items }: MenuBarProps) {
+  const [openMenuIndex, setOpenMenuIndex] = useState<number | null>(null);
+  const menuContainerRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const closeMenu = useCallback(() => {
+    setOpenMenuIndex(null);
+  }, []);
+
+  const handleMenuMouseEnter = useCallback((index: number) => {
+    // Clear any pending close timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    setOpenMenuIndex(index);
+  }, []);
+
+  const handleMenuMouseLeave = useCallback(() => {
+    // Delay closing to allow moving to dropdown
+    timeoutRef.current = setTimeout(() => {
+      setOpenMenuIndex(null);
+    }, 100);
+  }, []);
+
+  const handleDropdownMouseEnter = useCallback(() => {
+    // Cancel the close timeout when entering dropdown
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (openMenuIndex !== null) {
+        const container = menuContainerRefs.current[openMenuIndex];
+        if (container && !container.contains(e.target as Node)) {
+          setOpenMenuIndex(null);
+        }
+      }
+    };
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && openMenuIndex !== null) {
+        setOpenMenuIndex(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [openMenuIndex]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  return (
+    <div className="title-bar-menus">
+      {items.map((item, index) => (
+        <div
+          key={index}
+          ref={(el) => {
+            menuContainerRefs.current[index] = el;
+          }}
+          className="title-bar-menu"
+          onMouseEnter={() => handleMenuMouseEnter(index)}
+          onMouseLeave={handleMenuMouseLeave}
+        >
+          <button type="button" className="title-bar-menu-button">
+            {item.label}
+          </button>
+          {openMenuIndex === index && item.children && (
+            <div className="title-bar-dropdown" onMouseEnter={handleDropdownMouseEnter}>
+              {item.children.map((child, childIndex) => (
+                <button
+                  key={childIndex}
+                  type="button"
+                  className="title-bar-dropdown-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    child.action?.();
+                    closeMenu();
+                  }}
+                >
+                  {child.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function TitleBar({
@@ -19,6 +136,8 @@ export function TitleBar({
   onOpenDeckModal,
   onCreateAgent,
   onNewTerminal,
+  onAddServerTab,
+  onAddTunnelTab,
 }: TitleBarProps) {
   const [isTauri, setIsTauri] = useState(false);
   const [isMobileMode, setIsMobileMode] = useState(false);
@@ -62,6 +181,35 @@ export function TitleBar({
     setIsMobileMode((prev) => !prev);
   };
 
+  // VSCode-style menu structure
+  const menuItems: MenuItem[] = [
+    {
+      label: "File",
+      children: [
+        { label: "New Workspace", action: onOpenWorkspaceModal },
+        { label: "New Deck", action: onOpenDeckModal },
+        { label: "New Terminal", action: onNewTerminal },
+      ],
+    },
+    {
+      label: "View",
+      children: [
+        { label: "Local Servers", action: onAddServerTab },
+        { label: "Remote Access", action: onAddTunnelTab },
+        { label: "Server Settings", action: onOpenServerModal },
+        { label: "Settings", action: onOpenSettings },
+      ],
+    },
+    {
+      label: "Agent",
+      children: [{ label: "Create Agent", action: onCreateAgent }],
+    },
+    {
+      label: "Help",
+      children: [{ label: "Context Status", action: onToggleContextStatus }],
+    },
+  ];
+
   return (
     <div
       className={`title-bar ${isTauri ? "title-bar--tauri" : ""} ${isMobileMode ? "title-bar--mobile" : ""}`}
@@ -80,91 +228,22 @@ export function TitleBar({
             title={isMobileMode ? "デスクトップモード" : "モバイルモード"}
             aria-label="Toggle mobile mode"
           >
-            <Smartphone size={14} />
             <span className="mobile-mode-label">{isMobileMode ? "Desktop" : "Mobile"}</span>
           </button>
         )}
       </div>
 
-      {/* Center - draggable area */}
+      {/* Center - menu bar */}
       <div className="title-bar-center" data-tauri-drag-region={isTauri}>
-        <span className="title-bar-title">S-IDE</span>
+        <MenuBar items={menuItems} />
       </div>
 
-      {/* Right side - functional buttons */}
-      <div className="title-bar-right">
-        {/* Panel Management Buttons */}
-        <div className="title-bar-panel-actions">
-          {onOpenWorkspaceModal && (
-            <button
-              type="button"
-              className="title-bar-action-btn"
-              data-tauri-drag-region={false}
-              onClick={onOpenWorkspaceModal}
-              title="ワークスペースを追加"
-            >
-              <Folder size={14} />
-            </button>
-          )}
-          {onOpenDeckModal && (
-            <button
-              type="button"
-              className="title-bar-action-btn"
-              data-tauri-drag-region={false}
-              onClick={onOpenDeckModal}
-              title="デッキを追加"
-            >
-              <Layers size={14} />
-            </button>
-          )}
-          {onCreateAgent && (
-            <button
-              type="button"
-              className="title-bar-action-btn"
-              data-tauri-drag-region={false}
-              onClick={onCreateAgent}
-              title="エージェントを追加"
-            >
-              <Square size={14} />
-            </button>
-          )}
-          {onNewTerminal && (
-            <button
-              type="button"
-              className="title-bar-action-btn"
-              data-tauri-drag-region={false}
-              onClick={onNewTerminal}
-              title="ターミナルを追加"
-            >
-              <Terminal size={14} />
-            </button>
-          )}
-        </div>
-        {onOpenServerModal && (
-          <button
-            type="button"
-            className="title-bar-action-btn"
-            data-tauri-drag-region={false}
-            onClick={onOpenServerModal}
-            title="サーバー"
-          >
-            サーバー
-          </button>
-        )}
-        {onOpenSettings && (
-          <button
-            type="button"
-            className="title-bar-action-btn"
-            data-tauri-drag-region={false}
-            onClick={onOpenSettings}
-            title="設定"
-          >
-            設定
-          </button>
-        )}
+      {/* Right side - empty (window controls are separate) */}
+      <div className="title-bar-right" data-tauri-drag-region={isTauri}>
+        {/* Spacer to push window controls to the right */}
       </div>
 
-      {/* Window controls - only show in Tauri */}
+      {/* Window controls - always show on right side */}
       {isTauri && (
         <div className="title-bar-controls">
           <button
@@ -174,7 +253,7 @@ export function TitleBar({
             onClick={handleMinimize}
             aria-label="Minimize"
           >
-            <span>&#8722;</span>
+            <Minus size={14} />
           </button>
           <button
             type="button"
@@ -183,7 +262,7 @@ export function TitleBar({
             onClick={handleMaximize}
             aria-label="Maximize"
           >
-            <span>&#9633;</span>
+            <Square size={12} />
           </button>
           <button
             type="button"
@@ -192,7 +271,7 @@ export function TitleBar({
             onClick={handleClose}
             aria-label="Close"
           >
-            <span>&#10005;</span>
+            <X size={14} />
           </button>
         </div>
       )}

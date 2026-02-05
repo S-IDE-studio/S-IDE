@@ -1,0 +1,8 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+    <!-- Main Group -->
+    <g>
+        <path d="M 60 80 L 230 80 C 230 80 150 180 230 256 C 310 332 230 432 230 432 L 60 432 L 60 80 Z" fill="#f5f5f5" />
+        
+        <path d="M 452 432 L 282 432 C 282 432 362 332 282 256 C 202 180 282 80 282 80 L 452 80 L 452 432 Z" fill="#f5f5f5" />
+    </g>
+</svg>

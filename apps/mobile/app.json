@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Deck IDE",
-    "slug": "deck-ide",
+    "name": "S-IDE",
+    "slug": "s-ide",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -11,21 +11,32 @@
       "resizeMode": "contain",
       "backgroundColor": "#1a1a1a"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.deck.ide"
+      "bundleIdentifier": "com.sideide.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1a1a1a"
       },
-      "package": "com.deck.ide"
+      "package": "com.sideide.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": []
+    "plugins": [],
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "8a058eb0-867d-4b9a-8a60-c2ff9c2494df"
+      }
+    },
+    "owner": "rebuildup"
   }
 }

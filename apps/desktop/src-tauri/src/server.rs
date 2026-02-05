@@ -5,10 +5,10 @@ use tokio::process::{Command, Child};
 use std::path::PathBuf;
 
 /// Maximum number of parent directories to search when finding project root
-const MAX_SEARCH_DEPTH: usize = 10;
+pub const MAX_SEARCH_DEPTH: usize = 10;
 
 /// Maximum number of parent directories to search from exe
-const MAX_EXE_SEARCH_DEPTH: usize = 5;
+pub const MAX_EXE_SEARCH_DEPTH: usize = 5;
 
 /// Handle to a running server process
 pub struct ServerHandle {
@@ -45,14 +45,14 @@ fn get_server_path() -> Result<PathBuf, String> {
         if src_tauri.exists() {
             let server_path = src_tauri.join("resources").join("server").join("index.js");
             if server_path.exists() {
-                return server_path;
+                return Ok(server_path);
             }
         }
 
         // Check if resources/server exists directly at this level
         let server_path = current.join("resources").join("server").join("index.js");
         if server_path.exists() {
-            return server_path;
+            return Ok(server_path);
         }
 
         // Go up one level
@@ -96,7 +96,7 @@ pub async fn stop(mut handle: ServerHandle) -> Result<(), String> {
 }
 
 /// Checks if we're running in development mode
-fn is_development_mode() -> bool {
+pub fn is_development_mode() -> bool {
     // Check if we're running in development environment
     std::env::var("TAURI_DEV")
         .or_else(|_| std::env::var("DEBUG"))
@@ -131,6 +131,7 @@ fn start_dev_server(port: u16) -> Result<ServerHandle, String> {
         .current_dir(&server_dir)
         .arg("run")
         .arg("dev")
+        .env("DB_PATH", server_dir.join("data").join("deck-ide.db").to_string_lossy().to_string())
         .kill_on_drop(true)
         .spawn();
 
@@ -139,6 +140,7 @@ fn start_dev_server(port: u16) -> Result<ServerHandle, String> {
         .current_dir(&server_dir)
         .arg("run")
         .arg("dev")
+        .env("DB_PATH", server_dir.join("data").join("deck-ide.db").to_string_lossy().to_string())
         .kill_on_drop(true)
         .spawn();
 
@@ -169,9 +171,18 @@ fn start_production_server(port: u16) -> Result<ServerHandle, String> {
     // Convert paths to strings (don't canonicalize to avoid path issues)
     let server_script = server_path.to_string_lossy().to_string();
 
+    // Set database path to resources/data directory
+    let data_dir = server_path
+        .parent()
+        .and_then(|p| p.parent())
+        .map(|p| p.join("data"))
+        .unwrap_or_else(|| PathBuf::from("resources/data"));
+    let db_path = data_dir.join("deck-ide.db");
+
     let child = Command::new(&node_exe)
         .arg(&server_script)
         .env("PORT", port.to_string())
+        .env("DB_PATH", db_path.to_string_lossy().to_string())
         .kill_on_drop(true)
         .spawn()
         .map_err(|e| format!("Failed to start server: {e} (node: '{node_exe}', script: '{server_script}')"))?;
@@ -210,7 +221,7 @@ fn find_project_root() -> Result<PathBuf, String> {
         return Err("Could not determine exe parent directory".to_string());
     }
 
-    let mut path = current_dir;
+    let mut path = search_path;
 
     // Search up for package.json
     for _ in 0..MAX_SEARCH_DEPTH {

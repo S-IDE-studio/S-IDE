@@ -32,7 +32,7 @@ pub async fn start_server(
 
     // Check if port is already in use by an external server
     use std::net::TcpListener;
-    match TcpListener::bind(format!("127.0.0.1:{port}")) {
+    match TcpListener::bind(format!("0.0.0.0:{port}")) {
         Ok(listener) => {
             // Port is available, immediately release the listener
             drop(listener);
@@ -86,16 +86,33 @@ pub async fn get_server_status(state: State<'_, ServerState>) -> CommandResult<S
     // Check if we have a managed server
     if server_state.is_some() {
         let port = server_state.as_ref().map(|h| h.port).unwrap_or(DEFAULT_PORT);
+        println!("[get_server_status] Managed server found, port: {}", port);
         return Ok(ServerStatus { running: true, port });
     }
 
     // Check if an external server is running on the default port
     use std::net::TcpListener;
     let port = DEFAULT_PORT;
-    let port_in_use = TcpListener::bind(format!("127.0.0.1:{port}")).is_err();
 
+    // Try multiple times with longer delay to handle server startup race condition
+    for attempt in 0..10 {
+        // Use 0.0.0.0 to check all interfaces (server listens on 0.0.0.0)
+        let port_in_use = TcpListener::bind(format!("0.0.0.0:{port}")).is_err();
+
+        if port_in_use {
+            println!("[get_server_status] Port {} in use (attempt {})", port, attempt + 1);
+            return Ok(ServerStatus { running: true, port });
+        }
+
+        // Wait longer before retrying (up to 1 second)
+        if attempt < 9 {
+            tokio::time::sleep(tokio::time::Duration::from_millis(100 + (attempt * 100))).await;
+        }
+    }
+
+    println!("[get_server_status] Port {} not in use after retries", port);
     Ok(ServerStatus {
-        running: port_in_use,
+        running: false,
         port,
     })
 }
@@ -177,12 +194,14 @@ pub async fn stop_tunnel(state: State<'_, TunnelState>) -> CommandResult<String>
 pub async fn get_tunnel_status(state: State<'_, TunnelState>) -> CommandResult<TunnelStatus> {
     let tunnel_state = state.0.lock().await;
     let running = tunnel_state.is_some();
-    let url = if let Some(handle) = tunnel_state.as_ref() {
-        tunnel::get_url(handle).await
+    let (url, password) = if let Some(handle) = tunnel_state.as_ref() {
+        let url = tunnel::get_url(handle).await;
+        let password = tunnel::get_password(handle).await;
+        (url, password)
     } else {
-        None
+        (None, None)
     };
-    Ok(TunnelStatus { running, url })
+    Ok(TunnelStatus { running, url, password })
 }
 
 /// Status information for the tunnel
@@ -192,6 +211,8 @@ pub struct TunnelStatus {
     pub running: bool,
     /// The public URL of the tunnel (if available)
     pub url: Option<String>,
+    /// The password for accessing the tunnel (if available)
+    pub password: Option<String>,
 }
 
 // Environment check commands
@@ -246,7 +267,7 @@ pub struct EnvironmentInfo {
 }
 
 /// Information about a command-line tool
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, Clone)]
 pub struct CommandInfo {
     /// Whether the command is available
     pub available: bool,

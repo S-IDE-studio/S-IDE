@@ -9,7 +9,7 @@ interface RateLimitEntry {
 const MAX_RATE_LIMIT_ENTRIES = 10000;
 
 // In-memory rate limiting store (for production, use Redis or similar)
-const rateLimitStore = new Map<string, RateLimitEntry>();
+export const rateLimitStore = new Map<string, RateLimitEntry>();
 
 // Clean up expired entries every minute
 const CLEANUP_INTERVAL_MS = 60 * 1000;
@@ -35,7 +35,9 @@ setInterval(() => {
     }
 
     if (toRemove.length > 0) {
-      console.warn(`[RATE_LIMIT] Evicted ${toRemove.length} expired entries to prevent memory exhaustion`);
+      console.warn(
+        `[RATE_LIMIT] Evicted ${toRemove.length} expired entries to prevent memory exhaustion`
+      );
     }
   }
 }, CLEANUP_INTERVAL_MS).unref();

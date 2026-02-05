@@ -1,21 +1,21 @@
-import { X, Loader2 } from "lucide-react";
-import { memo, useCallback } from "react";
 import {
+  closestCenter,
   DndContext,
+  type DragEndEvent,
   KeyboardSensor,
   PointerSensor,
-  closestCenter,
   useSensor,
   useSensors,
-  type DragEndEvent,
 } from "@dnd-kit/core";
 import {
-  SortableContext,
   rectSortingStrategy,
+  SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Loader2, X } from "lucide-react";
+import { memo, useCallback } from "react";
 import type { EditorFile } from "../../types";
 
 interface EditorTabListProps {
@@ -64,14 +64,9 @@ interface SortableTabProps {
 }
 
 function SortableTab({ file, isActive, isSaving, onSelect, onClose }: SortableTabProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: file.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: file.id,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -175,11 +170,7 @@ export function EditorTabList({
 
   return (
     <div className="editor-tabs">
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={tabs.map((t) => t.id)} strategy={rectSortingStrategy}>
           <div className="editor-tabs-list" role="tablist">
             {tabs.map((file) => {

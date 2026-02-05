@@ -2,6 +2,11 @@
 
 use tauri::{Emitter, Manager};
 use crate::common;
+use tokio::sync::Mutex as TokioMutex;
+use std::sync::Arc;
+
+/// Global server handle for cleanup
+static SERVER_HANDLE: TokioMutex<Option<tokio::process::Child>> = TokioMutex::const_new(None);
 
 /// Label for the main window
 const WINDOW_LABEL: &str = "main";
@@ -26,10 +31,17 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         .ok_or("Main window not found")?;
 
     // Setup window behavior
-    window.on_window_event(|event| {
+    let app_handle_for_cleanup = app.handle().clone();
+    window.on_window_event(move |event| {
         if let tauri::WindowEvent::CloseRequested { .. } = event {
-            // For now, allow window to close
-            // TODO: Implement tray icon with minimize-to-tray behavior
+            // Stop server when window is closing
+            tauri::async_runtime::block_on(async move {
+                let mut handle = SERVER_HANDLE.lock().await;
+                if let Some(mut child) = handle.take() {
+                    println!("[Desktop] Stopping server on window close");
+                    let _ = child.kill().await;
+                }
+            });
         }
     });
 
@@ -85,8 +97,12 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             .spawn();
 
         match spawn_result {
-            Ok(_child) => {
+            Ok(child) => {
                 println!("[Desktop] Server started successfully");
+
+                // Store server handle for cleanup
+                let mut handle = SERVER_HANDLE.lock().await;
+                *handle = Some(child);
 
                 // Wait for server to be ready
                 tokio::time::sleep(tokio::time::Duration::from_secs(SERVER_READY_DELAY_SECS)).await;

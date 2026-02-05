@@ -1,7 +1,7 @@
-import { memo } from "react";
 import Editor from "@monaco-editor/react";
-import type { EditorFile } from "../../types";
+import { memo } from "react";
 import { EDITOR_FONT_FAMILY, EDITOR_FONT_SIZE } from "../../constants";
+import type { EditorFile } from "../../types";
 
 interface EditorPanelContentProps {
   file: EditorFile;

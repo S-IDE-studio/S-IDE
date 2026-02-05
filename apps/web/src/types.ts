@@ -57,7 +57,7 @@ export interface DragTabData {
 
 // Editor group actions
 export interface EditorGroupActions {
-  splitGroup: (groupId: string, direction: 'horizontal' | 'vertical') => void;
+  splitGroup: (groupId: string, direction: "horizontal" | "vertical") => void;
   closeGroup: (groupId: string) => void;
   focusGroup: (groupId: string) => void;
   moveTabToGroup: (tabId: string, fromGroupId: string, toGroupId: string) => void;
@@ -126,7 +126,7 @@ export interface LocalServer {
 }
 
 // Unified Tab Panel System
-export type TabKind = 'agent' | 'workspace' | 'deck' | 'terminal' | 'editor';
+export type TabKind = "agent" | "workspace" | "deck" | "terminal" | "editor" | "server" | "tunnel";
 
 export interface UnifiedTab {
   id: string;
@@ -134,12 +134,15 @@ export interface UnifiedTab {
   title: string;
   icon?: string;
   dirty?: boolean;
+  pinned?: boolean;
   data: {
     agent?: { id: string; name: string; icon: string };
     workspace?: { id: string; path: string; name: string };
     deck?: { id: string; name: string; root: string; workspaceId: string };
     terminal?: { id: string; command: string; cwd: string };
     editor?: EditorFile;
+    server?: { id: string; name: string };
+    tunnel?: { id: string; name: string };
   };
 }
 
@@ -152,6 +155,24 @@ export interface PanelGroup {
 }
 
 export interface PanelLayout {
-  direction: 'horizontal' | 'vertical' | 'single';
+  direction: "horizontal" | "vertical" | "single";
   sizes: number[];
 }
+
+// Tab context menu actions
+export type TabContextMenuAction =
+  | "close"
+  | "closeOthers"
+  | "closeToTheRight"
+  | "closeToTheLeft"
+  | "closeAll"
+  | "splitRight"
+  | "splitLeft"
+  | "splitUp"
+  | "splitDown"
+  | "pin"
+  | "unpin"
+  | "duplicate";
+
+// Panel split direction
+export type SplitDirection = "right" | "left" | "up" | "down";

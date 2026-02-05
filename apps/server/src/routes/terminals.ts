@@ -44,10 +44,24 @@ function sanitizeEnvVars(env: Record<string, string> = {}): Record<string, strin
     const cleanValue = String(value).replace(/[\x00-\x1F]/g, "");
 
     // Only allow variables with safe prefixes or built-in environment variables
-    const isAllowedPrefix = ALLOWED_ENV_PREFIXES.some(prefix => cleanKey.startsWith(prefix));
-    const isBuiltinEnv = ["PATH", "Path", "TERM", "HOME", "USER", "USERPROFILE", "LANG",
-      "LC_ALL", "LC_CTYPE", "COLORTERM", "TERM_PROGRAM", "TERM_PROGRAM_VERSION",
-      "MSYS2_PATH", "NODE_ENV", "DEBUG"].includes(cleanKey);
+    const isAllowedPrefix = ALLOWED_ENV_PREFIXES.some((prefix) => cleanKey.startsWith(prefix));
+    const isBuiltinEnv = [
+      "PATH",
+      "Path",
+      "TERM",
+      "HOME",
+      "USER",
+      "USERPROFILE",
+      "LANG",
+      "LC_ALL",
+      "LC_CTYPE",
+      "COLORTERM",
+      "TERM_PROGRAM",
+      "TERM_PROGRAM_VERSION",
+      "MSYS2_PATH",
+      "NODE_ENV",
+      "DEBUG",
+    ].includes(cleanKey);
 
     if (isAllowedPrefix || isBuiltinEnv) {
       result[cleanKey] = cleanValue;

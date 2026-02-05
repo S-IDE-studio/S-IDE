@@ -5,9 +5,14 @@
  * with OS detection, version detection, and service fingerprinting.
  */
 
-import { useLocalServers, useAdvancedScan, checkNmapAvailable, type ScanOptions } from "../hooks/useLocalServers";
+import { useEffect, useState } from "react";
 import type { LocalServer } from "../hooks/useLocalServers";
-import { useState, useEffect } from "react";
+import {
+  checkNmapAvailable,
+  type ScanOptions,
+  useAdvancedScan,
+  useLocalServers,
+} from "../hooks/useLocalServers";
 
 interface ServerListPanelProps {
   onServerSelect?: (server: LocalServer) => void;
@@ -187,17 +192,17 @@ function ServerListItem({ server, isSelected, onSelect }: ServerListItemProps) {
   const mcpActiveCount = server.mcpServers?.filter((s) => s.status === "active").length ?? 0;
 
   return (
-    <div
-      className={`server-list-item ${isSelected ? "selected" : ""}`}
-      onClick={onSelect}
-    >
+    <div className={`server-list-item ${isSelected ? "selected" : ""}`} onClick={onSelect}>
       <div className="server-item-header">
         <span className="server-status-indicator" data-status={server.status}>
           ●
         </span>
         <span className="server-name">{server.name}</span>
         {mcpCount > 0 && (
-          <span className="server-mcp-badge" title={`${mcpActiveCount}/${mcpCount} MCP servers active`}>
+          <span
+            className="server-mcp-badge"
+            title={`${mcpActiveCount}/${mcpCount} MCP servers active`}
+          >
             MCP {mcpActiveCount}/{mcpCount}
           </span>
         )}
@@ -253,9 +258,7 @@ function AdvancedScanResultItem({ result }: AdvancedScanResultProps) {
     <div className="advanced-scan-result-item">
       <div className="result-header">
         <span className="result-host">{result.host}</span>
-        {result.os_guess && (
-          <span className="os-badge">OS: {result.os_guess}</span>
-        )}
+        {result.os_guess && <span className="os-badge">OS: {result.os_guess}</span>}
       </div>
 
       <div className="port-summary">
@@ -282,7 +285,9 @@ function AdvancedScanResultItem({ result }: AdvancedScanResultProps) {
             <tbody>
               {openPorts.map((port) => (
                 <tr key={port.port} className="port-open">
-                  <td className="port-number">{port.port}/{port.protocol}</td>
+                  <td className="port-number">
+                    {port.port}/{port.protocol}
+                  </td>
                   <td className="port-status">{port.status}</td>
                   <td className="port-service">{port.service || "unknown"}</td>
                   <td className="port-version">{port.version || "-"}</td>

@@ -57,24 +57,26 @@ export function createSingleGroupLayout(initialTabs: EditorFile[] = []): {
  * @returns Validated and cleaned editor groups
  */
 export function validateEditorGroups(groups: EditorGroup[]): EditorGroup[] {
-  return groups
-    .map((group) => {
-      // Remove invalid tabs (must have both id and path)
-      const validTabs = group.tabs.filter((tab) => tab.id && tab.path);
+  return (
+    groups
+      .map((group) => {
+        // Remove invalid tabs (must have both id and path)
+        const validTabs = group.tabs.filter((tab) => tab.id && tab.path);
 
-      // Fix activeTabId if invalid or pointing to removed tab
-      const activeTabId = validTabs.find((t) => t.id === group.activeTabId)
-        ? group.activeTabId
-        : validTabs[0]?.id ?? null;
+        // Fix activeTabId if invalid or pointing to removed tab
+        const activeTabId = validTabs.find((t) => t.id === group.activeTabId)
+          ? group.activeTabId
+          : (validTabs[0]?.id ?? null);
 
-      return {
-        ...group,
-        tabs: validTabs,
-        activeTabId,
-      };
-    })
-    // Keep groups with tabs or the primary group
-    .filter((group) => group.tabs.length > 0 || group.id === "primary");
+        return {
+          ...group,
+          tabs: validTabs,
+          activeTabId,
+        };
+      })
+      // Keep groups with tabs or the primary group
+      .filter((group) => group.tabs.length > 0 || group.id === "primary")
+  );
 }
 
 /**
@@ -83,10 +85,7 @@ export function validateEditorGroups(groups: EditorGroup[]): EditorGroup[] {
  * @param tabId - Tab ID to find
  * @returns Group containing the tab, or null if not found
  */
-export function findGroupByTabId(
-  groups: EditorGroup[],
-  tabId: string
-): EditorGroup | null {
+export function findGroupByTabId(groups: EditorGroup[], tabId: string): EditorGroup | null {
   return groups.find((group) => group.tabs.some((tab) => tab.id === tabId)) ?? null;
 }
 
@@ -120,7 +119,7 @@ export function moveTabBetweenGroups(
       // Remove tab from source group
       const newTabs = group.tabs.filter((tab) => tab.id !== tabId);
       const activeTabId =
-        group.activeTabId === tabId ? newTabs[0]?.id ?? null : group.activeTabId;
+        group.activeTabId === tabId ? (newTabs[0]?.id ?? null) : group.activeTabId;
       return { ...group, tabs: newTabs, activeTabId };
     } else if (group.id === toGroupId) {
       // Add tab to target group
@@ -151,7 +150,5 @@ export function reorderTabsInGroup(
   groupId: string,
   newTabs: EditorFile[]
 ): EditorGroup[] {
-  return groups.map((group) =>
-    group.id === groupId ? { ...group, tabs: newTabs } : group
-  );
+  return groups.map((group) => (group.id === groupId ? { ...group, tabs: newTabs } : group));
 }

@@ -1,7 +1,7 @@
-import { File as FileIcon, Plus } from "lucide-react";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
+import { File as FileIcon, Plus } from "lucide-react";
 import type { editor } from "monaco-editor";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { EDITOR_FONT_FAMILY, EDITOR_FONT_SIZE } from "../../constants";
 import type { EditorFile, EditorGroup } from "../../types";
 import { EditorTabList } from "./EditorTabList";
@@ -234,9 +234,7 @@ export function EditorGroupContainer({
       {/* Status Bar */}
       {activeFile && (
         <div className="editor-statusbar">
-          <div className="editor-statusbar-left">
-            {/* TODO: Git branch info */}
-          </div>
+          <div className="editor-statusbar-left">{/* TODO: Git branch info */}</div>
           <div className="editor-statusbar-right">
             <span className="editor-status-item">
               Ln {cursorPositionRef.current.line}, Col {cursorPositionRef.current.column}

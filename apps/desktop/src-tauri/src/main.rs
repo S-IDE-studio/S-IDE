@@ -9,6 +9,14 @@ mod server;
 mod tunnel;
 mod window;
 
+// Test modules (only compiled when testing)
+#[cfg(test)]
+mod commands_tests;
+#[cfg(test)]
+mod server_tests;
+#[cfg(test)]
+mod tunnel_tests;
+
 use tokio::sync::Mutex as TokioMutex;
 
 type ServerStateInner = TokioMutex<Option<server::ServerHandle>>;

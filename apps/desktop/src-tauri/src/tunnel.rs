@@ -7,7 +7,7 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use std::sync::Arc;
 
 /// Delay before checking tunnel URL (seconds)
-const TUNNEL_URL_DELAY_SECS: u64 = 2;
+pub const TUNNEL_URL_DELAY_SECS: u64 = 2;
 
 /// Handle to a running tunnel process
 pub struct TunnelHandle {
@@ -15,6 +15,8 @@ pub struct TunnelHandle {
     child: Child,
     /// The URL of the tunnel (available after startup)
     url: Arc<Mutex<Option<String>>>,
+    /// The password for accessing the tunnel
+    password: Arc<Mutex<Option<String>>>,
 }
 
 // Implement Drop to ensure process cleanup on orphaning
@@ -47,32 +49,43 @@ pub fn start(port: u16) -> Result<TunnelHandle, String> {
         .spawn()
         .map_err(|e| format!("Failed to start tunnel: {e}"))?;
 
-    // Start a background task to monitor output and capture the URL
+    // Take stdout before moving child into TunnelHandle
+    let stdout = child.stdout.take()
+        .ok_or_else(|| "Failed to capture stdout from tunnel process".to_string())?;
+
+    // Create the URL holder
     let url = Arc::new(Mutex::new(None));
+    let password = Arc::new(Mutex::new(None));
     let url_clone = url.clone();
+    let password_clone = password.clone();
 
+    // Spawn background task to capture URL and password from stdout
     tokio::spawn(async move {
-        // Take stdout from the child process
-        if let Some(stdout) = child.stdout.take() {
-            let reader = BufReader::new(stdout);
-            let mut lines = reader.lines();
+        let reader = BufReader::new(stdout);
+        let mut lines = reader.lines();
 
-            // Read lines looking for the tunnel URL
-            while let Ok(Some(line)) = lines.next_line().await {
-                // localtunnel outputs: "your url is: https://xxx.loca.lt"
-                if line.contains("your url is:") {
-                    if let Some(url_str) = line.split("your url is:").nth(1) {
-                        let captured_url = url_str.trim().to_string();
-                        *url_clone.lock().await = Some(captured_url);
-                        println!("[Tunnel] URL captured: {}", captured_url);
-                        break;
-                    }
+        // Read lines looking for the tunnel URL and password
+        while let Ok(Some(line)) = lines.next_line().await {
+            // localtunnel outputs: "your url is: https://xxx.loca.lt"
+            if line.contains("your url is:") {
+                if let Some(url_str) = line.split("your url is:").nth(1) {
+                    let captured_url = url_str.trim().to_string();
+                    println!("[Tunnel] URL captured: {}", captured_url);
+                    *url_clone.lock().await = Some(captured_url);
+                }
+            }
+            // localtunnel outputs: "your password is: xxx.xxx.xxx.xxx"
+            if line.contains("your password is:") || line.contains("your ip:") {
+                if let Some(pwd_str) = line.split("your password is:").nth(1).or_else(|| line.split("your ip:").nth(1)) {
+                    let captured_pwd = pwd_str.trim().to_string();
+                    println!("[Tunnel] Password captured: {}", captured_pwd);
+                    *password_clone.lock().await = Some(captured_pwd);
                 }
             }
         }
     });
 
-    Ok(TunnelHandle { child, url })
+    Ok(TunnelHandle { child, url, password })
 }
 
 /// Stops the tunnel
@@ -94,4 +107,13 @@ pub async fn stop(mut handle: TunnelHandle) -> Result<(), String> {
 /// Returns the tunnel URL if available, None otherwise
 pub async fn get_url(handle: &TunnelHandle) -> Option<String> {
     handle.url.lock().await.clone()
+}
+
+/// Gets the password of the tunnel
+///
+/// # Returns
+///
+/// Returns the tunnel password if available, None otherwise
+pub async fn get_password(handle: &TunnelHandle) -> Option<String> {
+    handle.password.lock().await.clone()
 }
