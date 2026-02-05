@@ -89,8 +89,9 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          PROFILE=${{ github.event.inputs.profile || 'production' }}
-          eas build --platform android --profile $PROFILE --non-interactive
+          # Use preview profile for Android (APK without signing)
+          # User can install APK directly without Play Store
+          eas build --platform android --profile preview --non-interactive
 
   # Job to wait for builds and download artifacts
   download-artifacts:
