@@ -9,7 +9,7 @@ on:
       profile:
         description: 'Build profile'
         required: true
-        default: 'preview'
+        default: 'production'
         type: choice
         options:
           - production
@@ -53,7 +53,7 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          PROFILE=${{ github.event.inputs.profile || 'preview' }}
+          PROFILE=${{ github.event.inputs.profile || 'production' }}
           eas build --platform ios --profile $PROFILE --non-interactive
 
   build-android:
@@ -89,7 +89,7 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          PROFILE=${{ github.event.inputs.profile || 'preview' }}
+          PROFILE=${{ github.event.inputs.profile || 'production' }}
           eas build --platform android --profile $PROFILE --non-interactive
 
   # Job to wait for builds and download artifacts
