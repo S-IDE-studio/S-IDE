@@ -20,41 +20,37 @@ permissions:
   contents: write
 
 jobs:
-  build-ios:
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Install Expo CLI
-        run: npm install -g expo-cli eas-cli
-
-      - name: Install dependencies
-        working-directory: apps/mobile
-        run: pnpm install --frozen-lockfile
-
-      - name: Setup EAS
-        working-directory: apps/mobile
-        run: eas --version
-
-      - name: Build iOS with EAS
-        working-directory: apps/mobile
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          # Use preview profile for iOS simulator build (no credentials required)
-          eas build --platform ios --profile preview --non-interactive
+  # iOS builds are disabled due to Expo SDK 52 compatibility issues
+  # Use Expo Go for testing instead
+  # build-ios:
+  #   runs-on: ubuntu-latest
+  #   continue-on-error: true
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '20'
+  #     - name: Setup pnpm
+  #       uses: pnpm/action-setup@v4
+  #       with:
+  #         version: 9
+  #     - name: Install Expo CLI
+  #       run: npm install -g expo-cli eas-cli
+  #     - name: Install dependencies
+  #       working-directory: apps/mobile
+  #       run: pnpm install --frozen-lockfile
+  #     - name: Setup EAS
+  #       working-directory: apps/mobile
+  #       run: eas --version
+  #     - name: Build iOS with EAS
+  #       working-directory: apps/mobile
+  #       env:
+  #         EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+  #       run: |
+  #         # Use preview profile for iOS simulator build (no credentials required)
+  #         eas build --platform ios --profile preview --non-interactive
 
   build-android:
     runs-on: ubuntu-latest
@@ -105,7 +101,7 @@ jobs:
 
   # Job to wait for builds and download artifacts
   download-artifacts:
-    needs: [build-ios, build-android]
+    needs: [build-android]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     steps:
@@ -133,20 +129,17 @@ jobs:
           echo "Waiting for EAS builds to complete..."
           sleep 60
 
-          # Get the latest build IDs
-          BUILD_ID=$(eas build:list --limit=1 --platform=ios --non-interactive | head -n 1 | awk '{print $1}')
-
-          if [ -n "$BUILD_ID" ]; then
-            echo "Downloading iOS build $BUILD_ID..."
-            eas build:view $BUILD_ID --platform=ios --non-interactive || true
-          fi
-
+          # Get the latest Android build ID
           BUILD_ID=$(eas build:list --limit=1 --platform=android --non-interactive | head -n 1 | awk '{print $1}')
 
           if [ -n "$BUILD_ID" ]; then
-            echo "Downloading Android build $BUILD_ID..."
+            echo "Viewing Android build $BUILD_ID..."
             eas build:view $BUILD_ID --platform=android --non-interactive || true
           fi
+
+          echo ""
+          echo "Note: iOS builds are disabled due to Expo SDK 52 compatibility."
+          echo "Use Expo Go for testing: cd apps/mobile && pnpm start"
 
       - name: Create Release Info
         id: release-info
@@ -157,11 +150,16 @@ jobs:
           echo "" >> release_notes.md
           echo "## Downloads" >> release_notes.md
           echo "" >> release_notes.md
-          echo "iOS and Android builds are available via Expo EAS." >> release_notes.md
+          echo "Android builds are available via Expo EAS." >> release_notes.md
           echo "" >> release_notes.md
-          echo "To install:" >> release_notes.md
-          echo "- **iOS**: Use TestFlight link or download from EAS" >> release_notes.md
-          echo "- **Android**: Download APK from EAS Build page" >> release_notes.md
+          echo "Note: iOS builds are currently disabled. Use Expo Go for testing:" >> release_notes.md
+          echo "```bash" >> release_notes.md
+          echo "cd apps/mobile" >> release_notes.md
+          echo "pnpm start" >> release_notes.md
+          echo "```" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "To install Android:" >> release_notes.md
+          echo "- Download APK from EAS Build page" >> release_notes.md
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v1
