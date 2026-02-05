@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 7.0.0"
+    "version": ">= 10.0.0"
   },
   "build": {
     "development": {
@@ -11,6 +11,9 @@
       "distribution": "internal",
       "ios": {
         "simulator": true
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
     "production": {
@@ -19,18 +22,6 @@
       },
       "android": {
         "autoIncrement": true
-      }
-    }
-  },
-  "submit": {
-    "production": {
-      "ios": {
-        "appleId": "your-apple-id@example.com",
-        "ascAppId": "APP_ID_HERE",
-        "appleTeamId": "TEAM_ID_HERE"
-      },
-      "android": {
-        "serviceAccountKeyPath": "./google-service-account.json"
       }
     }
   }

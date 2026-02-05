@@ -9,7 +9,7 @@ on:
       profile:
         description: 'Build profile'
         required: true
-        default: 'production'
+        default: 'preview'
         type: choice
         options:
           - production
@@ -22,6 +22,7 @@ permissions:
 jobs:
   build-ios:
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,11 +53,12 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          PROFILE=${{ github.event.inputs.profile || 'production' }}
+          PROFILE=${{ github.event.inputs.profile || 'preview' }}
           eas build --platform ios --profile $PROFILE --non-interactive
 
   build-android:
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -87,7 +89,7 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          PROFILE=${{ github.event.inputs.profile || 'production' }}
+          PROFILE=${{ github.event.inputs.profile || 'preview' }}
           eas build --platform android --profile $PROFILE --non-interactive
 
   # Job to wait for builds and download artifacts
