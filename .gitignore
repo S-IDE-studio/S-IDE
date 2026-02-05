@@ -22,3 +22,4 @@ apps/desktop/src-tauri/resources/data/*.db-wal
 apps/mobile/ios/build/
 apps/mobile/android/build/
 apps/web/dist/
+private.key

@@ -34,10 +34,18 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["msi", "nsis"],
-    "icon": ["icons/icon.ico"],
+    "targets": ["msi", "nsis", "dmg", "app"],
+    "icon": ["icons/icon.ico", "icons/icon.icns"],
     "resources": ["resources/*"],
-    "publisher": "S-IDE studio"
+    "publisher": "S-IDE studio",
+    "macOS": {
+      "minimumSystemVersion": "10.13",
+      "entitlements": null,
+      "exceptionDomain": "",
+      "frameworks": [],
+      "providerShortName": null,
+      "signingIdentity": null
+    }
   },
   "plugins": {}
 }

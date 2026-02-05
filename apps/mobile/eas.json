@@ -18,7 +18,12 @@
     },
     "production": {
       "ios": {
-        "autoIncrement": true
+        "autoIncrement": true,
+        "appleId": "rebuild.up.up@gmail.com",
+        "ascAppId": "",
+        "teamId": "JK49RJ2CK2",
+        "enterpriseProvProfileUUID": "",
+        "provisioningProfileSpecifier": ""
       },
       "android": {
         "autoIncrement": true
