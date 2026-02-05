@@ -19,6 +19,7 @@ import { ServerStartupScreen } from "./components/ServerStartupScreen";
 import { ServerStatus } from "./components/ServerStatus";
 import { SettingsModal } from "./components/SettingsModal";
 import { SourceControl } from "./components/SourceControl";
+import { API_BASE } from "./constants";
 import { StatusMessage } from "./components/StatusMessage";
 import { TerminalPane } from "./components/TerminalPane";
 import { TitleBar } from "./components/TitleBar";
@@ -1112,6 +1113,53 @@ export default function App() {
           onSelectTab={handleSelectTab}
           onCloseTab={handleCloseTab}
           onFocusGroup={handleFocusGroup}
+          workspaceStates={workspaceStates}
+          gitFiles={gitState.status?.files}
+          onToggleDir={handleToggleDir}
+          onOpenFile={handleOpenFile}
+          onRefreshTree={handleRefreshTree}
+          onCreateFile={handleCreateFile}
+          onCreateDirectory={handleCreateDirectory}
+          onDeleteFile={handleDeleteFile}
+          onDeleteDirectory={handleDeleteDirectory}
+          deckStates={deckStates}
+          wsBase={API_BASE}
+          onDeleteTerminal={(terminalId) => {
+            // handleDeleteTerminal expects (deckId, terminalId)
+            // Find the deck that contains this terminal
+            for (const deck of decks) {
+              const deckState = deckStates[deck.id];
+              if (deckState?.terminals?.some(t => t.id === terminalId)) {
+                handleDeleteTerminal(deck.id, terminalId);
+                break;
+              }
+            }
+          }}
+          onReorderTerminals={(deckId, newOrder) => {
+            // handleUpdateGroup updates group properties, not terminal order
+            // Terminal reordering is handled by TerminalPane internally
+            // For now, we can ignore or implement proper terminal reordering
+          }}
+          onCreateTerminal={() => {
+            const activeDeck = activeDeckIds.length > 0 ? decks.find(d => d.id === activeDeckIds[0]) : null;
+            if (activeDeck) {
+              handleNewTerminalForDeck(activeDeck.id);
+            }
+          }}
+          onToggleGroupCollapsed={handleToggleGroupCollapsed}
+          onDeleteGroup={handleDeleteGroup}
+          onRenameGroup={(groupId) => {
+            const group = terminalGroups?.find(g => g.id === groupId);
+            if (group) {
+              const newName = prompt("Enter new group name:");
+              if (newName) {
+                handleUpdateGroup(groupId, { name: newName });
+              }
+            }
+          }}
+          onChangeFile={handleFileChange}
+          onSaveFile={handleSaveFile}
+          savingFileId={savingFileId}
         />
       </main>
       <StatusMessage message={statusMessage} />

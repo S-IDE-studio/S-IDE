@@ -17,7 +17,7 @@ export function generatePanelGroupId(): string {
 /**
  * Convert Agent to UnifiedTab
  */
-export function agentToTab(agent: Agent): UnifiedTab {
+export function agentToTab(agent: Agent | { id: string; name: string; icon: string; description?: string; enabled?: boolean }): UnifiedTab {
   return {
     id: generateTabId(),
     kind: 'agent',
