@@ -1,4 +1,3 @@
-import { StatusBar } from "expo-status-bar";
 import { StyleSheet, Text, View } from "react-native";
 
 export default function App() {
@@ -6,7 +5,6 @@ export default function App() {
     <View style={styles.container}>
       <Text style={styles.text}>S-IDE Mobile</Text>
       <Text style={styles.subtext}>Mobile app for S-IDE</Text>
-      <StatusBar style="light" />
     </View>
   );
 }
