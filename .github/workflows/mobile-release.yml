@@ -53,8 +53,8 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          # Use development profile for internal distribution (no signing required)
-          eas build --platform ios --profile development --non-interactive
+          # Use preview profile for iOS simulator build (no credentials required)
+          eas build --platform ios --profile preview --non-interactive
 
   build-android:
     runs-on: ubuntu-latest
