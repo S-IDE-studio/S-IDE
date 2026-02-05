@@ -14,10 +14,16 @@ import {
   Folder,
   Globe,
   Hash,
+  Network,
   Pin,
   Server,
+  Settings,
+  ShieldCheck,
+  Sliders,
   Terminal,
   Type,
+  UserCheck,
+  Wrench,
   X,
 } from "lucide-react";
 import { memo } from "react";
@@ -50,6 +56,18 @@ const getTabIcon = (tab: UnifiedTab) => {
       return <Server size={14} />;
     case "tunnel":
       return <Globe size={14} />;
+    case "mcp":
+      return <Network size={14} />;
+    case "serverSettings":
+      return <Settings size={14} />;
+    case "agentStatus":
+      return <UserCheck size={14} />;
+    case "agentConfig":
+      return <Sliders size={14} />;
+    case "agentConfigLocal":
+      return <Wrench size={14} />;
+    case "setup":
+      return <ShieldCheck size={14} />;
     case "editor":
       return getFileIcon(tab.icon);
     default:

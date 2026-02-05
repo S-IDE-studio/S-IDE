@@ -123,6 +123,84 @@ export function tunnelToTab(): UnifiedTab {
 }
 
 /**
+ * Create MCP server management tab
+ */
+export function mcpToTab(mcp?: { id: string; name: string }): UnifiedTab {
+  return {
+    id: generateTabId(),
+    kind: "mcp",
+    title: "MCP Servers",
+    // Icon is rendered by DraggableTab based on kind
+    data: { mcp: mcp || { id: "mcp-servers", name: "MCP Servers" } },
+  };
+}
+
+/**
+ * Create server settings tab
+ */
+export function serverSettingsToTab(): UnifiedTab {
+  return {
+    id: generateTabId(),
+    kind: "serverSettings",
+    title: "Server Settings",
+    // Icon is rendered by DraggableTab based on kind
+    data: { serverSettings: {} },
+  };
+}
+
+/**
+ * Create agent status panel tab
+ */
+export function agentStatusToTab(): UnifiedTab {
+  return {
+    id: generateTabId(),
+    kind: "agentStatus",
+    title: "Agent Status",
+    // Icon is rendered by DraggableTab based on kind
+    data: { agentStatus: {} },
+  };
+}
+
+/**
+ * Create agent config panel tab (global)
+ */
+export function agentConfigToTab(): UnifiedTab {
+  return {
+    id: generateTabId(),
+    kind: "agentConfig",
+    title: "Agent Config",
+    // Icon is rendered by DraggableTab based on kind
+    data: { agentConfig: {} },
+  };
+}
+
+/**
+ * Create agent config panel tab (workspace-specific)
+ */
+export function agentConfigLocalToTab(workspaceId: string, workspaceName: string): UnifiedTab {
+  return {
+    id: generateTabId(),
+    kind: "agentConfigLocal",
+    title: `Agent Config (${workspaceName})`,
+    // Icon is rendered by DraggableTab based on kind
+    data: { agentConfigLocal: { workspaceId } },
+  };
+}
+
+/**
+ * Create setup panel tab
+ */
+export function setupToTab(): UnifiedTab {
+  return {
+    id: generateTabId(),
+    kind: "setup",
+    title: "Setup",
+    // Icon is rendered by DraggableTab based on kind
+    data: { setup: {} },
+  };
+}
+
+/**
  * Get file icon string for mapping to Lucide icons
  * Returns a string identifier that can be used to select the appropriate icon
  */

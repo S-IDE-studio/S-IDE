@@ -126,7 +126,20 @@ export interface LocalServer {
 }
 
 // Unified Tab Panel System
-export type TabKind = "agent" | "workspace" | "deck" | "terminal" | "editor" | "server" | "tunnel";
+export type TabKind =
+  | "agent" // Agent terminal
+  | "workspace" // Workspace (file tree)
+  | "deck" // Deck (file editing)
+  | "terminal" // Terminal session
+  | "editor" // Editor tab (file)
+  | "server" // Local server monitor
+  | "mcp" // MCP server management
+  | "tunnel" // Remote tunnel
+  | "serverSettings" // Server settings
+  | "agentStatus" // Agent status panel
+  | "agentConfig" // Agent config (global)
+  | "agentConfigLocal" // Agent config (workspace-specific)
+  | "setup"; // Setup panel
 
 export interface UnifiedTab {
   id: string;
@@ -139,10 +152,16 @@ export interface UnifiedTab {
     agent?: { id: string; name: string; icon: string };
     workspace?: { id: string; path: string; name: string };
     deck?: { id: string; name: string; root: string; workspaceId: string };
-    terminal?: { id: string; command: string; cwd: string };
+    terminal?: { id: string; command: string; cwd: string; workspaceId?: string };
     editor?: EditorFile;
     server?: { id: string; name: string };
-    tunnel?: { id: string; name: string };
+    tunnel?: { id: string; name: string; url?: string; status?: string };
+    mcp?: { id: string; name: string };
+    serverSettings?: {};
+    agentStatus?: {};
+    agentConfig?: {};
+    agentConfigLocal?: { workspaceId: string };
+    setup?: {};
   };
 }
 

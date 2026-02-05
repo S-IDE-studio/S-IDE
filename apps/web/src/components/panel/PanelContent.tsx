@@ -1,9 +1,15 @@
 import { memo } from "react";
 import type { UnifiedTab } from "../../types";
+import { AgentConfigLocalPanelContent } from "./AgentConfigLocalPanelContent";
+import { AgentConfigPanelContent } from "./AgentConfigPanelContent";
 import { AgentPanel } from "./AgentPanel";
+import { AgentStatusPanelContent } from "./AgentStatusPanelContent";
 import { DeckPanel } from "./DeckPanel";
 import { EditorPanelContent } from "./EditorPanelContent";
+import { McpPanelContent } from "./McpPanelContent";
 import { ServerPanelContent } from "./ServerPanelContent";
+import { ServerSettingsPanelContent } from "./ServerSettingsPanelContent";
+import { SetupPanelContent } from "./SetupPanelContent";
 import { TerminalPanelContent } from "./TerminalPanelContent";
 import { TunnelPanelContent } from "./TunnelPanelContent";
 import { WorkspacePanel } from "./WorkspacePanel";
@@ -125,8 +131,22 @@ export function PanelContent({
       );
     case "server":
       return <ServerPanelContent />;
+    case "mcp":
+      return <McpPanelContent />;
     case "tunnel":
       return <TunnelPanelContent />;
+    case "serverSettings":
+      return <ServerSettingsPanelContent />;
+    case "agentStatus":
+      return <AgentStatusPanelContent />;
+    case "agentConfig":
+      return <AgentConfigPanelContent />;
+    case "agentConfigLocal":
+      return (
+        <AgentConfigLocalPanelContent workspaceId={tab.data.agentConfigLocal?.workspaceId || ""} />
+      );
+    case "setup":
+      return <SetupPanelContent />;
     default:
       return <div>Unknown tab type</div>;
   }
