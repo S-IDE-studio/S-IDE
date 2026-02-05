@@ -21,6 +21,7 @@ interface PanelContentProps {
     tree?: import("../../types").FileTreeNode[];
     treeLoading?: boolean;
     treeError?: string | null;
+    files?: import("../../types").EditorFile[];
   };
   gitFiles?: import("../../types").GitFileStatus[];
   // Workspace handlers
@@ -49,6 +50,10 @@ interface PanelContentProps {
   onChangeFile?: (fileId: string, contents: string) => void;
   onSaveFile?: (fileId: string) => void;
   savingFileId?: string | null;
+  // Editor state
+  activeFileId?: string | null;
+  onSelectFile?: (fileId: string) => void;
+  onCloseFile?: (fileId: string) => void;
 }
 
 export function PanelContent({
@@ -73,6 +78,9 @@ export function PanelContent({
   onChangeFile,
   onSaveFile,
   savingFileId,
+  activeFileId,
+  onSelectFile,
+  onCloseFile,
 }: PanelContentProps) {
   switch (tab.kind) {
     case "agent":
@@ -98,6 +106,27 @@ export function PanelContent({
       return (
         <DeckPanel
           deck={tab.data.deck!}
+          // FileTree props
+          tree={workspaceState?.tree}
+          treeLoading={workspaceState?.treeLoading}
+          treeError={workspaceState?.treeError}
+          gitFiles={gitFiles}
+          onToggleDir={onToggleDir}
+          onOpenFile={onOpenFile}
+          onRefreshTree={onRefreshTree}
+          onCreateFile={onCreateFile}
+          onCreateDirectory={onCreateDirectory}
+          onDeleteFile={onDeleteFile}
+          onDeleteDirectory={onDeleteDirectory}
+          // Editor props
+          editorFiles={workspaceState?.files}
+          activeFileId={activeFileId}
+          onSelectFile={onSelectFile}
+          onCloseFile={onCloseFile}
+          onChangeFile={onChangeFile}
+          onSaveFile={onSaveFile}
+          savingFileId={savingFileId}
+          // Terminal props
           terminals={deckState?.terminals}
           terminalGroups={deckState?.terminalGroups}
           isCreatingTerminal={deckState?.isCreatingTerminal}

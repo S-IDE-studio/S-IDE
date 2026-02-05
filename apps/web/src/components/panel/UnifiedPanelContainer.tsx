@@ -71,6 +71,10 @@ interface UnifiedPanelContainerProps {
   onChangeFile?: (fileId: string, contents: string) => void;
   onSaveFile?: (fileId: string) => void;
   savingFileId?: string | null;
+  // Editor state
+  activeFileId?: string | null;
+  onSelectFile?: (fileId: string) => void;
+  onCloseFile?: (fileId: string) => void;
 }
 
 export function UnifiedPanelContainer({
@@ -113,6 +117,9 @@ export function UnifiedPanelContainer({
   onChangeFile,
   onSaveFile,
   savingFileId,
+  activeFileId,
+  onSelectFile,
+  onCloseFile,
 }: UnifiedPanelContainerProps) {
   const activeTab = group.tabs.find((t) => t.id === group.activeTabId);
 
@@ -155,10 +162,13 @@ export function UnifiedPanelContainer({
     [onContextMenuAction]
   );
 
-  // Get workspace state for workspace tabs
+  // Get workspace state for workspace tabs and deck tabs
   const getWorkspaceState = () => {
     if (activeTab?.kind === "workspace" && activeTab.data.workspace) {
       return workspaceStates?.[activeTab.data.workspace.id];
+    }
+    if (activeTab?.kind === "deck" && activeTab.data.deck) {
+      return workspaceStates?.[activeTab.data.deck.workspaceId];
     }
     return undefined;
   };
@@ -233,6 +243,9 @@ export function UnifiedPanelContainer({
             onChangeFile={onChangeFile}
             onSaveFile={onSaveFile}
             savingFileId={savingFileId}
+            activeFileId={activeFileId}
+            onSelectFile={onSelectFile}
+            onCloseFile={onCloseFile}
           />
         ) : (
           <div className="panel-empty panel-view-empty">
