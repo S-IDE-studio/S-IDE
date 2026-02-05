@@ -88,8 +88,19 @@ jobs:
         working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          EXPO_ANDROID_KEYSTORE_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          EXPO_ANDROID_KEYSTORE_PRIVATE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          EXPO_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
-          # Use development profile for internal distribution (no signing required)
+          # Check if keystore secrets are available
+          if [ -z "$EXPO_ANDROID_KEYSTORE_BASE64" ]; then
+            echo "⚠️ Android keystore secrets not configured"
+            echo "Run 'bash scripts/setup-android-secrets.sh' to set them up"
+            echo "Skipping Android build..."
+            exit 0
+          fi
+          # Use development profile for internal distribution
           eas build --platform android --profile development --non-interactive
 
   # Job to wait for builds and download artifacts
