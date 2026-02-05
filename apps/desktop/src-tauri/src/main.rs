@@ -38,6 +38,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(ServerState(TokioMutex::new(None)))
         .manage(TunnelState(TokioMutex::new(None)))
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             window::setup(app)?;
             Ok(())

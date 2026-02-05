@@ -29,6 +29,7 @@ interface PanelTabListProps {
   onTabsReorder: (oldIndex: number, newIndex: number) => void;
   onTabMove: (tabId: string, targetGroupId: string) => void;
   onContextMenuAction: (action: TabContextMenuAction, tab: UnifiedTab) => void;
+  onTabDoubleClick?: (tab: UnifiedTab) => void;
 }
 
 export function PanelTabList({
@@ -40,6 +41,7 @@ export function PanelTabList({
   onTabsReorder,
   onTabMove,
   onContextMenuAction,
+  onTabDoubleClick,
 }: PanelTabListProps) {
   const [contextMenuTab, setContextMenuTab] = useState<UnifiedTab | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(
@@ -117,6 +119,7 @@ export function PanelTabList({
                   onSelect={onTabSelect}
                   onClose={onTabClose}
                   onContextMenu={handleContextMenu}
+                  onDoubleClick={onTabDoubleClick}
                 />
               ))}
             </div>

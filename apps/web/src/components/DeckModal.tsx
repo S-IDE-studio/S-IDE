@@ -1,19 +1,44 @@
-import { type FormEvent, useEffect, useRef, useState } from "react";
-import type { Workspace } from "../types";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import type { Deck, Workspace } from "../types";
 
 interface DeckModalProps {
   isOpen: boolean;
   workspaces: Workspace[];
+  activeWorkspaceId: string | null;
+  existingDecks: Deck[];
   onSubmit: (name: string, workspaceId: string) => Promise<void>;
   onClose: () => void;
 }
 
-export const DeckModal = ({ isOpen, workspaces, onSubmit, onClose }: DeckModalProps) => {
-  const [deckWorkspaceId, setDeckWorkspaceId] = useState(workspaces[0]?.id || "");
+export const DeckModal = ({
+  isOpen,
+  workspaces,
+  activeWorkspaceId,
+  existingDecks,
+  onSubmit,
+  onClose,
+}: DeckModalProps) => {
+  const [deckWorkspaceId, setDeckWorkspaceId] = useState("");
   const [deckNameDraft, setDeckNameDraft] = useState("");
   const modalRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const firstInputRef = useRef<HTMLInputElement>(null);
+
+  // Calculate next deck number for a workspace
+  const getNextDeckNumber = useMemo(
+    () => (workspaceId: string) => {
+      const workspaceDecks = existingDecks.filter((d) => d.workspaceId === workspaceId);
+      const existingNumbers = workspaceDecks
+        .map((d) => {
+          const match = d.name.match(/^Deck\s+(\d+)$/);
+          return match ? parseInt(match[1], 10) : 0;
+        })
+        .filter((n) => n > 0);
+      const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
+      return maxNumber + 1;
+    },
+    [existingDecks]
+  );
 
   // Focus trap implementation
   useEffect(() => {
@@ -67,53 +92,83 @@ export const DeckModal = ({ isOpen, workspaces, onSubmit, onClose }: DeckModalPr
     };
   }, [isOpen, onClose]);
 
+  // Set default workspace and deck name when modal opens
   useEffect(() => {
-    if (isOpen && workspaces.length > 0 && !deckWorkspaceId) {
-      setDeckWorkspaceId(workspaces[0].id);
+    if (!isOpen) return;
+
+    // Use active workspace if available, otherwise use first workspace
+    const defaultWorkspaceId = activeWorkspaceId || workspaces[0]?.id || "";
+    setDeckWorkspaceId(defaultWorkspaceId);
+
+    // Set default deck name based on workspace
+    const nextNumber = getNextDeckNumber(defaultWorkspaceId);
+    setDeckNameDraft(`Deck ${nextNumber}`);
+  }, [isOpen, activeWorkspaceId, workspaces, getNextDeckNumber]);
+
+  // Update deck name when workspace changes
+  useEffect(() => {
+    if (!isOpen || !deckWorkspaceId) return;
+
+    // Only update if the current name is in the "Deck N" format
+    const currentMatch = deckNameDraft.match(/^Deck\s+(\d+)$/);
+    if (currentMatch) {
+      const nextNumber = getNextDeckNumber(deckWorkspaceId);
+      setDeckNameDraft(`Deck ${nextNumber}`);
     }
-  }, [isOpen, workspaces, deckWorkspaceId]);
+  }, [deckWorkspaceId, isOpen, getNextDeckNumber, deckNameDraft]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+
+    // Validate: workspace must be selected
+    if (!deckWorkspaceId) {
+      return;
+    }
+
     await onSubmit(deckNameDraft.trim(), deckWorkspaceId);
     setDeckNameDraft("");
+    setDeckWorkspaceId("");
   };
+
+  const isFormValid = deckNameDraft.trim().length > 0 && deckWorkspaceId;
 
   if (!isOpen) return null;
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" ref={modalRef}>
       <form className="modal" onSubmit={handleSubmit} ref={formRef}>
-        <div className="modal-title">{"\u30c7\u30c3\u30ad\u4f5c\u6210"}</div>
+        <div className="modal-title">デッキ作成</div>
         <label className="field">
-          <span>{"\u30c7\u30c3\u30ad\u540d (\u4efb\u610f)"}</span>
+          <span>デッキ名 (任意)</span>
           <input
             ref={firstInputRef}
             type="text"
             value={deckNameDraft}
-            placeholder={"\u7a7a\u767d\u306e\u307e\u307e\u3067\u3082OK"}
+            placeholder="空白の場合は自動で設定されます"
             onChange={(event) => setDeckNameDraft(event.target.value)}
           />
         </label>
         <label className="field">
-          <span>{"\u30ef\u30fc\u30af\u30b9\u30da\u30fc\u30b9"}</span>
+          <span>ワークスペース *</span>
           <select
             value={deckWorkspaceId}
             onChange={(event) => setDeckWorkspaceId(event.target.value)}
+            required
           >
+            <option value="">選択してください</option>
             {workspaces.map((workspace) => (
               <option key={workspace.id} value={workspace.id}>
-                {workspace.path}
+                {workspace.name}
               </option>
             ))}
           </select>
         </label>
         <div className="modal-actions">
           <button type="button" className="ghost-button" onClick={onClose}>
-            {"\u30ad\u30e3\u30f3\u30bb\u30eb"}
+            キャンセル
           </button>
-          <button type="submit" className="primary-button">
-            {"\u4f5c\u6210"}
+          <button type="submit" className="primary-button" disabled={!isFormValid}>
+            作成
           </button>
         </div>
       </form>

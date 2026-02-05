@@ -1,7 +1,13 @@
-import { Minus, Square, X } from "lucide-react";
+import { ChevronDown, Minus, Plus, Square, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { Workspace } from "../types";
+
+const MAX_VISIBLE_WORKSPACES = 5;
 
 interface TitleBarProps {
+  workspaces?: Workspace[];
+  activeWorkspaceId?: string | null;
+  onSelectWorkspace?: (workspaceId: string) => void;
   onOpenSettings?: () => void;
   onOpenServerModal?: () => void;
   onToggleContextStatus?: () => void;
@@ -129,6 +135,9 @@ function MenuBar({ items }: MenuBarProps) {
 }
 
 export function TitleBar({
+  workspaces = [],
+  activeWorkspaceId,
+  onSelectWorkspace,
   onOpenSettings,
   onOpenServerModal,
   onToggleContextStatus,
@@ -141,6 +150,8 @@ export function TitleBar({
 }: TitleBarProps) {
   const [isTauri, setIsTauri] = useState(false);
   const [isMobileMode, setIsMobileMode] = useState(false);
+  const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
+  const workspaceDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Check if running in Tauri environment
@@ -155,6 +166,21 @@ export function TitleBar({
     window.addEventListener("resize", checkMobileMode);
     return () => window.removeEventListener("resize", checkMobileMode);
   }, []);
+
+  // Close workspace dropdown when clicking outside
+  useEffect(() => {
+    if (!isWorkspaceDropdownOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        workspaceDropdownRef.current &&
+        !workspaceDropdownRef.current.contains(e.target as Node)
+      ) {
+        setIsWorkspaceDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isWorkspaceDropdownOpen]);
 
   const handleClose = async () => {
     if (!isTauri) return;
@@ -210,37 +236,97 @@ export function TitleBar({
     },
   ];
 
+  // Calculate visible and hidden workspaces
+  const visibleWorkspaces = workspaces.slice(0, MAX_VISIBLE_WORKSPACES);
+  const hiddenWorkspaces = workspaces.slice(MAX_VISIBLE_WORKSPACES);
+  const showDropdown = hiddenWorkspaces.length > 0;
+
   return (
     <div
       className={`title-bar ${isTauri ? "title-bar--tauri" : ""} ${isMobileMode ? "title-bar--mobile" : ""}`}
+      data-tauri-drag-region={isTauri}
     >
-      {/* Left side - app icon for Tauri, mobile mode toggle for web */}
-      <div className="title-bar-left" data-tauri-drag-region={isTauri}>
-        {isTauri ? (
+      {/* Left side - app icon and menu bar */}
+      <div className="title-bar-left-section">
+        {isTauri && (
           <div className="title-bar-app-icon" data-tauri-drag-region>
             <img src="/icon-transparent.svg" alt="S-IDE" className="app-icon-img" />
           </div>
-        ) : (
-          <button
-            type="button"
-            className="title-bar-mobile-toggle"
-            onClick={handleToggleMobileMode}
-            title={isMobileMode ? "デスクトップモード" : "モバイルモード"}
-            aria-label="Toggle mobile mode"
-          >
-            <span className="mobile-mode-label">{isMobileMode ? "Desktop" : "Mobile"}</span>
-          </button>
         )}
-      </div>
-
-      {/* Center - menu bar */}
-      <div className="title-bar-center" data-tauri-drag-region={isTauri}>
         <MenuBar items={menuItems} />
       </div>
 
-      {/* Right side - empty (window controls are separate) */}
-      <div className="title-bar-right" data-tauri-drag-region={isTauri}>
-        {/* Spacer to push window controls to the right */}
+      {/* Mobile mode toggle for web */}
+      {!isTauri && (
+        <button
+          type="button"
+          className="title-bar-mobile-toggle"
+          data-tauri-drag-region={false}
+          onClick={handleToggleMobileMode}
+          title={isMobileMode ? "デスクトップモード" : "モバイルモード"}
+          aria-label="Toggle mobile mode"
+        >
+          <span className="mobile-mode-label">{isMobileMode ? "Desktop" : "Mobile"}</span>
+        </button>
+      )}
+
+      {/* Workspace tabs - centered */}
+      <div className="title-bar-center-section" data-tauri-drag-region={isTauri}>
+        <div className="workspace-tabs">
+          {visibleWorkspaces.map((workspace) => (
+            <button
+              key={workspace.id}
+              type="button"
+              className={`workspace-tab ${activeWorkspaceId === workspace.id ? "workspace-tab--active" : ""}`}
+              data-tauri-drag-region={false}
+              onClick={() => onSelectWorkspace?.(workspace.id)}
+              title={workspace.path}
+            >
+              <span className="workspace-tab-name">{workspace.name}</span>
+            </button>
+          ))}
+          {showDropdown && (
+            <div ref={workspaceDropdownRef} className="workspace-dropdown-container">
+              <button
+                type="button"
+                className={`workspace-tab workspace-dropdown-trigger ${isWorkspaceDropdownOpen ? "workspace-dropdown-trigger--open" : ""}`}
+                data-tauri-drag-region={false}
+                onClick={() => setIsWorkspaceDropdownOpen((prev) => !prev)}
+                title="その他のワークスペース"
+              >
+                <ChevronDown size={14} />
+              </button>
+              {isWorkspaceDropdownOpen && (
+                <div className="workspace-dropdown">
+                  {hiddenWorkspaces.map((workspace) => (
+                    <button
+                      key={workspace.id}
+                      type="button"
+                      className={`workspace-dropdown-item ${activeWorkspaceId === workspace.id ? "workspace-dropdown-item--active" : ""}`}
+                      data-tauri-drag-region={false}
+                      onClick={() => {
+                        onSelectWorkspace?.(workspace.id);
+                        setIsWorkspaceDropdownOpen(false);
+                      }}
+                      title={workspace.path}
+                    >
+                      <span className="workspace-dropdown-item-name">{workspace.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          <button
+            type="button"
+            className="workspace-tab workspace-tab--add"
+            data-tauri-drag-region={false}
+            onClick={onOpenWorkspaceModal}
+            title="新しいワークスペースを追加"
+          >
+            <Plus size={14} />
+          </button>
+        </div>
       </div>
 
       {/* Window controls - always show on right side */}

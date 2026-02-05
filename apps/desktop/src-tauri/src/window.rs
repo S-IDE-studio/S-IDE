@@ -3,7 +3,6 @@
 use tauri::{Emitter, Manager};
 use crate::common;
 use tokio::sync::Mutex as TokioMutex;
-use std::sync::Arc;
 
 /// Global server handle for cleanup
 static SERVER_HANDLE: TokioMutex<Option<tokio::process::Child>> = TokioMutex::const_new(None);
@@ -31,7 +30,7 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         .ok_or("Main window not found")?;
 
     // Setup window behavior
-    let app_handle_for_cleanup = app.handle().clone();
+    let _app_handle_for_cleanup = app.handle().clone();
     window.on_window_event(move |event| {
         if let tauri::WindowEvent::CloseRequested { .. } = event {
             // Stop server when window is closing

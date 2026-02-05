@@ -106,6 +106,17 @@ export function createDeck(name: string, workspaceId: string): Promise<Deck> {
 }
 
 /**
+ * Renames a deck
+ */
+export function renameDeck(deckId: string, name: string): Promise<Deck> {
+  return request<Deck>(`/api/decks/${deckId}`, {
+    method: HTTP_METHOD_POST,
+    headers: { "Content-Type": CONTENT_TYPE_JSON },
+    body: JSON.stringify({ name }),
+  });
+}
+
+/**
  * Lists files in a workspace directory
  */
 export function listFiles(workspaceId: string, path = ""): Promise<FileSystemEntry[]> {

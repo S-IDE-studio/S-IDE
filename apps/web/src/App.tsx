@@ -17,7 +17,6 @@ import { TitleBar } from "./components/TitleBar";
 import { TunnelControl } from "./components/TunnelControl";
 import { UpdateNotification, useUpdateCheck } from "./components/UpdateNotification";
 import { UpdateProgress } from "./components/UpdateProgress";
-import { WorkspaceModal } from "./components/WorkspaceModal";
 import {
   API_BASE,
   DEFAULT_ROOT_FALLBACK,
@@ -45,7 +44,6 @@ import {
   editorToTab,
   serverToTab,
   tunnelToTab,
-  workspaceToTab,
 } from "./utils/unifiedTabUtils";
 import { parseUrlState } from "./utils/urlUtils";
 
@@ -73,7 +71,6 @@ export default function App() {
   const _theme = "dark"; // Force dark theme
   const [defaultRoot, setDefaultRoot] = useState(DEFAULT_ROOT_FALLBACK);
   const [statusMessage, setStatusMessage] = useState("");
-  const [isWorkspaceModalOpen, setIsWorkspaceModalOpen] = useState(false);
   const [isDeckModalOpen, setIsDeckModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isServerModalOpen, setIsServerModalOpen] = useState(false);
@@ -111,6 +108,7 @@ export default function App() {
     setActiveDeckIds,
     terminalGroups,
     handleCreateDeck,
+    handleRenameDeck,
     handleCreateTerminal,
     handleDeleteTerminal,
     handleToggleGroupCollapsed,
@@ -564,42 +562,6 @@ export default function App() {
     });
   }, []);
 
-  // Handler for adding agent tab
-  const handleAddAgentTab = useCallback(
-    (agent: import("./types").Agent) => {
-      const tab = agentToTab(agent);
-      addTabToPanel(tab);
-    },
-    [addTabToPanel]
-  );
-
-  // Handler for adding workspace tab
-  const handleAddWorkspaceTab = useCallback(
-    (workspace: import("./types").Workspace) => {
-      const tab = workspaceToTab(workspace);
-      addTabToPanel(tab);
-    },
-    [addTabToPanel]
-  );
-
-  // Handler for adding deck tab
-  const handleAddDeckTab = useCallback(
-    (deck: import("./types").Deck) => {
-      const tab = deckToTab(deck);
-      addTabToPanel(tab);
-    },
-    [addTabToPanel]
-  );
-
-  // Handler for adding editor tab
-  const handleAddEditorTab = useCallback(
-    (file: EditorFile) => {
-      const tab = editorToTab(file);
-      addTabToPanel(tab);
-    },
-    [addTabToPanel]
-  );
-
   // Handler for adding server tab
   const handleAddServerTab = useCallback(() => {
     const tab = serverToTab();
@@ -638,12 +600,6 @@ export default function App() {
       const existingAgentIds = group.tabs
         .filter((t) => t.kind === "agent")
         .map((t) => t.data.agent?.id);
-      const existingWorkspaceIds = group.tabs
-        .filter((t) => t.kind === "workspace")
-        .map((t) => t.data.workspace?.id);
-      const existingDeckIds = group.tabs
-        .filter((t) => t.kind === "deck")
-        .map((t) => t.data.deck?.id);
 
       const newTabs: typeof group.tabs = [...group.tabs];
 
@@ -651,20 +607,6 @@ export default function App() {
       agents.forEach((agent) => {
         if (!existingAgentIds.includes(agent.id)) {
           newTabs.push(agentToTab(agent));
-        }
-      });
-
-      // Add workspaces that don't exist
-      workspaces.forEach((workspace) => {
-        if (!existingWorkspaceIds.includes(workspace.id)) {
-          newTabs.push(workspaceToTab(workspace));
-        }
-      });
-
-      // Add decks that don't exist
-      decks.forEach((deck) => {
-        if (!existingDeckIds.includes(deck.id)) {
-          newTabs.push(deckToTab(deck));
         }
       });
 
@@ -676,7 +618,7 @@ export default function App() {
 
     // Mark initial setup as done
     initialPanelSetupDoneRef.current = true;
-  }, [agents, workspaces, decks]); // Run when data is loaded
+  }, [agents]); // Run when agents are loaded
 
   // Add editor tabs when files change
   useEffect(() => {
@@ -911,10 +853,12 @@ export default function App() {
       const deck = await handleCreateDeck(name, workspaceId);
       if (deck) {
         setIsDeckModalOpen(false);
-        handleAddDeckTab(deck);
+        // Add deck tab to panel
+        const tab = deckToTab(deck);
+        addTabToPanel(tab);
       }
     },
-    [handleCreateDeck, setStatusMessage, handleAddDeckTab]
+    [handleCreateDeck, setStatusMessage, addTabToPanel]
   );
 
   const handleSaveSettings = useCallback(
@@ -967,20 +911,46 @@ export default function App() {
     setWorkspaceMode("list");
   }, []);
 
-  const handleOpenWorkspaceModal = useCallback(() => {
-    setIsWorkspaceModalOpen(true);
-  }, []);
+  const handleOpenWorkspaceModal = useCallback(async () => {
+    const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
 
-  const handleSubmitWorkspace = useCallback(
-    async (path: string) => {
-      const created = await handleCreateWorkspace(path);
-      if (created) {
-        setIsWorkspaceModalOpen(false);
-        handleAddWorkspaceTab(created);
+    if (isTauri) {
+      try {
+        const { open } = await import("@tauri-apps/plugin-dialog");
+        const selected = await open({
+          directory: true,
+          multiple: false,
+          title: "ワークスペースとして開くフォルダを選択",
+        });
+        if (selected && typeof selected === "string") {
+          await handleCreateWorkspace(selected);
+        }
+      } catch (error) {
+        console.error("Failed to open folder dialog:", error);
       }
-    },
-    [handleCreateWorkspace, handleAddWorkspaceTab]
-  );
+    } else {
+      // Web: Create file input element
+      const input = document.createElement("input");
+      input.type = "file";
+      input.webkitdirectory = true;
+      input.multiple = true;
+      input.style.display = "none";
+
+      input.onchange = async (e) => {
+        const files = (e.target as HTMLInputElement).files;
+        if (files && files.length > 0) {
+          const firstFile = files[0];
+          const path = firstFile.webkitRelativePath.split("/").slice(0, -1).join("/");
+          const selectedPath = path || firstFile.name;
+          await handleCreateWorkspace(selectedPath);
+        }
+        document.body.removeChild(input);
+      };
+
+      document.body.appendChild(input);
+      input.click();
+    }
+  }, [handleCreateWorkspace]);
 
   const handleNewTerminalForDeck = useCallback(
     (deckId: string) => {
@@ -1073,6 +1043,19 @@ export default function App() {
 
   const gitChangeCount = gitState.status?.files.length ?? 0;
 
+  // Handle tab double-click (for renaming decks)
+  const handleTabDoubleClick = useCallback(
+    (tab: import("./types").UnifiedTab) => {
+      if (tab.kind === "deck" && tab.data.deck) {
+        const newName = prompt("デッキ名:", tab.title);
+        if (newName && newName.trim() !== "" && newName !== tab.title) {
+          handleRenameDeck(tab.data.deck.id, newName.trim());
+        }
+      }
+    },
+    [handleRenameDeck]
+  );
+
   // Check if welcome screen should be shown
   const showWelcomeScreen = workspaces.length === 0 && decks.length === 0;
 
@@ -1084,10 +1067,13 @@ export default function App() {
   return (
     <div className="app">
       <TitleBar
+        workspaces={workspaces}
+        activeWorkspaceId={editorWorkspaceId}
+        onSelectWorkspace={setEditorWorkspaceId}
         onOpenSettings={() => setIsSettingsModalOpen(true)}
         onOpenServerModal={() => setIsServerModalOpen(true)}
         onToggleContextStatus={() => setShowContextStatus((prev) => !prev)}
-        onOpenWorkspaceModal={() => setIsWorkspaceModalOpen(true)}
+        onOpenWorkspaceModal={handleOpenWorkspaceModal}
         onOpenDeckModal={() => setIsDeckModalOpen(true)}
         onCreateAgent={() => {
           /* TODO: Implement agent creation */
@@ -1119,6 +1105,9 @@ export default function App() {
           onClosePanel={handleClosePanel}
           onResizePanel={handleResizePanel}
           onContextMenuAction={handleContextMenuAction}
+          onTabDoubleClick={handleTabDoubleClick}
+          activeDeckIds={activeDeckIds}
+          decks={decks}
           workspaceStates={workspaceStates}
           gitFiles={gitState.status?.files}
           onToggleDir={handleToggleDir}
@@ -1192,15 +1181,11 @@ export default function App() {
           </div>
         </div>
       )}
-      <WorkspaceModal
-        isOpen={isWorkspaceModalOpen}
-        defaultRoot={defaultRoot}
-        onSubmit={handleSubmitWorkspace}
-        onClose={() => setIsWorkspaceModalOpen(false)}
-      />
       <DeckModal
         isOpen={isDeckModalOpen}
         workspaces={workspaces}
+        activeWorkspaceId={editorWorkspaceId}
+        existingDecks={decks}
         onSubmit={handleSubmitDeck}
         onClose={() => setIsDeckModalOpen(false)}
       />

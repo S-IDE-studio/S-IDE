@@ -18,6 +18,11 @@ interface UnifiedPanelViewProps {
   onClosePanel: (groupId: string) => void;
   onResizePanel: (groupId: string, delta: number) => void;
   onContextMenuAction: (action: TabContextMenuAction, groupId: string, tabId: string) => void;
+  onTabDoubleClick?: (tab: import("../../types").UnifiedTab) => void;
+  // Active deck IDs (from title bar selection)
+  activeDeckIds?: string[];
+  // Deck data for displaying without tabs
+  decks?: import("../../types").Deck[];
   // Workspace data
   workspaceStates?: Record<
     string,
@@ -71,6 +76,9 @@ export function UnifiedPanelView({
   onClosePanel,
   onResizePanel,
   onContextMenuAction,
+  onTabDoubleClick,
+  activeDeckIds,
+  decks,
   workspaceStates,
   gitFiles,
   onToggleDir,
@@ -171,7 +179,49 @@ export function UnifiedPanelView({
   if (groups.length === 0) {
     return (
       <div className="panel-view-empty">
-        <p>No panels open. Open a file or create a new workspace to get started.</p>
+        <div className="panel-empty-icon">
+          <svg
+            width={120}
+            height={120}
+            viewBox="0 0 120 120"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <rect
+              x="20"
+              y="20"
+              width={80}
+              height={80}
+              rx="4"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+            <path
+              d="M30 40h60M30 60h40M30 80h20"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
+        <h1 className="panel-empty-title">S-IDE</h1>
+        <p className="panel-empty-description">
+          開くには、ワークスペースを追加するか、以下の操作を行います
+        </p>
+        <div className="panel-empty-shortcuts">
+          <div className="panel-empty-shortcut">
+            <kbd>Ctrl</kbd> + <kbd>N</kbd>
+            <span>新しいワークスペース</span>
+          </div>
+          <div className="panel-empty-shortcut">
+            <kbd>Ctrl</kbd> + <kbd>O</kbd>
+            <span>ファイルを開く</span>
+          </div>
+          <div className="panel-empty-shortcut">
+            <kbd>Ctrl</kbd> + <kbd>`</kbd>
+            <span>ターミナルを開く</span>
+          </div>
+        </div>
       </div>
     );
   }
@@ -182,7 +232,49 @@ export function UnifiedPanelView({
     if (!group) {
       return (
         <div className="panel-view-empty">
-          <p>No panels open</p>
+          <div className="panel-empty-icon">
+            <svg
+              width={120}
+              height={120}
+              viewBox="0 0 120 120"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <rect
+                x="20"
+                y="20"
+                width={80}
+                height={80}
+                rx="4"
+                stroke="currentColor"
+                strokeWidth="2"
+              />
+              <path
+                d="M30 40h60M30 60h40M30 80h20"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+          </div>
+          <h1 className="panel-empty-title">S-IDE</h1>
+          <p className="panel-empty-description">
+            開くには、ワークスペースを追加するか、以下の操作を行います
+          </p>
+          <div className="panel-empty-shortcuts">
+            <div className="panel-empty-shortcut">
+              <kbd>Ctrl</kbd> + <kbd>N</kbd>
+              <span>新しいワークスペース</span>
+            </div>
+            <div className="panel-empty-shortcut">
+              <kbd>Ctrl</kbd> + <kbd>O</kbd>
+              <span>ファイルを開く</span>
+            </div>
+            <div className="panel-empty-shortcut">
+              <kbd>Ctrl</kbd> + <kbd>`</kbd>
+              <span>ターミナルを開く</span>
+            </div>
+          </div>
         </div>
       );
     }
@@ -206,6 +298,9 @@ export function UnifiedPanelView({
         onClosePanel={createClosePanelHandler(group.id)}
         onResize={createResizeHandler(group.id)}
         onContextMenuAction={createContextMenuHandler(group.id)}
+        onTabDoubleClick={onTabDoubleClick}
+        activeDeckIds={activeDeckIds}
+        decks={decks}
         workspaceStates={workspaceStates}
         gitFiles={gitFiles}
         onToggleDir={onToggleDir}
@@ -252,6 +347,9 @@ export function UnifiedPanelView({
           onClosePanel={createClosePanelHandler(group.id)}
           onResize={createResizeHandler(group.id)}
           onContextMenuAction={createContextMenuHandler(group.id)}
+          onTabDoubleClick={onTabDoubleClick}
+          activeDeckIds={activeDeckIds}
+          decks={decks}
           workspaceStates={workspaceStates}
           gitFiles={gitFiles}
           onToggleDir={onToggleDir}

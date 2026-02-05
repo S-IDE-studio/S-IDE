@@ -3,6 +3,7 @@ import {
   createDeck as apiCreateDeck,
   createTerminal as apiCreateTerminal,
   deleteTerminal as apiDeleteTerminal,
+  renameDeck as apiRenameDeck,
   listDecks,
   listTerminals,
 } from "../api";
@@ -108,10 +109,29 @@ export const useDecks = ({
     };
   }, [activeDeckIds, deckStates, updateDeckState, setStatusMessage]);
 
+  // Helper to generate next deck number for a workspace
+  const getNextDeckNumber = useCallback(
+    (workspaceId: string) => {
+      const workspaceDecks = decks.filter((d) => d.workspaceId === workspaceId);
+      // Extract numbers from existing deck names (format: "Deck {number}")
+      const existingNumbers = workspaceDecks
+        .map((d) => {
+          const match = d.name.match(/^Deck\s+(\d+)$/);
+          return match ? parseInt(match[1], 10) : 0;
+        })
+        .filter((n) => n > 0);
+      const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
+      return maxNumber + 1;
+    },
+    [decks]
+  );
+
   const handleCreateDeck = useCallback(
     async (name: string, workspaceId: string) => {
       try {
-        const deck = await apiCreateDeck(name, workspaceId);
+        // Generate default name if not provided
+        const deckName = name.trim() || `Deck ${getNextDeckNumber(workspaceId)}`;
+        const deck = await apiCreateDeck(deckName, workspaceId);
         setDecks((prev) => [...prev, deck]);
         setActiveDeckIds((prev) => [...prev.filter((id) => id !== deck.id), deck.id]);
         setDeckStates((prev) => ({
@@ -124,7 +144,7 @@ export const useDecks = ({
         return null;
       }
     },
-    [setStatusMessage, setDeckStates]
+    [setStatusMessage, setDeckStates, getNextDeckNumber]
   );
 
   const handleCreateTerminal = useCallback(
@@ -250,12 +270,27 @@ export const useDecks = ({
     [updateDeckState]
   );
 
+  const handleRenameDeck = useCallback(
+    async (deckId: string, name: string) => {
+      try {
+        const updated = await apiRenameDeck(deckId, name);
+        setDecks((prev) => prev.map((d) => (d.id === deckId ? updated : d)));
+        return updated;
+      } catch (error: unknown) {
+        setStatusMessage(`デッキ名の変更に失敗しました: ${getErrorMessage(error)}`);
+        return null;
+      }
+    },
+    [setStatusMessage]
+  );
+
   return {
     decks,
     activeDeckIds,
     setActiveDeckIds,
     terminalGroups,
     handleCreateDeck,
+    handleRenameDeck,
     handleCreateTerminal,
     handleDeleteTerminal,
     handleCreateGroup,

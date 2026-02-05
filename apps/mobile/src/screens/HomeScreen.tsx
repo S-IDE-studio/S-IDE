@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -18,7 +18,8 @@ type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
 export const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const [serverUrl, setServerUrl] = useState("http://192.168.1.1:8787");
-  const [terminals, setTerminals] = useState<Array<{ id: string; title: string; status: string }>>([])
+  const [terminals, setTerminals] = useState<Array<{ id: string; title: string; status: string }>>(
+    []
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +30,8 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
     setError(null);
     try {
       const client = getClient(serverUrl);
-      const terminals = await client.get<Array<{ id: string; title: string; status: string }>>("/terminals");
+      const terminals =
+        await client.get<Array<{ id: string; title: string; status: string }>>("/terminals");
       setTerminals(terminals);
     } catch (_err) {
       setError("Failed to connect to server. Check your URL.");
@@ -51,9 +53,7 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
           style={styles.settingsButton}
           onPress={() => setShowSettings(!showSettings)}
         >
-          <Text style={styles.settingsButtonText}>
-            {showSettings ? "▼" : "⚙"}
-          </Text>
+          <Text style={styles.settingsButtonText}>{showSettings ? "▼" : "⚙"}</Text>
         </TouchableOpacity>
       </View>
 
@@ -89,9 +89,7 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       ) : (
         <ScrollView style={styles.content}>
-          <Text style={styles.sectionTitle}>
-            Terminals ({terminals.length})
-          </Text>
+          <Text style={styles.sectionTitle}>Terminals ({terminals.length})</Text>
           {terminals.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>No terminals found</Text>
@@ -107,7 +105,10 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
                 title={terminal.title}
                 status={terminal.status as "running" | "stopped"}
                 onPress={() =>
-                  navigation.navigate("Terminal", { terminalId: terminal.id, title: terminal.title })
+                  navigation.navigate("Terminal", {
+                    terminalId: terminal.id,
+                    title: terminal.title,
+                  })
                 }
               />
             ))

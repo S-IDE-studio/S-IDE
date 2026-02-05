@@ -26,13 +26,19 @@ interface UnifiedPanelContainerProps {
   onClosePanel: () => void;
   onResize: (delta: number) => void;
   onContextMenuAction: (action: TabContextMenuAction, tabId: string) => void;
-  // Workspace data
+  onTabDoubleClick?: (tab: import("../../types").UnifiedTab) => void;
+  // Active deck IDs (from title bar selection)
+  activeDeckIds?: string[];
+  // Deck data for displaying without tabs
+  decks?: import("../../types").Deck[];
+  // Workspace data (for editor tabs)
   workspaceStates?: Record<
     string,
     {
       tree?: import("../../types").FileTreeNode[];
       treeLoading?: boolean;
       treeError?: string | null;
+      files?: import("../../types").EditorFile[];
     }
   >;
   gitFiles?: import("../../types").GitFileStatus[];
@@ -84,6 +90,9 @@ export function UnifiedPanelContainer({
   onClosePanel,
   onResize,
   onContextMenuAction,
+  onTabDoubleClick,
+  activeDeckIds,
+  decks,
   workspaceStates,
   gitFiles,
   onToggleDir,
@@ -182,18 +191,21 @@ export function UnifiedPanelContainer({
           onTabsReorder={handleTabsReorder}
           onTabMove={handleTabMove}
           onContextMenuAction={(action, tab) => handleContextMenuAction(action, tab.id)}
+          onTabDoubleClick={onTabDoubleClick}
         />
 
         {/* Panel Controls */}
-        <div className="panel-controls">
-          <MemoizedPanelSplitButton
-            canSplitVertical={canSplitVertical}
-            canSplitHorizontal={canSplitHorizontal}
-            canClose={true}
-            onSplit={onSplitPanel}
-            onClose={onClosePanel}
-          />
-        </div>
+        {group.tabs.length > 0 && (
+          <div className="panel-controls">
+            <MemoizedPanelSplitButton
+              canSplitVertical={canSplitVertical}
+              canSplitHorizontal={canSplitHorizontal}
+              canClose={true}
+              onSplit={onSplitPanel}
+              onClose={onClosePanel}
+            />
+          </div>
+        )}
       </div>
 
       {/* Content */}
@@ -223,8 +235,33 @@ export function UnifiedPanelContainer({
             savingFileId={savingFileId}
           />
         ) : (
-          <div className="panel-empty">
-            <p>Select a tab to view its content</p>
+          <div className="panel-empty panel-view-empty">
+            <div className="panel-empty-icon">
+              <svg
+                width={80}
+                height={80}
+                viewBox="0 0 120 120"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <rect
+                  x="20"
+                  y="20"
+                  width={80}
+                  height={80}
+                  rx="4"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                />
+                <path
+                  d="M30 40h60M30 60h40M30 80h20"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+            <p className="panel-empty-description">タブを選択してください</p>
           </div>
         )}
       </div>

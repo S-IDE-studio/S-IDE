@@ -60,14 +60,13 @@ export const useWorkspaces = ({
         return null;
       }
       const normalized = normalizeWorkspacePath(resolvedPath);
-      const exists = workspaces.some(
+      const existingWorkspace = workspaces.find(
         (workspace) => normalizeWorkspacePath(workspace.path) === normalized
       );
-      if (exists) {
-        setStatusMessage(
-          "\u540c\u3058\u30d1\u30b9\u306e\u30ef\u30fc\u30af\u30b9\u30da\u30fc\u30b9\u306f\u8ffd\u52a0\u3067\u304d\u307e\u305b\u3093\u3002"
-        );
-        return null;
+      // If workspace already exists, just select it
+      if (existingWorkspace) {
+        setEditorWorkspaceId(existingWorkspace.id);
+        return existingWorkspace;
       }
       try {
         const workspace = await apiCreateWorkspace(resolvedPath);

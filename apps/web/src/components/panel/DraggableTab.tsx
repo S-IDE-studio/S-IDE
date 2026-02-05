@@ -12,7 +12,6 @@ import {
   FileCode,
   FileText,
   Folder,
-  FolderOpen,
   Globe,
   Hash,
   Pin,
@@ -31,6 +30,7 @@ interface DraggableTabProps {
   onSelect: (tabId: string) => void;
   onClose: (tabId: string) => void;
   onContextMenu: (tab: UnifiedTab, event: React.MouseEvent) => void;
+  onDoubleClick?: (tab: UnifiedTab) => void;
 }
 
 // Map tab kinds and file types to Lucide icons
@@ -96,6 +96,7 @@ export function DraggableTab({
   onSelect,
   onClose,
   onContextMenu,
+  onDoubleClick,
 }: DraggableTabProps) {
   const {
     attributes,
@@ -131,6 +132,11 @@ export function DraggableTab({
     onContextMenu(tab, e);
   };
 
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDoubleClick?.(tab);
+  };
+
   const icon = getTabIcon(tab);
 
   return (
@@ -140,6 +146,7 @@ export function DraggableTab({
       className={`panel-tab ${isActive ? "active" : ""} ${tab.dirty ? "dirty" : ""} ${tab.pinned ? "pinned" : ""}`}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
+      onDoubleClick={handleDoubleClick}
       {...attributes}
       {...listeners}
       data-tab-id={tab.id}

@@ -1,8 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { previewFiles } from "../api";
-import type { FileTreeNode } from "../types";
-import { getErrorMessage, getParentPath, joinPath, toTreeNodes } from "../utils";
-import { FileTree } from "./FileTree";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 
 interface WorkspaceModalProps {
   isOpen: boolean;
@@ -12,126 +8,105 @@ interface WorkspaceModalProps {
 }
 
 export const WorkspaceModal = ({ isOpen, defaultRoot, onSubmit, onClose }: WorkspaceModalProps) => {
-  const [workspacePathDraft, setWorkspacePathDraft] = useState("");
-  const [previewTree, setPreviewTree] = useState<FileTreeNode[]>([]);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [workspacePath, setWorkspacePath] = useState("");
+  const [isTauri, setIsTauri] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const previewRoot = workspacePathDraft.trim() || defaultRoot;
-  const canPreviewBack = useMemo(() => {
-    if (!previewRoot) return false;
-    return getParentPath(previewRoot) !== previewRoot;
-  }, [previewRoot]);
+  useEffect(() => {
+    setIsTauri(typeof window !== "undefined" && "__TAURI__" in window);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) {
-      setPreviewTree([]);
-      setPreviewLoading(false);
-      setPreviewError(null);
-      return;
+      setWorkspacePath("");
     }
-    let alive = true;
-    setPreviewLoading(true);
-    setPreviewError(null);
-    previewFiles(previewRoot, "")
-      .then((entries) => {
-        if (!alive) return;
-        setPreviewTree(toTreeNodes(entries));
-        setPreviewLoading(false);
-      })
-      .catch((error: unknown) => {
-        if (!alive) return;
-        setPreviewError(getErrorMessage(error));
-        setPreviewLoading(false);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [isOpen, previewRoot]);
+  }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    if (workspacePathDraft.trim()) return;
-    if (defaultRoot) {
-      setWorkspacePathDraft(defaultRoot);
+  const handleSelectFolder = async () => {
+    if (isTauri) {
+      // Tauri: Use native dialog
+      try {
+        const { open } = await import("@tauri-apps/plugin-dialog");
+        const selected = await open({
+          directory: true,
+          multiple: false,
+          title: "ワークスペースとして開くフォルダを選択",
+        });
+        if (selected && typeof selected === "string") {
+          setWorkspacePath(selected);
+        }
+      } catch (error) {
+        console.error("Failed to open folder dialog:", error);
+      }
+    } else {
+      // Web: Use file input
+      fileInputRef.current?.click();
     }
-  }, [defaultRoot, isOpen, workspacePathDraft]);
-
-  const handlePreviewRefresh = () => {
-    if (!isOpen) return;
-    setPreviewLoading(true);
-    setPreviewError(null);
-    previewFiles(previewRoot, "")
-      .then((entries) => {
-        setPreviewTree(toTreeNodes(entries));
-        setPreviewLoading(false);
-      })
-      .catch((error: unknown) => {
-        setPreviewError(getErrorMessage(error));
-        setPreviewLoading(false);
-      });
   };
 
-  const handlePreviewToggleDir = (node: FileTreeNode) => {
-    if (node.type !== "dir") return;
-    const nextPath = joinPath(previewRoot, node.name);
-    setWorkspacePathDraft(nextPath);
-  };
-
-  const handlePreviewBack = () => {
-    if (!previewRoot) return;
-    const parent = getParentPath(previewRoot);
-    if (parent && parent !== previewRoot) {
-      setWorkspacePathDraft(parent);
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      // webkitRelativePath gives the full path relative to the selected folder
+      const firstFile = files[0];
+      const path = firstFile.webkitRelativePath.split("/").slice(0, -1).join("/");
+      setWorkspacePath(path || firstFile.name);
     }
   };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    await onSubmit(workspacePathDraft);
-    setWorkspacePathDraft("");
+    if (!workspacePath.trim()) return;
+    await onSubmit(workspacePath);
+    setWorkspacePath("");
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true">
-      <form className="modal" onSubmit={handleSubmit}>
-        <div className="modal-title">
-          {"\u30ef\u30fc\u30af\u30b9\u30da\u30fc\u30b9\u8ffd\u52a0"}
-        </div>
-        <label className="field">
-          <span>{"\u30d1\u30b9"}</span>
-          <input
-            type="text"
-            value={workspacePathDraft}
-            placeholder={defaultRoot || ""}
-            onChange={(event) => setWorkspacePathDraft(event.target.value)}
-          />
-        </label>
-        <div className="modal-explorer">
-          <FileTree
-            root={previewRoot}
-            entries={previewTree}
-            loading={previewLoading}
-            error={previewError}
-            mode="navigator"
-            canBack={canPreviewBack}
-            onBack={handlePreviewBack}
-            onToggleDir={handlePreviewToggleDir}
-            onOpenFile={() => undefined}
-            onRefresh={handlePreviewRefresh}
-          />
-        </div>
-        <div className="modal-actions">
-          <button type="button" className="ghost-button" onClick={onClose}>
-            {"\u30ad\u30e3\u30f3\u30bb\u30eb"}
-          </button>
-          <button type="submit" className="primary-button">
-            {"\u8ffd\u52a0"}
-          </button>
-        </div>
-      </form>
-    </div>
+    <>
+      <div className="modal-backdrop" role="dialog" aria-modal="true">
+        <form className="modal" onSubmit={handleSubmit}>
+          <div className="modal-title">{"ワークスペース追加"}</div>
+
+          <label className="field">
+            <span>フォルダ</span>
+            <div className="field-row">
+              <input
+                type="text"
+                value={workspacePath}
+                placeholder="フォルダを選択してください"
+                readOnly
+              />
+              <button type="button" className="secondary-button" onClick={handleSelectFolder}>
+                選択...
+              </button>
+            </div>
+          </label>
+
+          <div className="modal-actions">
+            <button type="button" className="ghost-button" onClick={onClose}>
+              キャンセル
+            </button>
+            <button type="submit" className="primary-button" disabled={!workspacePath.trim()}>
+              追加
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Hidden file input for web */}
+      {!isTauri && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          {...({ webkitdirectory: true } as React.InputHTMLAttributes<HTMLInputElement>)}
+          {...({ directory: true } as React.InputHTMLAttributes<HTMLInputElement>)}
+          multiple
+          style={{ display: "none" }}
+          onChange={handleFileChange}
+        />
+      )}
+    </>
   );
 };

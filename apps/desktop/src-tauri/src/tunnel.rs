@@ -7,6 +7,7 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use std::sync::Arc;
 
 /// Delay before checking tunnel URL (seconds)
+#[allow(dead_code)]
 pub const TUNNEL_URL_DELAY_SECS: u64 = 2;
 
 /// Handle to a running tunnel process

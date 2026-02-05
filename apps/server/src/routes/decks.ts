@@ -16,6 +16,8 @@ export function createDeckRouter(
     "INSERT INTO decks (id, name, root, workspace_id, created_at) VALUES (?, ?, ?, ?, ?)"
   );
 
+  const updateDeckName = db.prepare("UPDATE decks SET name = ? WHERE id = ?");
+
   function createDeck(name: string | undefined, workspaceId: string): Deck {
     const workspace = requireWorkspace(workspaces, workspaceId);
     const deck: Deck = {
@@ -43,6 +45,30 @@ export function createDeckRouter(
       }
       const deck = createDeck(body?.name, workspaceId);
       return c.json(deck, 201);
+    } catch (error) {
+      return handleError(c, error);
+    }
+  });
+
+  router.post("/:id", async (c) => {
+    try {
+      const deckId = c.req.param("id");
+      const body = await readJson<{ name?: string }>(c);
+      const newName = body?.name;
+
+      if (!newName) {
+        throw createHttpError("name is required", 400);
+      }
+
+      const deck = decks.get(deckId);
+      if (!deck) {
+        throw createHttpError("Deck not found", 404);
+      }
+
+      deck.name = newName;
+      updateDeckName.run(newName, deckId);
+
+      return c.json(deck);
     } catch (error) {
       return handleError(c, error);
     }
