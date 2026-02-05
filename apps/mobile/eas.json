@@ -6,7 +6,8 @@
     "development": {
       "distribution": "internal",
       "ios": {
-        "simulator": true
+        "simulator": true,
+        "simulatorModel": "iPhone 15"
       },
       "android": {
         "buildType": "apk"
@@ -15,7 +16,8 @@
     "preview": {
       "distribution": "internal",
       "ios": {
-        "simulator": true
+        "simulator": true,
+        "simulatorModel": "iPhone 15"
       },
       "android": {
         "buildType": "apk"
