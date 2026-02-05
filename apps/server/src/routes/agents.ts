@@ -2,13 +2,28 @@
  * Agent Management API Routes
  *
  * REST API endpoints for managing AI agents.
- * Provides agent listing, details, terminal launch, and config management.
+ * Provides agent listing, details, terminal launch, config management, and status monitoring.
  */
 
 import { Hono } from "hono";
 import type { AgentInterface } from "../agents/base/AgentInterface.js";
 import type { AgentId } from "../agents/types.js";
 import { createHttpError, handleError, readJson } from "../utils/error.js";
+
+/**
+ * Agent status information
+ */
+interface AgentStatusInfo {
+  id: string;
+  name: string;
+  icon: string;
+  status: "idle" | "running" | "error";
+  contextUsage: number;
+  contextLimit: number;
+  tokenUsage: number;
+  tokenLimit: number;
+  uptime: number;
+}
 
 /**
  * Agent registry - stores available agent instances
@@ -68,6 +83,80 @@ export function createAgentRouter() {
       );
 
       return c.json(agents);
+    } catch (error) {
+      return handleError(c, error);
+    }
+  });
+
+  /**
+   * GET /api/agents/status - Get unified agent status with context/token usage
+   */
+  router.get("/status", async (c) => {
+    try {
+      const agents = getAllAgents();
+      const agentStatusList: AgentStatusInfo[] = await Promise.all(
+        agents.map(async (agent) => {
+          const available = await agent.isAvailable();
+          const config = await agent.getConfig();
+
+          // Return agent status information
+          return {
+            id: agent.id,
+            name: agent.name,
+            icon: agent.icon,
+            status: available ? ("idle" as const) : ("error" as const),
+            contextUsage: 0, // Would be populated from actual agent context
+            contextLimit: config.maxTokens || 200000,
+            tokenUsage: 0, // Would be populated from actual agent usage
+            tokenLimit: config.maxTokens || 200000,
+            uptime: 0, // Would be populated from actual agent uptime
+          };
+        })
+      );
+
+      return c.json({ agents: agentStatusList });
+    } catch (error) {
+      return handleError(c, error);
+    }
+  });
+
+  /**
+   * POST /api/agents/:id/restart - Restart an agent
+   */
+  router.post("/:id/restart", async (c) => {
+    try {
+      const agentId = c.req.param("id") as AgentId;
+      const agent = getAgent(agentId);
+
+      if (!agent) {
+        throw createHttpError("Agent not found", 404);
+      }
+
+      // Re-initialize the agent
+      await agent.initialize();
+
+      return c.json({ success: true, message: "Agent restarted" });
+    } catch (error) {
+      return handleError(c, error);
+    }
+  });
+
+  /**
+   * POST /api/agents/:id/stop - Stop an agent
+   */
+  router.post("/:id/stop", async (c) => {
+    try {
+      const agentId = c.req.param("id") as AgentId;
+      const agent = getAgent(agentId);
+
+      if (!agent) {
+        throw createHttpError("Agent not found", 404);
+      }
+
+      // Dispose the agent resources
+      await agent.dispose();
+
+      return c.json({ success: true, message: "Agent stopped" });
     } catch (error) {
       return handleError(c, error);
     }

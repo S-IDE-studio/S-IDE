@@ -37,9 +37,11 @@ import { createContextManagerRouter } from "./routes/context-manager.js";
 import { createDeckRouter } from "./routes/decks.js";
 import { createFileRouter } from "./routes/files.js";
 import { createGitRouter } from "./routes/git.js";
+import { createLocalServerRouter } from "./routes/local-server.js";
 import { createSettingsRouter } from "./routes/settings.js";
 import { createSharedResourcesRouter } from "./routes/shared-resources.js";
 import { createTerminalRouter } from "./routes/terminals.js";
+import { createTunnelRouter } from "./routes/tunnel.js";
 import { createWorkspaceRouter, getConfigHandler } from "./routes/workspaces.js";
 import type { Deck, TerminalSession, Workspace } from "./types.js";
 import {
@@ -178,6 +180,8 @@ export function createServer(portOverride?: number) {
   app.route("/api/shared", createSharedResourcesRouter());
   app.route("/api/bridge", createAgentBridgeRouter());
   app.route("/api/mcp", agentRouter);
+  app.route("/api/local-server", createLocalServerRouter());
+  app.route("/api/tunnel", createTunnelRouter());
 
   // Restore persisted terminals
   const persistedTerminals = loadPersistedTerminals(db, decks);

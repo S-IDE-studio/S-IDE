@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Hono } from "hono";
-import { BASIC_AUTH_PASSWORD, BASIC_AUTH_USER, PORT } from "../config.js";
+import { BASIC_AUTH_PASSWORD, BASIC_AUTH_USER, CORS_ORIGIN, PORT } from "../config.js";
 import { createHttpError, handleError } from "../utils/error.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -16,6 +16,7 @@ interface Settings {
   basicAuthEnabled: boolean;
   basicAuthUser: string;
   basicAuthPassword: string;
+  corsOrigin?: string;
 }
 
 // Load settings from file or return defaults
@@ -30,6 +31,7 @@ async function loadSettings(): Promise<Settings> {
       basicAuthEnabled: Boolean(BASIC_AUTH_USER && BASIC_AUTH_PASSWORD),
       basicAuthUser: BASIC_AUTH_USER || "",
       basicAuthPassword: BASIC_AUTH_PASSWORD || "",
+      corsOrigin: CORS_ORIGIN || undefined,
     };
   }
 }
@@ -54,6 +56,7 @@ export function createSettingsRouter() {
         basicAuthEnabled: settings.basicAuthEnabled,
         basicAuthUser: settings.basicAuthUser,
         basicAuthPassword: settings.basicAuthPassword ? "••••••••••••" : "",
+        corsOrigin: settings.corsOrigin || "",
       });
     } catch (error) {
       return handleError(c, error);
@@ -93,6 +96,7 @@ export function createSettingsRouter() {
           body.basicAuthPassword === "••••••••••••"
             ? currentSettings.basicAuthPassword
             : body.basicAuthPassword,
+        corsOrigin: body.corsOrigin,
       };
 
       // Save settings
