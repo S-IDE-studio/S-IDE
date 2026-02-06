@@ -75,6 +75,7 @@ export function DeckPanel({
 }: DeckPanelProps) {
   // Use controlled view if provided, otherwise use local state
   const [localView, setLocalView] = useState<DeckView>("filetree");
+  const [sidebarVisible, setSidebarVisible] = useState(true);
   const view = controlledView ?? localView;
 
   // Sync local state when controlled view changes
@@ -84,7 +85,12 @@ export function DeckPanel({
     }
   }, [controlledView]);
 
-  const [sidebarVisible, setSidebarVisible] = useState(true);
+  // Auto-hide sidebar when switching to terminal view
+  useEffect(() => {
+    if (view === "terminal") {
+      setSidebarVisible(false);
+    }
+  }, [view]);
 
   const handleToggleDir = useCallback(
     (node: FileTreeNode) => {
