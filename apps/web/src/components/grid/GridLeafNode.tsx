@@ -5,7 +5,14 @@
  */
 
 import { memo, useEffect, useMemo, useState } from "react";
-import type { GridLeafNode as GridLeafNodeType, PanelGroup } from "../../types";
+import type {
+  GridLeafNode as GridLeafNodeType,
+  GridLocation,
+  PanelGroup,
+  SplitDirection,
+  TabContextMenuAction,
+} from "../../types";
+import { MemoizedUnifiedPanelContainer } from "../panel/UnifiedPanelContainer";
 import type { ViewConstraints } from "./GridView";
 
 /**
@@ -34,6 +41,75 @@ export interface GridLeafNodeViewProps {
   onDragLeave?: (e: React.DragEvent) => void;
   /** Drop event handler */
   onDrop?: (e: React.DragEvent) => void;
+  /** Whether this is the focused panel */
+  isFocused?: boolean;
+  /** Callback when panel is focused */
+  onFocus?: () => void;
+  /** Callback when tab is selected */
+  onSelectTab?: (groupId: string, tabId: string) => void;
+  /** Callback when tab is closed */
+  onCloseTab?: (groupId: string, tabId: string) => void;
+  /** Callback when tabs are reordered */
+  onTabsReorder?: (groupId: string, oldIndex: number, newIndex: number) => void;
+  /** Callback when tab is moved to another group */
+  onTabMove?: (tabId: string, sourceGroupId: string, targetGroupId: string) => void;
+  /** Callback when panel is split */
+  onSplitPanel?: (groupId: string, direction: SplitDirection, activeTabId?: string) => string;
+  /** Callback when panel is closed */
+  onClosePanel?: (groupId: string) => void;
+  /** Callback when context menu action is triggered */
+  onContextMenuAction?: (action: TabContextMenuAction, groupId: string, tabId: string) => void;
+  /** Callback when tab is double-clicked */
+  onTabDoubleClick?: (tab: import("../../types").UnifiedTab) => void;
+  /** Whether a drag is currently active */
+  isDraggingOver?: boolean;
+  /** Split preview direction */
+  splitDirection?: SplitDirection | null;
+  /** Whether this is a split target */
+  isSplitTarget?: boolean;
+  /** Split target location */
+  splitTargetLocation?: GridLocation | null;
+  /** ID of the tab being dragged */
+  activeDragId?: string | null;
+  /** Active deck IDs */
+  activeDeckIds?: string[];
+  /** Deck data */
+  decks?: import("../../types").Deck[];
+  /** Workspace states */
+  workspaceStates?: Record<string, import("../../types").WorkspaceState>;
+  /** Git files */
+  gitFiles?: import("../../types").GitFileStatus[];
+  /** Workspace handlers */
+  onToggleDir?: (node: import("../../types").FileTreeNode) => void;
+  onOpenFile?: (node: import("../../types").FileTreeNode) => void;
+  onRefreshTree?: () => void;
+  onCreateFile?: (parentPath: string, fileName: string) => void;
+  onCreateDirectory?: (parentPath: string, dirName: string) => void;
+  onDeleteFile?: (filePath: string) => void;
+  onDeleteDirectory?: (dirPath: string) => void;
+  /** Workspace state updater */
+  updateWorkspaceState?: (
+    workspaceId: string,
+    updater: (state: import("../../types").WorkspaceState) => import("../../types").WorkspaceState
+  ) => void;
+  /** Deck states */
+  deckStates?: Record<string, import("../../types").DeckState>;
+  /** WebSocket base URL */
+  wsBase?: string;
+  /** Terminal handlers */
+  onDeleteTerminal?: (terminalId: string) => void;
+  onReorderTerminals?: (deckId: string, newOrder: import("../../types").TerminalSession[]) => void;
+  onCreateTerminal?: () => void;
+  onToggleGroupCollapsed?: (groupId: string) => void;
+  onDeleteGroup?: (groupId: string) => void;
+  onRenameGroup?: (groupId: string) => void;
+  onDeckViewChange?: (deckId: string, view: "filetree" | "terminal") => void;
+  /** Editor handlers */
+  onChangeFile?: (fileId: string, contents: string) => void;
+  onSaveFile?: (fileId: string) => void;
+  savingFileId?: string | null;
+  /** Layout orientation */
+  layoutOrientation?: "horizontal" | "vertical";
 }
 
 /**
@@ -80,6 +156,46 @@ export function GridLeafNodeView({
   onDragOver,
   onDragLeave,
   onDrop,
+  isFocused = false,
+  onFocus,
+  onSelectTab,
+  onCloseTab,
+  onTabsReorder,
+  onTabMove,
+  onSplitPanel,
+  onClosePanel,
+  onContextMenuAction,
+  onTabDoubleClick,
+  isDraggingOver = false,
+  splitDirection,
+  isSplitTarget = false,
+  splitTargetLocation,
+  activeDragId,
+  activeDeckIds,
+  decks,
+  workspaceStates,
+  gitFiles,
+  onToggleDir,
+  onOpenFile,
+  onRefreshTree,
+  onCreateFile,
+  onCreateDirectory,
+  onDeleteFile,
+  onDeleteDirectory,
+  updateWorkspaceState,
+  deckStates,
+  wsBase,
+  onDeleteTerminal,
+  onReorderTerminals,
+  onCreateTerminal,
+  onToggleGroupCollapsed,
+  onDeleteGroup,
+  onRenameGroup,
+  onDeckViewChange,
+  onChangeFile,
+  onSaveFile,
+  savingFileId,
+  layoutOrientation = "horizontal",
 }: GridLeafNodeViewProps) {
   const [cachedWidth, setCachedWidth] = useState(0);
   const [cachedHeight, setCachedHeight] = useState(0);
@@ -152,10 +268,7 @@ export function GridLeafNodeView({
     [box, constraints]
   );
 
-  // Render the panel group content
-  // TODO: Render actual panel tabs and content using PanelGroup data
-  // This will be integrated in Task #8 when connecting to App.tsx
-  // For now, we render a placeholder that shows the panel info
+  // Render the panel group content using UnifiedPanelContainer
   return (
     <div
       className="grid-leaf-node"
@@ -166,14 +279,56 @@ export function GridLeafNodeView({
       onDrop={onDrop}
     >
       <div className="grid-leaf-content" style={{ width: "100%", height: "100%" }}>
-        {/* Panel content will be rendered here by the parent component */}
-        <div style={{ padding: "8px", opacity: 0.5, fontSize: "12px" }}>
-          Panel: {panelGroup.id}
-          <br />
-          Tabs: {panelGroup.tabs.length}
-          <br />
-          Size: {Math.round(box.width)}x{Math.round(box.height)}
-        </div>
+        <MemoizedUnifiedPanelContainer
+          group={panelGroup}
+          isFocused={isFocused}
+          isFirstPanel={false}
+          isLastPanel={false}
+          canSplitHorizontal={true}
+          canSplitVertical={true}
+          layoutDirection={layoutOrientation === "horizontal" ? "horizontal" : "vertical"}
+          onSelectTab={(tabId) => onSelectTab?.(node.groupId, tabId)}
+          onCloseTab={(tabId) => onCloseTab?.(node.groupId, tabId)}
+          onFocus={() => onFocus?.()}
+          onTabsReorder={(oldIndex, newIndex) => onTabsReorder?.(node.groupId, oldIndex, newIndex)}
+          onTabMove={(tabId, targetGroupId) => onTabMove?.(tabId, node.groupId, targetGroupId)}
+          onSplitPanel={(direction) => onSplitPanel?.(node.groupId, direction) ?? ""}
+          onClosePanel={() => onClosePanel?.(node.groupId)}
+          onResize={() => {}}
+          onContextMenuAction={(action, tabId) =>
+            onContextMenuAction?.(action, node.groupId, tabId)
+          }
+          onTabDoubleClick={onTabDoubleClick}
+          isDraggingOver={isDraggingOver}
+          splitDirection={splitDirection}
+          isSplitTarget={isSplitTarget}
+          splitTargetLocation={splitTargetLocation}
+          activeDragId={activeDragId ?? null}
+          activeDeckIds={activeDeckIds}
+          decks={decks}
+          workspaceStates={workspaceStates}
+          gitFiles={gitFiles}
+          onToggleDir={onToggleDir}
+          onOpenFile={onOpenFile}
+          onRefreshTree={onRefreshTree}
+          onCreateFile={onCreateFile}
+          onCreateDirectory={onCreateDirectory}
+          onDeleteFile={onDeleteFile}
+          onDeleteDirectory={onDeleteDirectory}
+          updateWorkspaceState={updateWorkspaceState}
+          deckStates={deckStates}
+          wsBase={wsBase ?? ""}
+          onDeleteTerminal={onDeleteTerminal}
+          onReorderTerminals={onReorderTerminals}
+          onCreateTerminal={onCreateTerminal}
+          onToggleGroupCollapsed={onToggleGroupCollapsed}
+          onDeleteGroup={onDeleteGroup}
+          onRenameGroup={onRenameGroup}
+          onDeckViewChange={onDeckViewChange}
+          onChangeFile={onChangeFile}
+          onSaveFile={onSaveFile}
+          savingFileId={savingFileId}
+        />
       </div>
     </div>
   );

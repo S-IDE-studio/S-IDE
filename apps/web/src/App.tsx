@@ -6,7 +6,7 @@ import { ContextStatus } from "./components/ContextStatus";
 import { DiffViewer } from "./components/DiffViewer";
 import { EnvironmentModal } from "./components/EnvironmentModal";
 import { GlobalStatusBar } from "./components/GlobalStatusBar";
-import { MemoizedUnifiedPanelView } from "./components/panel/UnifiedPanelView";
+import { MemoizedGridView } from "./components/grid/GridView";
 import { ServerModal } from "./components/ServerModal";
 import { ServerStartupScreen } from "./components/ServerStartupScreen";
 import { ServerStatus } from "./components/ServerStatus";
@@ -33,21 +33,29 @@ import { useWorkspaces } from "./hooks/useWorkspaces";
 import type {
   EditorFile,
   GridLocation,
+  GridNode,
   GridState,
   PanelGroup,
-  PanelLayout,
   SidebarPanel,
   SplitDirection,
+  TabContextMenuAction,
   UnifiedTab,
   WorkspaceMode,
 } from "./types";
 import { getLanguageFromPath, toTreeNodes } from "./utils";
 import { createEditorGroup, createSingleGroupLayout } from "./utils/editorGroupUtils";
+import {
+  addViewToGrid,
+  createGridState,
+  findLeafByGroupId,
+  generateGridLeafId,
+  getAllLeaves,
+  migrateToGridState,
+  removeViewFromGrid,
+} from "./utils/gridUtils";
 import { createEmptyDeckState, createEmptyWorkspaceState } from "./utils/stateUtils";
 import {
   agentToTab,
-  createEmptyPanelGroup,
-  createSinglePanelLayout,
   deckToTab,
   editorToTab,
   serverToTab,
@@ -55,52 +63,49 @@ import {
   tunnelToTab,
 } from "./utils/unifiedTabUtils";
 import { loadTabState, parseUrlState, saveTabState } from "./utils/urlUtils";
-import {
-  addViewToGrid,
-  createGridState,
-  findLeafByGroupId,
-  generateGridLeafId,
-  getAllLeaves,
-  migrateFromGridState,
-  migrateToGridState,
-  removeViewFromGrid,
-} from "./utils/gridUtils";
 
 export default function App() {
   const initialUrlState = parseUrlState();
 
-  // Initialize panel state from localStorage (supports both old and new formats)
-  const getInitialPanelState = () => {
+  // Initialize panel state from localStorage (grid format only)
+  const getInitialState = () => {
     const saved = loadTabState();
     if (saved) {
       if (saved.format === "grid") {
-        // New grid format - migrate to old format for now (parallel state)
-        const migrated = migrateFromGridState(saved.gridState, saved.panelGroupsMap);
         return {
-          groups: migrated.groups,
-          layout: migrated.layout,
           gridState: saved.gridState,
           panelGroupsMap: saved.panelGroupsMap,
+          focusedPanelGroupId: null,
         };
       }
-      // Old format
+      // Migrate old format to grid format
+      const gridState = migrateToGridState(saved.panelGroups, saved.panelLayout);
+      const panelGroupsMap = Object.fromEntries(saved.panelGroups.map((g) => [g.id, g]));
       return {
-        groups: saved.panelGroups,
-        layout: saved.panelLayout,
-        gridState: undefined,
-        panelGroupsMap: undefined,
+        gridState,
+        panelGroupsMap,
+        focusedPanelGroupId: null,
       };
     }
-    const defaultLayout = createSinglePanelLayout();
+    // Create default empty grid state
+    const gridState = createGridState();
+    const panelGroupsMap: Record<string, PanelGroup> = {
+      [gridState.root.type === "leaf" ? gridState.root.groupId : ""]: {
+        id: gridState.root.type === "leaf" ? gridState.root.groupId : "",
+        tabs: [],
+        activeTabId: null,
+        focused: false,
+        percentage: 100,
+      },
+    };
     return {
-      groups: defaultLayout.groups,
-      layout: defaultLayout.layout,
-      gridState: undefined,
-      panelGroupsMap: undefined,
+      gridState,
+      panelGroupsMap,
+      focusedPanelGroupId: null,
     };
   };
 
-  const initialPanelState = getInitialPanelState();
+  const initialState = getInitialState();
 
   // Update check
   const {
@@ -136,46 +141,25 @@ export default function App() {
   >([]);
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
 
-  // Unified panel state - parallel state during migration
-  const [panelGroups, setPanelGroups] = useState<PanelGroup[]>(initialPanelState.groups);
-  const [panelLayout, setPanelLayout] = useState<PanelLayout>(initialPanelState.layout);
-  const [focusedPanelId, setFocusedPanelId] = useState<string | null>(null);
-
-  // New grid-based state (will replace the above)
-  const [gridState, setGridState] = useState<GridState | undefined>(initialPanelState.gridState);
-  const [panelGroupsMap, setPanelGroupsMap] = useState<Record<string, PanelGroup> | undefined>(() =>
-    initialPanelState.panelGroupsMap
-      ? Object.fromEntries(Object.values(initialPanelState.panelGroupsMap).map((g) => [g.id, g]))
-      : undefined
+  // Grid-based panel state (VSCode-style 2D grid)
+  const [gridState, setGridState] = useState<GridState>(initialState.gridState);
+  const [panelGroupsMap, setPanelGroupsMap] = useState<Record<string, PanelGroup>>(
+    initialState.panelGroupsMap
+  );
+  const [focusedPanelGroupId, setFocusedPanelGroupId] = useState<string | null>(
+    initialState.focusedPanelGroupId
   );
 
-  // Initialize grid state from old format if not already set
-  useEffect(() => {
-    if (!gridState && panelGroups.length > 0) {
-      const migratedGridState = migrateToGridState(panelGroups, panelLayout);
-      setGridState(migratedGridState);
-
-      // Build panel groups map if not exists
-      if (!panelGroupsMap) {
-        const map = Object.fromEntries(panelGroups.map((g) => [g.id, g]));
-        setPanelGroupsMap(map);
-      }
-    }
-  }, []); // Run once on mount
-
-  // Save tab state to localStorage when panels change (use new grid format if available)
+  // Save tab state to localStorage when panels change
   useEffect(() => {
     if (gridState && panelGroupsMap) {
-      // Save new grid format
+      // Save grid format
       const serializedMap = Object.fromEntries(
         Object.entries(panelGroupsMap).filter(([_, g]) => g.tabs.length > 0)
       ) as Record<string, PanelGroup>;
       saveTabState(gridState, serializedMap);
-    } else {
-      // Fall back to old format
-      saveTabState(panelGroups, panelLayout);
     }
-  }, [panelGroups, panelLayout, gridState, panelGroupsMap]);
+  }, [gridState, panelGroupsMap]);
 
   const { workspaceStates, setWorkspaceStates, updateWorkspaceState, initializeWorkspaceStates } =
     useWorkspaceContext();
@@ -390,188 +374,130 @@ export default function App() {
     [editorWorkspaceId, updateWorkspaceState]
   );
 
-  // Unified panel handlers
+  // Grid-based panel handlers
+
+  // Get panelGroups array derived from gridState + panelGroupsMap
+  const panelGroups = useMemo(() => {
+    if (!gridState || !panelGroupsMap) return [];
+    const leaves = getAllLeaves(gridState);
+    return leaves.map(([location, leaf]) => ({
+      ...panelGroupsMap[leaf.groupId],
+      percentage: leaf.size,
+    }));
+  }, [gridState, panelGroupsMap]);
+
   const handleSelectTab = useCallback((groupId: string, tabId: string) => {
-    setPanelGroups((prev) =>
-      prev
-        .map((g) => (g.id === groupId ? { ...g, activeTabId: tabId, focused: true } : g))
-        .map((g) => (g.id === groupId ? g : { ...g, focused: false }))
-    );
-    setFocusedPanelId(groupId);
+    setPanelGroupsMap((prev) => {
+      const updated: Record<string, PanelGroup> = {};
+      for (const [id, group] of Object.entries(prev)) {
+        updated[id] = {
+          ...group,
+          activeTabId: id === groupId ? tabId : group.activeTabId,
+          focused: id === groupId,
+        };
+      }
+      return updated;
+    });
+    setFocusedPanelGroupId(groupId);
   }, []);
 
   const handleCloseTab = useCallback((groupId: string, tabId: string) => {
-    setPanelGroups((prev) => {
-      // First, close the tab in the specified group
-      const updated = prev.map((g) => {
-        if (g.id === groupId) {
-          const newTabs = g.tabs.filter((t) => t.id !== tabId);
-          return {
-            ...g,
-            tabs: newTabs,
-            activeTabId: g.activeTabId === tabId ? (newTabs[0]?.id ?? null) : g.activeTabId,
-          };
-        }
-        return g;
-      });
+    setPanelGroupsMap((prev) => {
+      const group = prev[groupId];
+      if (!group) return prev;
 
-      // Remove empty panel groups (except if it's the only group)
-      const nonEmptyGroups = updated.filter((g) => g.tabs.length > 0);
-      if (nonEmptyGroups.length === 0) {
-        return [createEmptyPanelGroup(100)];
-      }
+      const newTabs = group.tabs.filter((t) => t.id !== tabId);
+      const newActiveTabId =
+        group.activeTabId === tabId ? (newTabs[0]?.id ?? null) : group.activeTabId;
 
-      // If only one group remains, set layout to single
-      if (nonEmptyGroups.length === 1 && updated.length > 1) {
-        setPanelLayout({ direction: "single", sizes: [100] });
-      } else if (nonEmptyGroups.length !== updated.length) {
-        // Update percentages when groups are removed
-        const totalPercentage = nonEmptyGroups.reduce((sum, g) => sum + g.percentage, 0);
-        nonEmptyGroups.forEach((g) => {
-          g.percentage = (g.percentage / totalPercentage) * 100;
-        });
-      }
-
-      return nonEmptyGroups;
+      return {
+        ...prev,
+        [groupId]: {
+          ...group,
+          tabs: newTabs,
+          activeTabId: newActiveTabId,
+        },
+      };
     });
   }, []);
 
-  const handleFocusGroup = useCallback((groupId: string) => {
-    setPanelGroups((prev) =>
-      prev.map((g) => (g.id === groupId ? { ...g, focused: true } : { ...g, focused: false }))
-    );
-    setFocusedPanelId(groupId);
+  const handleFocusPanel = useCallback((groupId: string) => {
+    setPanelGroupsMap((prev) => {
+      const updated: Record<string, PanelGroup> = {};
+      for (const [id, group] of Object.entries(prev)) {
+        updated[id] = {
+          ...group,
+          focused: id === groupId,
+        };
+      }
+      return updated;
+    });
+    setFocusedPanelGroupId(groupId);
   }, []);
 
-  // Tab reorder handler
   const handleTabsReorder = useCallback((groupId: string, oldIndex: number, newIndex: number) => {
-    setPanelGroups((prev) =>
-      prev.map((g) => {
-        if (g.id === groupId) {
-          const newTabs = [...g.tabs];
-          const [removed] = newTabs.splice(oldIndex, 1);
-          newTabs.splice(newIndex, 0, removed);
-          return { ...g, tabs: newTabs };
-        }
-        return g;
-      })
-    );
+    setPanelGroupsMap((prev) => {
+      const group = prev[groupId];
+      if (!group) return prev;
+
+      const newTabs = [...group.tabs];
+      const [removed] = newTabs.splice(oldIndex, 1);
+      newTabs.splice(newIndex, 0, removed);
+
+      return {
+        ...prev,
+        [groupId]: {
+          ...group,
+          tabs: newTabs,
+        },
+      };
+    });
   }, []);
 
-  // Tab move between panels handler
   const handleTabMove = useCallback(
     (tabId: string, sourceGroupId: string, targetGroupId: string) => {
       if (sourceGroupId === targetGroupId) return;
 
-      setPanelGroups((prev) => {
-        const sourceGroup = prev.find((g) => g.id === sourceGroupId);
-        const targetGroup = prev.find((g) => g.id === targetGroupId);
+      setPanelGroupsMap((prev) => {
+        const sourceGroup = prev[sourceGroupId];
+        const targetGroup = prev[targetGroupId];
         if (!sourceGroup || !targetGroup) return prev;
 
         const tab = sourceGroup.tabs.find((t) => t.id === tabId);
         if (!tab) return prev;
 
-        // First, move the tab
-        const updated = prev.map((g) => {
-          if (g.id === sourceGroupId) {
-            const newTabs = g.tabs.filter((t) => t.id !== tabId);
-            const newActiveId = g.activeTabId === tabId ? (newTabs[0]?.id ?? null) : g.activeTabId;
-            return { ...g, tabs: newTabs, activeTabId: newActiveId };
-          }
-          if (g.id === targetGroupId) {
-            return { ...g, tabs: [...g.tabs, tab], activeTabId: tab.id };
-          }
-          return g;
-        });
+        const newSourceTabs = sourceGroup.tabs.filter((t) => t.id !== tabId);
+        const newSourceActiveTabId =
+          sourceGroup.activeTabId === tabId
+            ? (newSourceTabs[0]?.id ?? null)
+            : sourceGroup.activeTabId;
 
-        // Remove empty panel groups (except if it's the only group)
-        const nonEmptyGroups = updated.filter((g) => g.tabs.length > 0);
-        if (nonEmptyGroups.length === 0) {
-          return [createEmptyPanelGroup(100)];
-        }
-
-        // If only one group remains, set layout to single
-        if (nonEmptyGroups.length === 1 && updated.length > 1) {
-          setPanelLayout({ direction: "single", sizes: [100] });
-        } else if (nonEmptyGroups.length !== updated.length) {
-          // Update percentages when groups are removed
-          const totalPercentage = nonEmptyGroups.reduce((sum, g) => sum + g.percentage, 0);
-          nonEmptyGroups.forEach((g) => {
-            g.percentage = (g.percentage / totalPercentage) * 100;
-          });
-        }
-
-        return nonEmptyGroups;
+        return {
+          ...prev,
+          [sourceGroupId]: {
+            ...sourceGroup,
+            tabs: newSourceTabs,
+            activeTabId: newSourceActiveTabId,
+          },
+          [targetGroupId]: {
+            ...targetGroup,
+            tabs: [...targetGroup.tabs, tab],
+            activeTabId: tab.id,
+            focused: true,
+          },
+        };
       });
+
+      setFocusedPanelGroupId(targetGroupId);
     },
     []
   );
 
   // Panel split handler - returns the new panel ID
-  // Note: activeTabId is used to copy the tab to the new panel (original stays)
   const handleSplitPanel = useCallback(
-    (
-      groupId: string,
-      direction: SplitDirection,
-      activeTabId?: string
-    ): string => {
+    (groupId: string, direction: SplitDirection, activeTabId?: string): string => {
       let newPanelId = "";
-      let newDirection: "horizontal" | "vertical" = "horizontal";
-      if (direction === "up" || direction === "down") {
-        newDirection = "vertical";
-      }
 
-      // Update old panelGroups state for backward compatibility
-      setPanelGroups((prev) => {
-        const groupIndex = prev.findIndex((g) => g.id === groupId);
-        if (groupIndex === -1) return prev;
-
-        const currentGroup = prev[groupIndex];
-
-        // If there's only 1 tab and we're trying to split with that tab,
-        // don't allow the split - return unchanged
-        // This prevents creating a copy of a single tab (especially for terminals)
-        if (currentGroup.tabs.length === 1 && activeTabId) {
-          return prev;
-        }
-
-        // Find the tab to copy if provided
-        const tabToCopy = activeTabId ? currentGroup.tabs.find((t) => t.id === activeTabId) : null;
-
-        // Calculate insert position
-        let insertIndex = groupIndex + 1;
-        if (direction === "left" || direction === "up") {
-          insertIndex = groupIndex;
-        }
-
-        // Create the new group with a copy of the tab if provided
-        // The original tab stays in the source panel
-        const newGroup = tabToCopy
-          ? { ...createEmptyPanelGroup(50), tabs: [{ ...tabToCopy }], activeTabId: tabToCopy.id }
-          : createEmptyPanelGroup(50);
-
-        // Store the new panel ID for return
-        newPanelId = newGroup.id;
-
-        // Build new groups array
-        const newGroups = prev.map((g, i) => {
-          if (i === groupIndex) {
-            // Source group: keep the tab, just set percentage to 50
-            // Tab is NOT removed - it stays in the original panel
-            return { ...g, percentage: 50 };
-          }
-          return g;
-        });
-
-        // Insert the new group at the correct position
-        newGroups.splice(insertIndex, 0, newGroup);
-
-        // Update layout immediately after updating groups
-        setPanelLayout({ direction: newDirection, sizes: newGroups.map((g) => g.percentage) });
-        return newGroups;
-      });
-
-      // Update grid state in parallel
       setGridState((prevGridState) => {
         if (!prevGridState) return prevGridState;
 
@@ -580,8 +506,6 @@ export default function App() {
         if (!location) return prevGridState;
 
         // Determine where to insert the new view based on direction
-        // left/up -> insert at same location (will be created as sibling)
-        // right/down -> insert after current location
         let insertLocation: GridLocation;
         if (direction === "left" || direction === "up") {
           insertLocation = location;
@@ -599,7 +523,8 @@ export default function App() {
 
         // Update panel groups map with the new group
         setPanelGroupsMap((prevMap) => {
-          const tabToCopy = activeTabId && prevMap?.[groupId]?.tabs.find((t) => t.id === activeTabId);
+          const tabToCopy =
+            activeTabId && prevMap?.[groupId]?.tabs.find((t) => t.id === activeTabId);
           const newGroup: PanelGroup = tabToCopy
             ? {
                 id: newGroupId,
@@ -620,7 +545,13 @@ export default function App() {
             ...(prevMap || {}),
             [newGroupId]: newGroup,
             [groupId]: {
-              ...(prevMap?.[groupId] || { id: groupId, tabs: [], activeTabId: null, focused: false, percentage: 50 }),
+              ...(prevMap?.[groupId] || {
+                id: groupId,
+                tabs: [],
+                activeTabId: null,
+                focused: false,
+                percentage: 50,
+              }),
               percentage: 50,
             },
           };
@@ -634,29 +565,24 @@ export default function App() {
     []
   );
 
+  // Grid-based tab drop handler
+  const handleTabDrop = useCallback(
+    (tabId: string, sourceGroupId: string, location: GridLocation, direction: SplitDirection) => {
+      // Find the tab in the source group
+      const sourceGroup = panelGroupsMap[sourceGroupId];
+      if (!sourceGroup) return;
+
+      const tab = sourceGroup.tabs.find((t) => t.id === tabId);
+      if (!tab) return;
+
+      // Create a new panel via split with the tab
+      handleSplitPanel(sourceGroupId, direction, tabId);
+    },
+    [panelGroupsMap, handleSplitPanel]
+  );
+
   // Panel close handler
   const handleClosePanel = useCallback((groupId: string) => {
-    // Update old panelGroups state for backward compatibility
-    setPanelGroups((prev) => {
-      if (prev.length <= 1) {
-        // Don't close the last panel, just clear it
-        return prev.map((g) => ({ ...g, tabs: [], activeTabId: null }));
-      }
-
-      const newGroups = prev.filter((g) => g.id !== groupId);
-      if (newGroups.length === 1) {
-        setPanelLayout({ direction: "single", sizes: [100] });
-      } else {
-        // Redistribute percentages
-        const totalPercentage = newGroups.reduce((sum, g) => sum + g.percentage, 0);
-        newGroups.forEach((g) => {
-          g.percentage = (g.percentage / totalPercentage) * 100;
-        });
-      }
-      return newGroups;
-    });
-
-    // Update grid state in parallel
     setGridState((prevGridState) => {
       if (!prevGridState) return prevGridState;
 
@@ -679,45 +605,27 @@ export default function App() {
     });
   }, []);
 
-  // Panel resize handler
-  const handleResizePanel = useCallback(
-    (groupId: string, delta: number) => {
-      // Update old panelGroups state for backward compatibility
-      setPanelGroups((prev) => {
-        const groupIndex = prev.findIndex((g) => g.id === groupId);
-        if (groupIndex === -1 || groupIndex === prev.length - 1) return prev;
+  // Panel layout change handler (called by GridView on resize)
+  const handleGridLayoutChange = useCallback((newGridNode: GridNode) => {
+    setGridState((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        root: newGridNode,
+      };
+    });
+  }, []);
 
-        const isHorizontal = panelLayout.direction === "horizontal";
-        const containerSize = isHorizontal ? window.innerWidth : window.innerHeight;
-        const percentageDelta = (delta / containerSize) * 100;
-
-        const newGroups = prev.map((g, i) => {
-          if (i === groupIndex) {
-            const newPercentage = Math.max(10, Math.min(90, g.percentage + percentageDelta));
-            return { ...g, percentage: newPercentage };
-          }
-          if (i === groupIndex + 1) {
-            const newPercentage = Math.max(10, Math.min(90, g.percentage - percentageDelta));
-            return { ...g, percentage: newPercentage };
-          }
-          return g;
-        });
-
-        return newGroups;
-      });
-
-      // Update grid state - resizing is handled by the GridView component
-      // which calls onLayoutChange, so we don't need to update here
-      // This is just for the old flat system
-    },
-    [panelLayout.direction]
-  );
+  // Panel resize handler (called by GridLeafNode on resize)
+  const handlePanelResize = useCallback((groupId: string, width: number, height: number) => {
+    // GridView handles layout, this is for tracking if needed
+  }, []);
 
   // Context menu action handler
   const handleContextMenuAction = useCallback(
-    (action: import("./types").TabContextMenuAction, groupId: string, tabId: string) => {
-      setPanelGroups((prev) => {
-        const group = prev.find((g) => g.id === groupId);
+    (action: TabContextMenuAction, groupId: string, tabId: string) => {
+      setPanelGroupsMap((prev) => {
+        const group = prev[groupId];
         if (!group) return prev;
 
         const tabIndex = group.tabs.findIndex((t) => t.id === tabId);
@@ -767,12 +675,14 @@ export default function App() {
             return prev;
         }
 
-        return prev.map((g) => {
-          if (g.id === groupId) {
-            return { ...g, tabs: newTabs, activeTabId: newActiveTabId };
-          }
-          return g;
-        });
+        return {
+          ...prev,
+          [groupId]: {
+            ...group,
+            tabs: newTabs,
+            activeTabId: newActiveTabId,
+          },
+        };
       });
     },
     [handleSplitPanel]
@@ -780,37 +690,47 @@ export default function App() {
 
   // Helper function to find existing editor tab by file path
   const findExistingEditorTab = useCallback(
-    (filePath: string): { groupId: string; tab: import("./types").UnifiedTab } | null => {
-      for (const group of panelGroups) {
+    (filePath: string): { groupId: string; tab: UnifiedTab } | null => {
+      if (!panelGroupsMap) return null;
+      for (const [groupId, group] of Object.entries(panelGroupsMap)) {
         const tab = group.tabs.find((t) => t.kind === "editor" && t.data.editor?.path === filePath);
         if (tab) {
-          return { groupId: group.id, tab };
+          return { groupId, tab };
         }
       }
       return null;
     },
-    [panelGroups]
+    [panelGroupsMap]
   );
 
   // Tab population helpers
   const addTabToPanel = useCallback(
     (
       tab: UnifiedTab,
-      targetGroupId?: string, // Optional target panel group ID
+      targetGroupId?: string,
       options?: { skipIfExists?: boolean; activateOnly?: boolean }
     ) => {
-      setPanelGroups((prev) => {
-        if (prev.length === 0) {
-          return createSinglePanelLayout().groups;
+      setPanelGroupsMap((prev) => {
+        if (!prev || Object.keys(prev).length === 0) {
+          // Create initial panel group if none exists
+          const newGroupId = generateGridLeafId();
+          const newGridState = createGridState(newGroupId);
+          setGridState(newGridState);
+          return {
+            [newGroupId]: {
+              id: newGroupId,
+              tabs: [tab],
+              activeTabId: tab.id,
+              focused: true,
+              percentage: 100,
+            },
+          };
         }
-
-        const newGroups = [...prev];
 
         // For editor tabs, check if already exists to prevent duplicates
         if (tab.kind === "editor" && tab.data.editor) {
           const filePath = tab.data.editor.path;
-          for (let i = 0; i < newGroups.length; i++) {
-            const group = newGroups[i];
+          for (const [groupId, group] of Object.entries(prev)) {
             const existingTab = group.tabs.find(
               (t) => t.kind === "editor" && t.data.editor?.path === filePath
             );
@@ -819,60 +739,8 @@ export default function App() {
               if (options?.skipIfExists) {
                 return prev; // No changes
               }
-              return newGroups.map((g, idx) => ({
-                ...g,
-                activeTabId: idx === i ? existingTab.id : g.activeTabId,
-                focused: idx === i,
-              }));
-            }
-          }
-        }
-
-        // Determine target group
-        let targetGroupIndex = 0;
-        if (targetGroupId) {
-          const foundIndex = newGroups.findIndex((g) => g.id === targetGroupId);
-          if (foundIndex !== -1) {
-            targetGroupIndex = foundIndex;
-          }
-        }
-
-        // Add tab to target group
-        newGroups[targetGroupIndex] = {
-          ...newGroups[targetGroupIndex],
-          tabs: [...newGroups[targetGroupIndex].tabs, tab],
-          activeTabId: tab.id,
-          focused: true,
-        };
-
-        // Unfocus other groups
-        for (let i = 0; i < newGroups.length; i++) {
-          if (i !== targetGroupIndex) {
-            newGroups[i] = { ...newGroups[i], focused: false };
-          }
-        }
-
-        return newGroups;
-      });
-
-      // Also update panelGroupsMap for grid compatibility
-      setPanelGroupsMap((prevMap) => {
-        if (!prevMap) return prevMap;
-
-        // For editor tabs, check if already exists
-        if (tab.kind === "editor" && tab.data.editor) {
-          const filePath = tab.data.editor.path;
-          for (const [groupId, group] of Object.entries(prevMap)) {
-            const existingTab = group.tabs.find(
-              (t) => t.kind === "editor" && t.data.editor?.path === filePath
-            );
-            if (existingTab) {
-              // File already open, just activate it
-              if (options?.skipIfExists) {
-                return prevMap; // No changes
-              }
               return {
-                ...prevMap,
+                ...prev,
                 [groupId]: { ...group, activeTabId: existingTab.id, focused: true },
               };
             }
@@ -880,29 +748,36 @@ export default function App() {
         }
 
         // Determine target group
-        let targetGroupId = Object.keys(prevMap)[0];
-        if (targetGroupId && prevMap[targetGroupId]) {
-          targetGroupId = targetGroupId;
-        } else if (targetGroupId && prevMap[targetGroupId]) {
-          targetGroupId = targetGroupId;
+        let actualTargetGroupId = targetGroupId;
+        if (!actualTargetGroupId) {
+          actualTargetGroupId = focusedPanelGroupId || Object.keys(prev)[0];
         }
 
-        if (targetGroupId) {
-          return {
-            ...prevMap,
-            [targetGroupId]: {
-              ...prevMap[targetGroupId],
-              tabs: [...prevMap[targetGroupId].tabs, tab],
+        if (!actualTargetGroupId || !prev[actualTargetGroupId]) {
+          actualTargetGroupId = Object.keys(prev)[0];
+        }
+
+        if (!actualTargetGroupId) return prev;
+
+        // Add tab to target group and unfocus others
+        const updated: Record<string, PanelGroup> = {};
+        for (const [groupId, group] of Object.entries(prev)) {
+          if (groupId === actualTargetGroupId) {
+            updated[groupId] = {
+              ...group,
+              tabs: [...group.tabs, tab],
               activeTabId: tab.id,
               focused: true,
-            },
-          };
+            };
+          } else {
+            updated[groupId] = { ...group, focused: false };
+          }
         }
 
-        return prevMap;
+        return updated;
       });
     },
-    []
+    [focusedPanelGroupId]
   );
 
   // Wrap handleOpenFile to add tab to panel
@@ -961,22 +836,20 @@ export default function App() {
         // Create editor tab
         const tab = editorToTab(newFile);
 
-        // Auto-split panel if only one panel exists (for Deck file opening)
-        if (panelGroups.length === 1) {
-          const currentGroupId = panelGroups[0]?.id;
-          if (currentGroupId) {
-            // Create new panel group to the right
-            const newGroup = createEmptyPanelGroup(50);
-            const newGroups: typeof panelGroups = [
-              { ...panelGroups[0], percentage: 50, focused: false },
-              { ...newGroup, percentage: 50, focused: true },
-            ];
-            setPanelGroups(newGroups);
-            setPanelLayout({ direction: "horizontal", sizes: [50, 50] });
+        // Get current panel count from grid state
+        const currentPanelCount = gridState ? getAllLeaves(gridState).length : 1;
 
+        // Auto-split panel if only one panel exists (for Deck file opening)
+        if (currentPanelCount === 1) {
+          // Find the current group ID
+          const leaves = gridState ? getAllLeaves(gridState) : [];
+          const currentGroupId = leaves[0]?.[1].groupId;
+
+          if (currentGroupId) {
+            // Split to create new panel
+            const newGroupId = handleSplitPanel(currentGroupId, "right");
             // Add tab to the new right panel
-            const targetGroupId = newGroups[1].id;
-            addTabToPanel(tab, targetGroupId);
+            addTabToPanel(tab, newGroupId);
             return;
           }
         }
@@ -993,11 +866,12 @@ export default function App() {
       editorWorkspaceId,
       workspaceStates,
       updateWorkspaceState,
-      panelGroups,
+      gridState,
       handleSelectTab,
       addTabToPanel,
       setStatusMessage,
       findExistingEditorTab,
+      handleSplitPanel,
     ]
   );
 
@@ -1030,10 +904,11 @@ export default function App() {
       return;
     }
 
-    setPanelGroups((currentGroups) => {
-      const newGroups =
-        currentGroups.length === 0 ? createSinglePanelLayout().groups : currentGroups;
-      const group = newGroups[0];
+    setPanelGroupsMap((currentMap) => {
+      const firstGroupId = Object.keys(currentMap)[0];
+      if (!firstGroupId) return currentMap;
+
+      const group = currentMap[firstGroupId];
 
       // Collect all existing tab IDs
       const existingAgentIds = group.tabs
@@ -1052,7 +927,14 @@ export default function App() {
       // Set first tab as active if no active tab
       const activeTabId = group.activeTabId || (newTabs.length > 0 ? newTabs[0].id : null);
 
-      return [{ ...group, tabs: newTabs, activeTabId }, ...newGroups.slice(1)];
+      return {
+        ...currentMap,
+        [firstGroupId]: {
+          ...group,
+          tabs: newTabs,
+          activeTabId,
+        },
+      };
     });
 
     // Mark initial setup as done
@@ -1261,7 +1143,8 @@ export default function App() {
   // Load file tree for deck workspaces when deck tab is activated
   useEffect(() => {
     // Find the active tab across all panel groups
-    const activeGroup = panelGroups.find((g) => g.focused) || panelGroups[0];
+    const groups = Object.values(panelGroupsMap);
+    const activeGroup = groups.find((g) => g.focused) || groups[0];
     if (!activeGroup || !activeGroup.activeTabId) return;
 
     const activeTab = activeGroup.tabs.find((t) => t.id === activeGroup.activeTabId);
@@ -1304,7 +1187,7 @@ export default function App() {
 
       return () => abortController.abort();
     }
-  }, [panelGroups, decks, updateWorkspaceState]);
+  }, [panelGroupsMap, decks, updateWorkspaceState]);
 
   // Create a new deck with auto-generated name and workspace, then add tab
   const handleCreateDeckAndTab = useCallback(async () => {
@@ -1630,74 +1513,82 @@ export default function App() {
         onUpdateWorkspaceColor={handleUpdateWorkspaceColor}
       />
       <main className="main">
-        <MemoizedUnifiedPanelView
-          groups={panelGroups}
-          layout={panelLayout}
-          onSelectTab={handleSelectTab}
-          onCloseTab={handleCloseTab}
-          onFocusGroup={handleFocusGroup}
-          onTabsReorder={handleTabsReorder}
-          onTabMove={handleTabMove}
-          onSplitPanel={handleSplitPanel}
-          onClosePanel={handleClosePanel}
-          onResizePanel={handleResizePanel}
-          onContextMenuAction={handleContextMenuAction}
-          onTabDoubleClick={handleTabDoubleClick}
-          activeDeckIds={activeDeckIds}
-          decks={decks}
-          workspaceStates={workspaceStates}
-          gitFiles={gitState.status?.files}
-          onToggleDir={handleToggleDir}
-          onOpenFile={handleOpenFile}
-          onRefreshTree={handleRefreshTree}
-          onCreateFile={handleCreateFile}
-          onCreateDirectory={handleCreateDirectory}
-          onDeleteFile={handleDeleteFile}
-          onDeleteDirectory={handleDeleteDirectory}
-          updateWorkspaceState={updateWorkspaceState}
-          deckStates={deckStates}
-          wsBase={wsBase}
-          onDeleteTerminal={(terminalId) => {
-            // handleDeleteTerminal expects (deckId, terminalId)
-            // Find the deck that contains this terminal
-            for (const deck of decks) {
-              const deckState = deckStates[deck.id];
-              if (deckState?.terminals?.some((t) => t.id === terminalId)) {
-                handleDeleteTerminal(deck.id, terminalId);
-                break;
+        {gridState && panelGroupsMap && (
+          <MemoizedGridView
+            gridState={gridState.root}
+            orientation={gridState.orientation}
+            panelGroups={panelGroupsMap}
+            width={window.innerWidth}
+            height={window.innerHeight}
+            onLayoutChange={handleGridLayoutChange}
+            onPanelResize={handlePanelResize}
+            onTabDrop={handleTabDrop}
+            focusedPanelGroupId={focusedPanelGroupId}
+            onFocusPanel={handleFocusPanel}
+            onSelectTab={handleSelectTab}
+            onCloseTab={handleCloseTab}
+            onTabsReorder={handleTabsReorder}
+            onTabMove={handleTabMove}
+            onSplitPanel={handleSplitPanel}
+            onClosePanel={handleClosePanel}
+            onContextMenuAction={handleContextMenuAction}
+            onTabDoubleClick={handleTabDoubleClick}
+            isDragging={false}
+            draggedTabId={null}
+            activeDeckIds={activeDeckIds}
+            decks={decks}
+            workspaceStates={workspaceStates}
+            gitFiles={gitState.status?.files}
+            onToggleDir={handleToggleDir}
+            onOpenFile={handleOpenFile}
+            onRefreshTree={handleRefreshTree}
+            onCreateFile={handleCreateFile}
+            onCreateDirectory={handleCreateDirectory}
+            onDeleteFile={handleDeleteFile}
+            onDeleteDirectory={handleDeleteDirectory}
+            updateWorkspaceState={updateWorkspaceState}
+            deckStates={deckStates}
+            wsBase={wsBase}
+            onDeleteTerminal={(terminalId) => {
+              // handleDeleteTerminal expects (deckId, terminalId)
+              // Find the deck that contains this terminal
+              for (const deck of decks) {
+                const deckState = deckStates[deck.id];
+                if (deckState?.terminals?.some((t) => t.id === terminalId)) {
+                  handleDeleteTerminal(deck.id, terminalId);
+                  break;
+                }
               }
-            }
-          }}
-          onReorderTerminals={(deckId, newOrder) => {
-            // handleUpdateGroup updates group properties, not terminal order
-            // Terminal reordering is handled by TerminalPane internally
-            // For now, we can ignore or implement proper terminal reordering
-          }}
-          onCreateTerminal={() => {
-            const activeDeck =
-              activeDeckIds.length > 0 ? decks.find((d) => d.id === activeDeckIds[0]) : null;
-            if (activeDeck) {
-              handleNewTerminalForDeck(activeDeck.id);
-            }
-          }}
-          onToggleGroupCollapsed={handleToggleGroupCollapsed}
-          onDeleteGroup={handleDeleteGroup}
-          onRenameGroup={(groupId) => {
-            const group = terminalGroups?.find((g) => g.id === groupId);
-            if (group) {
-              const newName = prompt("Enter new group name:");
-              if (newName) {
-                handleUpdateGroup(groupId, { name: newName });
+            }}
+            onReorderTerminals={(deckId, newOrder) => {
+              // Terminal reordering is handled internally
+            }}
+            onCreateTerminal={() => {
+              const activeDeck =
+                activeDeckIds.length > 0 ? decks.find((d) => d.id === activeDeckIds[0]) : null;
+              if (activeDeck) {
+                handleNewTerminalForDeck(activeDeck.id);
               }
-            }
-          }}
-          onDeckViewChange={(deckId, view) => {
-            updateDeckState(deckId, (state) => ({ ...state, view }));
-          }}
-          onChangeFile={handleFileChange}
-          onSaveFile={handleSaveFile}
-          savingFileId={savingFileId}
-        />
+            }}
+            onToggleGroupCollapsed={handleToggleGroupCollapsed}
+            onDeleteGroup={handleDeleteGroup}
+            onRenameGroup={(groupId) => {
+              const group = terminalGroups?.find((g) => g.id === groupId);
+              if (group) {
+                const newName = prompt("Enter new group name:");
+                if (newName) {
+                  handleUpdateGroup(groupId, { name: newName });
+                }
+              }
+            }}
+            onDeckViewChange={(deckId, view) => {
+              updateDeckState(deckId, (state) => ({ ...state, view }));
+            }}
+            onChangeFile={handleFileChange}
+            onSaveFile={handleSaveFile}
+            savingFileId={savingFileId}
+          />
+        )}
         {gitState.diffPath && (
           <DiffViewer
             diff={gitState.diff}

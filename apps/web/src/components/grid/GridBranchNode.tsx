@@ -7,9 +7,9 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GridBranchNode as GridBranchNodeType, GridNode, GridOrientation } from "../../types";
 import { isGridLeafNode } from "../../types";
-import { type IView, LayoutPriority, SplitView } from "./SplitView";
-import type { SplitViewHandle } from "./SplitView";
 import type { ViewConstraints } from "./GridView";
+import type { SplitViewHandle } from "./SplitView";
+import { type IView, LayoutPriority, SplitView } from "./SplitView";
 
 /**
  * Props for GridBranchNodeView component
@@ -112,10 +112,7 @@ export function GridBranchNodeView({
    * Use the maximum of minimum sizes to ensure all children fit
    */
   const minimumSize = useMemo(() => {
-    return Math.max(
-      100,
-      ...node.children.map((child) => getChildMinimumSize(child))
-    );
+    return Math.max(100, ...node.children.map((child) => getChildMinimumSize(child)));
   }, [node.children, getChildMinimumSize]);
 
   /**

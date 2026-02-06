@@ -5,11 +5,19 @@
  */
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import type { GridLocation, GridNode, GridOrientation, PanelGroup, SplitDirection } from "../../types";
+import type {
+  GridLocation,
+  GridNode,
+  GridOrientation,
+  PanelGroup,
+  SplitDirection,
+  TabContextMenuAction,
+  UnifiedTab,
+} from "../../types";
 import { isGridBranchNode } from "../../types";
 import { GridBranchNodeView } from "./GridBranchNode";
-import { GridLeafNodeView } from "./GridLeafNode";
 import { GridDropTarget } from "./GridDropTarget";
+import { GridLeafNodeView } from "./GridLeafNode";
 
 /**
  * Size constraints for a view within the grid
@@ -58,11 +66,73 @@ export interface GridViewProps {
   /** Inline styles */
   style?: React.CSSProperties;
   /** Callback when a tab is dropped on the grid */
-  onTabDrop?: (tabId: string, sourceGroupId: string, location: GridLocation, direction: SplitDirection) => void;
+  onTabDrop?: (
+    tabId: string,
+    sourceGroupId: string,
+    location: GridLocation,
+    direction: SplitDirection
+  ) => void;
   /** Whether a drag is currently active */
   isDragging?: boolean;
   /** ID of the tab being dragged (for drop target calculation) */
   draggedTabId?: string | null;
+  /** Focused panel group ID */
+  focusedPanelGroupId?: string | null;
+  /** Callback when panel is focused */
+  onFocusPanel?: (groupId: string) => void;
+  /** Callback when tab is selected */
+  onSelectTab?: (groupId: string, tabId: string) => void;
+  /** Callback when tab is closed */
+  onCloseTab?: (groupId: string, tabId: string) => void;
+  /** Callback when tabs are reordered */
+  onTabsReorder?: (groupId: string, oldIndex: number, newIndex: number) => void;
+  /** Callback when tab is moved to another group */
+  onTabMove?: (tabId: string, sourceGroupId: string, targetGroupId: string) => void;
+  /** Callback when panel is split */
+  onSplitPanel?: (groupId: string, direction: SplitDirection, activeTabId?: string) => string;
+  /** Callback when panel is closed */
+  onClosePanel?: (groupId: string) => void;
+  /** Callback when context menu action is triggered */
+  onContextMenuAction?: (action: TabContextMenuAction, groupId: string, tabId: string) => void;
+  /** Callback when tab is double-clicked */
+  onTabDoubleClick?: (tab: UnifiedTab) => void;
+  /** Active deck IDs */
+  activeDeckIds?: string[];
+  /** Deck data */
+  decks?: import("../../types").Deck[];
+  /** Workspace states */
+  workspaceStates?: Record<string, import("../../types").WorkspaceState>;
+  /** Git files */
+  gitFiles?: import("../../types").GitFileStatus[];
+  /** Workspace handlers */
+  onToggleDir?: (node: import("../../types").FileTreeNode) => void;
+  onOpenFile?: (node: import("../../types").FileTreeNode) => void;
+  onRefreshTree?: () => void;
+  onCreateFile?: (parentPath: string, fileName: string) => void;
+  onCreateDirectory?: (parentPath: string, dirName: string) => void;
+  onDeleteFile?: (filePath: string) => void;
+  onDeleteDirectory?: (dirPath: string) => void;
+  /** Workspace state updater */
+  updateWorkspaceState?: (
+    workspaceId: string,
+    updater: (state: import("../../types").WorkspaceState) => import("../../types").WorkspaceState
+  ) => void;
+  /** Deck states */
+  deckStates?: Record<string, import("../../types").DeckState>;
+  /** WebSocket base URL */
+  wsBase?: string;
+  /** Terminal handlers */
+  onDeleteTerminal?: (terminalId: string) => void;
+  onReorderTerminals?: (deckId: string, newOrder: import("../../types").TerminalSession[]) => void;
+  onCreateTerminal?: () => void;
+  onToggleGroupCollapsed?: (groupId: string) => void;
+  onDeleteGroup?: (groupId: string) => void;
+  onRenameGroup?: (groupId: string) => void;
+  onDeckViewChange?: (deckId: string, view: "filetree" | "terminal") => void;
+  /** Editor handlers */
+  onChangeFile?: (fileId: string, contents: string) => void;
+  onSaveFile?: (fileId: string) => void;
+  savingFileId?: string | null;
 }
 
 /**
@@ -131,6 +201,40 @@ export function GridView({
   onTabDrop,
   isDragging = false,
   draggedTabId = null,
+  focusedPanelGroupId,
+  onFocusPanel,
+  onSelectTab,
+  onCloseTab,
+  onTabsReorder,
+  onTabMove,
+  onSplitPanel,
+  onClosePanel,
+  onContextMenuAction,
+  onTabDoubleClick,
+  activeDeckIds,
+  decks,
+  workspaceStates,
+  gitFiles,
+  onToggleDir,
+  onOpenFile,
+  onRefreshTree,
+  onCreateFile,
+  onCreateDirectory,
+  onDeleteFile,
+  onDeleteDirectory,
+  updateWorkspaceState,
+  deckStates,
+  wsBase,
+  onDeleteTerminal,
+  onReorderTerminals,
+  onCreateTerminal,
+  onToggleGroupCollapsed,
+  onDeleteGroup,
+  onRenameGroup,
+  onDeckViewChange,
+  onChangeFile,
+  onSaveFile,
+  savingFileId,
 }: GridViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [layoutEnabled, setLayoutEnabled] = useState(false);
@@ -241,22 +345,19 @@ export function GridView({
   /**
    * Handle drag leave event - hide drop target when leaving
    */
-  const handleDragLeave = useCallback(
-    (e: React.DragEvent) => {
-      // Only hide if we're actually leaving the container
-      const targetElement = e.currentTarget as HTMLElement;
-      const rect = targetElement.getBoundingClientRect();
-      const x = e.clientX;
-      const y = e.clientY;
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    // Only hide if we're actually leaving the container
+    const targetElement = e.currentTarget as HTMLElement;
+    const rect = targetElement.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
 
-      // Check if mouse is outside the element
-      if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
-        setDropTargetVisible(false);
-        setDropDirection(null);
-      }
-    },
-    []
-  );
+    // Check if mouse is outside the element
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setDropTargetVisible(false);
+      setDropDirection(null);
+    }
+  }, []);
 
   /**
    * Handle drop event - execute the drop action
@@ -320,6 +421,42 @@ export function GridView({
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
+          focusedPanelGroupId={focusedPanelGroupId}
+          onFocusPanel={onFocusPanel}
+          onSelectTab={onSelectTab}
+          onCloseTab={onCloseTab}
+          onTabsReorder={onTabsReorder}
+          onTabMove={onTabMove}
+          onSplitPanel={onSplitPanel}
+          onClosePanel={onClosePanel}
+          onContextMenuAction={onContextMenuAction}
+          onTabDoubleClick={onTabDoubleClick}
+          isDragging={isDragging}
+          draggedTabId={draggedTabId}
+          activeDeckIds={activeDeckIds}
+          decks={decks}
+          workspaceStates={workspaceStates}
+          gitFiles={gitFiles}
+          onToggleDir={onToggleDir}
+          onOpenFile={onOpenFile}
+          onRefreshTree={onRefreshTree}
+          onCreateFile={onCreateFile}
+          onCreateDirectory={onCreateDirectory}
+          onDeleteFile={onDeleteFile}
+          onDeleteDirectory={onDeleteDirectory}
+          updateWorkspaceState={updateWorkspaceState}
+          deckStates={deckStates}
+          wsBase={wsBase}
+          onDeleteTerminal={onDeleteTerminal}
+          onReorderTerminals={onReorderTerminals}
+          onCreateTerminal={onCreateTerminal}
+          onToggleGroupCollapsed={onToggleGroupCollapsed}
+          onDeleteGroup={onDeleteGroup}
+          onRenameGroup={onRenameGroup}
+          onDeckViewChange={onDeckViewChange}
+          onChangeFile={onChangeFile}
+          onSaveFile={onSaveFile}
+          savingFileId={savingFileId}
         />
       )}
       {dropTargetVisible && dropDirection && (
@@ -350,6 +487,45 @@ interface GridRendererProps {
   onDragOver: (e: React.DragEvent, location: GridLocation) => void;
   onDragLeave: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent) => void;
+  focusedPanelGroupId?: string | null;
+  onFocusPanel?: (groupId: string) => void;
+  onSelectTab?: (groupId: string, tabId: string) => void;
+  onCloseTab?: (groupId: string, tabId: string) => void;
+  onTabsReorder?: (groupId: string, oldIndex: number, newIndex: number) => void;
+  onTabMove?: (tabId: string, sourceGroupId: string, targetGroupId: string) => void;
+  onSplitPanel?: (groupId: string, direction: SplitDirection, activeTabId?: string) => string;
+  onClosePanel?: (groupId: string) => void;
+  onContextMenuAction?: (action: TabContextMenuAction, groupId: string, tabId: string) => void;
+  onTabDoubleClick?: (tab: UnifiedTab) => void;
+  isDragging?: boolean;
+  draggedTabId?: string | null;
+  activeDeckIds?: string[];
+  decks?: import("../../types").Deck[];
+  workspaceStates?: Record<string, import("../../types").WorkspaceState>;
+  gitFiles?: import("../../types").GitFileStatus[];
+  onToggleDir?: (node: import("../../types").FileTreeNode) => void;
+  onOpenFile?: (node: import("../../types").FileTreeNode) => void;
+  onRefreshTree?: () => void;
+  onCreateFile?: (parentPath: string, fileName: string) => void;
+  onCreateDirectory?: (parentPath: string, dirName: string) => void;
+  onDeleteFile?: (filePath: string) => void;
+  onDeleteDirectory?: (dirPath: string) => void;
+  updateWorkspaceState?: (
+    workspaceId: string,
+    updater: (state: import("../../types").WorkspaceState) => import("../../types").WorkspaceState
+  ) => void;
+  deckStates?: Record<string, import("../../types").DeckState>;
+  wsBase?: string;
+  onDeleteTerminal?: (terminalId: string) => void;
+  onReorderTerminals?: (deckId: string, newOrder: import("../../types").TerminalSession[]) => void;
+  onCreateTerminal?: () => void;
+  onToggleGroupCollapsed?: (groupId: string) => void;
+  onDeleteGroup?: (groupId: string) => void;
+  onRenameGroup?: (groupId: string) => void;
+  onDeckViewChange?: (deckId: string, view: "filetree" | "terminal") => void;
+  onChangeFile?: (fileId: string, contents: string) => void;
+  onSaveFile?: (fileId: string) => void;
+  savingFileId?: string | null;
 }
 
 function GridRenderer({
@@ -365,6 +541,42 @@ function GridRenderer({
   onDragOver,
   onDragLeave,
   onDrop,
+  focusedPanelGroupId,
+  onFocusPanel,
+  onSelectTab,
+  onCloseTab,
+  onTabsReorder,
+  onTabMove,
+  onSplitPanel,
+  onClosePanel,
+  onContextMenuAction,
+  onTabDoubleClick,
+  isDragging,
+  draggedTabId,
+  activeDeckIds,
+  decks,
+  workspaceStates,
+  gitFiles,
+  onToggleDir,
+  onOpenFile,
+  onRefreshTree,
+  onCreateFile,
+  onCreateDirectory,
+  onDeleteFile,
+  onDeleteDirectory,
+  updateWorkspaceState,
+  deckStates,
+  wsBase,
+  onDeleteTerminal,
+  onReorderTerminals,
+  onCreateTerminal,
+  onToggleGroupCollapsed,
+  onDeleteGroup,
+  onRenameGroup,
+  onDeckViewChange,
+  onChangeFile,
+  onSaveFile,
+  savingFileId,
 }: GridRendererProps) {
   if (isGridBranchNode(node)) {
     return (
@@ -392,6 +604,42 @@ function GridRenderer({
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
             onDrop={onDrop}
+            focusedPanelGroupId={focusedPanelGroupId}
+            onFocusPanel={onFocusPanel}
+            onSelectTab={onSelectTab}
+            onCloseTab={onCloseTab}
+            onTabsReorder={onTabsReorder}
+            onTabMove={onTabMove}
+            onSplitPanel={onSplitPanel}
+            onClosePanel={onClosePanel}
+            onContextMenuAction={onContextMenuAction}
+            onTabDoubleClick={onTabDoubleClick}
+            isDragging={isDragging}
+            draggedTabId={draggedTabId}
+            activeDeckIds={activeDeckIds}
+            decks={decks}
+            workspaceStates={workspaceStates}
+            gitFiles={gitFiles}
+            onToggleDir={onToggleDir}
+            onOpenFile={onOpenFile}
+            onRefreshTree={onRefreshTree}
+            onCreateFile={onCreateFile}
+            onCreateDirectory={onCreateDirectory}
+            onDeleteFile={onDeleteFile}
+            onDeleteDirectory={onDeleteDirectory}
+            updateWorkspaceState={updateWorkspaceState}
+            deckStates={deckStates}
+            wsBase={wsBase}
+            onDeleteTerminal={onDeleteTerminal}
+            onReorderTerminals={onReorderTerminals}
+            onCreateTerminal={onCreateTerminal}
+            onToggleGroupCollapsed={onToggleGroupCollapsed}
+            onDeleteGroup={onDeleteGroup}
+            onRenameGroup={onRenameGroup}
+            onDeckViewChange={onDeckViewChange}
+            onChangeFile={onChangeFile}
+            onSaveFile={onSaveFile}
+            savingFileId={savingFileId}
           />
         )}
         proportionalLayout={proportionalLayout}
@@ -410,6 +658,46 @@ function GridRenderer({
       onDragOver={(e) => onDragOver(e, location)}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
+      isFocused={node.groupId === focusedPanelGroupId}
+      onFocus={() => onFocusPanel?.(node.groupId)}
+      onSelectTab={onSelectTab}
+      onCloseTab={onCloseTab}
+      onTabsReorder={onTabsReorder}
+      onTabMove={onTabMove}
+      onSplitPanel={onSplitPanel}
+      onClosePanel={onClosePanel}
+      onContextMenuAction={onContextMenuAction}
+      onTabDoubleClick={onTabDoubleClick}
+      isDraggingOver={isDragging}
+      splitDirection={null}
+      isSplitTarget={false}
+      splitTargetLocation={null}
+      activeDragId={draggedTabId}
+      activeDeckIds={activeDeckIds}
+      decks={decks}
+      workspaceStates={workspaceStates}
+      gitFiles={gitFiles}
+      onToggleDir={onToggleDir}
+      onOpenFile={onOpenFile}
+      onRefreshTree={onRefreshTree}
+      onCreateFile={onCreateFile}
+      onCreateDirectory={onCreateDirectory}
+      onDeleteFile={onDeleteFile}
+      onDeleteDirectory={onDeleteDirectory}
+      updateWorkspaceState={updateWorkspaceState}
+      deckStates={deckStates}
+      wsBase={wsBase}
+      onDeleteTerminal={onDeleteTerminal}
+      onReorderTerminals={onReorderTerminals}
+      onCreateTerminal={onCreateTerminal}
+      onToggleGroupCollapsed={onToggleGroupCollapsed}
+      onDeleteGroup={onDeleteGroup}
+      onRenameGroup={onRenameGroup}
+      onDeckViewChange={onDeckViewChange}
+      onChangeFile={onChangeFile}
+      onSaveFile={onSaveFile}
+      savingFileId={savingFileId}
+      layoutOrientation={orientation}
     />
   );
 }

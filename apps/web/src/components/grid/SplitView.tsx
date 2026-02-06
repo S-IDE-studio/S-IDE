@@ -4,7 +4,16 @@
  * Supports horizontal/vertical orientation, resizable views, and size constraints
  */
 
-import { memo, type ReactNode, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { type Orientation, Sash } from "./Sash";
 
 /**
