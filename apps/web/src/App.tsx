@@ -61,8 +61,8 @@ export default function App() {
     skipUpdate,
   } = useUpdateCheck();
 
-  // Server startup screen state
-  const [serverReady, setServerReady] = useState(true); // Start as ready for browser preview
+  // Server startup screen state - wait for server to be ready
+  const [serverReady, setServerReady] = useState(false);
 
   // Server status
   const serverStatus = useServerStatus();

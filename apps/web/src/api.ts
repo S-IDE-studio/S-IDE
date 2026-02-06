@@ -1,4 +1,4 @@
-import { API_BASE } from "./constants";
+import { API_BASE, RECONNECT_BASE_DELAY_MS } from "./constants";
 import type {
   Deck,
   FileSystemEntry,
@@ -11,35 +11,118 @@ import type {
 
 const HTTP_STATUS_NO_CONTENT = 204;
 
+// Retry configuration
+const MAX_RETRY_ATTEMPTS = 5;
+const RETRYABLE_STATUS_CODES = [500, 502, 503, 504];
+const RETRYABLE_ERRORS = ["Failed to fetch", "NetworkError", "ECONNREFUSED", "ECONNRESET"];
+
 /**
- * Makes an HTTP request to the API
+ * Delays for a specified amount of time
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Calculates exponential backoff delay with jitter
+ */
+function getRetryDelay(attempt: number): number {
+  const exponentialDelay = RECONNECT_BASE_DELAY_MS * 2 ** (attempt - 1);
+  const jitter = Math.random() * 200; // Add 0-200ms jitter
+  return exponentialDelay + jitter;
+}
+
+/**
+ * Determines if an error is retryable
+ */
+function isRetryableError(error: unknown, statusCode?: number): boolean {
+  // Check status code
+  if (statusCode && RETRYABLE_STATUS_CODES.includes(statusCode)) {
+    return true;
+  }
+
+  // Check error message
+  const message = error instanceof Error ? error.message : String(error);
+  return RETRYABLE_ERRORS.some((retryableError) =>
+    message.toLowerCase().includes(retryableError.toLowerCase())
+  );
+}
+
+/**
+ * Makes an HTTP request to the API with automatic retry on failure
  * @param path - API endpoint path
  * @param options - Fetch options (can include AbortSignal for cancellation)
  * @returns Parsed JSON response
- * @throws Error if request fails
+ * @throws Error if request fails after all retry attempts
  */
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    credentials: "include",
-  });
+  let lastError: unknown;
+  let attempt = 0;
 
-  // Check if request was aborted
-  if (options.signal && (options.signal as AbortSignal).aborted) {
-    throw new DOMException("Request aborted", "AbortError");
+  while (attempt <= MAX_RETRY_ATTEMPTS) {
+    try {
+      const response = await fetch(`${API_BASE}${path}`, {
+        ...options,
+        credentials: "include",
+      });
+
+      // Check if request was aborted
+      if (options.signal && (options.signal as AbortSignal).aborted) {
+        throw new DOMException("Request aborted", "AbortError");
+      }
+
+      // Success - return data
+      if (response.ok) {
+        if (response.status === HTTP_STATUS_NO_CONTENT) {
+          return undefined as unknown as T;
+        }
+        const data = await response.json();
+        return data as T;
+      }
+
+      // Get error message for retry decision
+      const message = await response.text();
+      lastError = new Error(message || `Request failed (${response.status})`);
+
+      // Check if we should retry
+      if (attempt < MAX_RETRY_ATTEMPTS && isRetryableError(lastError, response.status)) {
+        attempt++;
+        const retryDelay = getRetryDelay(attempt);
+        console.warn(
+          `[API] Request to ${path} failed (${response.status}). Retrying in ${retryDelay}ms... (Attempt ${attempt}/${MAX_RETRY_ATTEMPTS})`
+        );
+        await delay(retryDelay);
+        continue;
+      }
+
+      // Not retryable or out of attempts - throw
+      throw lastError;
+    } catch (error) {
+      lastError = error;
+
+      // Don't retry abort errors
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw error;
+      }
+
+      // Check if we should retry
+      if (attempt < MAX_RETRY_ATTEMPTS && isRetryableError(error)) {
+        attempt++;
+        const retryDelay = getRetryDelay(attempt);
+        console.warn(
+          `[API] Request to ${path} failed. Retrying in ${retryDelay}ms... (Attempt ${attempt}/${MAX_RETRY_ATTEMPTS})`
+        );
+        await delay(retryDelay);
+        continue;
+      }
+
+      // Not retryable or out of attempts - throw
+      throw error;
+    }
   }
 
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `Request failed (${response.status})`);
-  }
-  if (response.status === HTTP_STATUS_NO_CONTENT) {
-    return undefined as unknown as T;
-  }
-  // Type assertion is safe here because we validate the response status
-  // and the caller is responsible for providing the correct type parameter
-  const data = await response.json();
-  return data as T;
+  // Should never reach here, but TypeScript needs it
+  throw lastError;
 }
 
 const CONTENT_TYPE_JSON = "application/json";

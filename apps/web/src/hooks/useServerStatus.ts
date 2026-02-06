@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { DEFAULT_SERVER_PORT, STATUS_CHECK_INTERVAL } from "../constants";
+import { API_BASE, DEFAULT_SERVER_PORT, STATUS_CHECK_INTERVAL } from "../constants";
 
 export type ServerStatusState = "starting" | "running" | "stopped" | "error";
 
@@ -7,6 +7,22 @@ export interface ServerStatus {
   status: ServerStatusState;
   port: number;
   error?: string;
+}
+
+/**
+ * Checks if the server is responding by calling the health endpoint
+ */
+async function checkServerHealth(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE}/health`, {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 export function useServerStatus(): ServerStatus {
@@ -17,6 +33,9 @@ export function useServerStatus(): ServerStatus {
   useEffect(() => {
     const abortController = new AbortController();
     const signal = abortController.signal;
+
+    let consecutiveFailures = 0;
+    const MAX_FAILURES_BEFORE_STOPPED = 3;
 
     const checkStatus = async () => {
       if (signal.aborted) return;
@@ -34,16 +53,31 @@ export function useServerStatus(): ServerStatus {
           setStatus("running");
           setPort(result.port);
           setError(undefined);
+          consecutiveFailures = 0;
         } else {
           setStatus("stopped");
           setPort(result.port);
           setError(undefined);
         }
       } catch {
-        // Not in Tauri environment, assume API is available (web mode)
-        if (!signal.aborted) {
+        // Not in Tauri environment - check health endpoint (web mode)
+        const isHealthy = await checkServerHealth();
+
+        if (signal.aborted) return;
+
+        if (isHealthy) {
           setStatus("running");
           setError(undefined);
+          consecutiveFailures = 0;
+        } else {
+          consecutiveFailures++;
+          if (consecutiveFailures >= MAX_FAILURES_BEFORE_STOPPED) {
+            setStatus("stopped");
+            setError("Server not responding");
+          } else {
+            // Still in starting state, waiting for server
+            setStatus("starting");
+          }
         }
       }
     };

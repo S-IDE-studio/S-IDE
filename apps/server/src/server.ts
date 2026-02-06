@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fsSync from "node:fs";
 import type { Server } from "node:http";
+import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
@@ -85,6 +86,13 @@ const requestIdMiddleware: MiddlewareHandler = async (c, next) => {
 export function createServer(portOverride?: number) {
   // Use override port or default from config
   const serverPort = portOverride || PORT;
+
+  // Ensure data directory exists before initializing database
+  const dbDir = path.dirname(dbPath);
+  if (!fsSync.existsSync(dbDir)) {
+    fsSync.mkdirSync(dbDir, { recursive: true });
+    console.log(`[SERVER] Created data directory: ${dbDir}`);
+  }
 
   // Check database integrity before opening
   if (fsSync.existsSync(dbPath) && !checkDatabaseIntegrity(dbPath)) {

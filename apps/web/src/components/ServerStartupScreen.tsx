@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { DEFAULT_SERVER_PORT, SERVER_STARTUP_DELAY } from "../constants";
+import { API_BASE, DEFAULT_SERVER_PORT, SERVER_STARTUP_DELAY } from "../constants";
 
 interface ServerStartupScreenProps {
   onComplete: () => void;
@@ -14,6 +14,28 @@ const STATUS_MESSAGES: Record<StartupStatus, string> = {
   ready: "Ready!",
   failed: "Failed to start server",
 };
+
+/**
+ * Checks if the server is healthy by calling the /health endpoint
+ */
+async function checkServerHealth(maxAttempts = 10): Promise<boolean> {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const response = await fetch(`${API_BASE}/health`, {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (response.ok) {
+        return true;
+      }
+    } catch {
+      // Server not ready yet, wait and retry
+    }
+    await sleep(500);
+  }
+  return false;
+}
 
 export function ServerStartupScreen({ onComplete }: ServerStartupScreenProps) {
   const [status, setStatus] = useState<StartupStatus>("init");
@@ -37,7 +59,6 @@ export function ServerStartupScreen({ onComplete }: ServerStartupScreenProps) {
         setStatus("checking");
         setProgress(30);
       }
-      await sleep(500);
 
       try {
         const tauri = await import("@tauri-apps/api/core");
@@ -49,12 +70,15 @@ export function ServerStartupScreen({ onComplete }: ServerStartupScreenProps) {
         if (!alive) return;
 
         if (result.running) {
-          // Server already running
-          setProgress(100);
-          setStatus("ready");
-          await sleep(500);
-          if (alive) onComplete();
-          return;
+          // Server already running - verify with health check
+          const isHealthy = await checkServerHealth(3);
+          if (isHealthy) {
+            setProgress(100);
+            setStatus("ready");
+            await sleep(500);
+            if (alive) onComplete();
+            return;
+          }
         }
 
         // Step 3: Start server
@@ -81,28 +105,46 @@ export function ServerStartupScreen({ onComplete }: ServerStartupScreenProps) {
 
         if (!alive) return;
 
-        // Verify server is running
+        // Verify server is running and healthy
         const verifyResult = (await tauri.invoke("get_server_status")) as {
           running: boolean;
           port: number;
         };
 
         if (verifyResult.running) {
-          if (progressInterval) clearInterval(progressInterval);
-          setProgress(100);
-          setStatus("ready");
-          await sleep(500);
-          if (alive) onComplete();
-        } else {
-          throw new Error("Server failed to start");
+          // Also verify health endpoint responds
+          const isHealthy = await checkServerHealth(5);
+          if (isHealthy) {
+            if (progressInterval) clearInterval(progressInterval);
+            setProgress(100);
+            setStatus("ready");
+            await sleep(500);
+            if (alive) onComplete();
+            return;
+          }
         }
-      } catch (error: unknown) {
+
+        throw new Error("Server failed to start or not responding");
+      } catch (tauriError) {
+        // Tauri not available - running in web mode
+        // Just check if server is already running
+        if (alive) {
+          const isHealthy = await checkServerHealth();
+          if (isHealthy) {
+            setProgress(100);
+            setStatus("ready");
+            await sleep(500);
+            if (alive) onComplete();
+            return;
+          }
+        }
+
+        // Server not available in web mode
         if (!alive) return;
 
         if (progressInterval) clearInterval(progressInterval);
-
-        const message = error instanceof Error ? error.message : "Unknown error";
-        setErrorMessage(message);
+        const message = tauriError instanceof Error ? tauriError.message : "Unknown error";
+        setErrorMessage("Server not available. Please start the server with `pnpm run dev:server`");
         setStatus("failed");
         setProgress(0);
       }
