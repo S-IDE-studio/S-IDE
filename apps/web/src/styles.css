@@ -5487,8 +5487,7 @@ input:focus-visible {
 
 /* Panel Content Placeholders */
 .agent-panel-content,
-.workspace-panel-content,
-.terminal-panel-content {
+.workspace-panel-content {
   padding: 16px;
 }
 
@@ -5571,9 +5570,22 @@ input:focus-visible {
 }
 
 .terminal-panel-content {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 13px;
-  padding: 16px;
+  width: 100%;
+  height: 100%;
+  /* Hide xterm.js scrollbar */
+}
+
+.terminal-panel-content .xterm {
+  padding: 0;
+  height: 100%;
+}
+
+.terminal-panel-content .xterm-viewport {
+  overflow-y: hidden !important;
+}
+
+.terminal-panel-content .xterm-screen {
+  padding: 8px;
 }
 
 /* ========================================
