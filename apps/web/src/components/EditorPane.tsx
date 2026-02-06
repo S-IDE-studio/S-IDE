@@ -155,13 +155,48 @@ export function EditorPane({
 
 // Memoize for performance
 const areEqual = (prevProps: EditorPaneProps, nextProps: EditorPaneProps): boolean => {
-  return (
-    prevProps.files === nextProps.files &&
-    prevProps.activeFileId === nextProps.activeFileId &&
-    prevProps.savingFileId === nextProps.savingFileId &&
-    prevProps.editorGroups === nextProps.editorGroups &&
-    prevProps.groupLayout === nextProps.groupLayout
-  );
+  // Compare active file ID
+  if (prevProps.activeFileId !== nextProps.activeFileId) return false;
+  if (prevProps.savingFileId !== nextProps.savingFileId) return false;
+
+  // Compare files by length and active file contents
+  const prevFiles = prevProps.files;
+  const nextFiles = nextProps.files;
+  if (prevFiles.length !== nextFiles.length) return false;
+
+  // Find active files and compare contents
+  const prevActiveFile = prevFiles.find((f) => f.id === prevProps.activeFileId);
+  const nextActiveFile = nextFiles.find((f) => f.id === nextProps.activeFileId);
+
+  if (prevActiveFile?.contents !== nextActiveFile?.contents) return false;
+  if (prevActiveFile?.dirty !== nextActiveFile?.dirty) return false;
+
+  // Compare groups if provided
+  if (prevProps.editorGroups !== nextProps.editorGroups) {
+    if (prevProps.editorGroups?.length !== nextProps.editorGroups?.length) return false;
+    // Compare group structure (simplified)
+    if (prevProps.editorGroups && nextProps.editorGroups) {
+      for (let i = 0; i < prevProps.editorGroups.length; i++) {
+        if (prevProps.editorGroups[i].id !== nextProps.editorGroups[i].id) return false;
+        if (prevProps.editorGroups[i].activeTabId !== nextProps.editorGroups[i].activeTabId) return false;
+      }
+    }
+  }
+
+  // Compare layout if provided
+  if (prevProps.groupLayout?.direction !== nextProps.groupLayout?.direction) return false;
+  if (prevProps.groupLayout?.sizes !== nextProps.groupLayout?.sizes) {
+    const prevSizes = prevProps.groupLayout?.sizes;
+    const nextSizes = nextProps.groupLayout?.sizes;
+    if (prevSizes?.length !== nextSizes?.length) return false;
+    if (prevSizes && nextSizes) {
+      for (let i = 0; i < prevSizes.length; i++) {
+        if (prevSizes[i] !== nextSizes[i]) return false;
+      }
+    }
+  }
+
+  return true;
 };
 
 export const MemoizedEditorPane = memo(EditorPane, areEqual);

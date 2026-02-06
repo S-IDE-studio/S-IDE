@@ -40,17 +40,23 @@ export function EditorGroupContainer({
   const cursorPositionRef = useRef({ line: 1, column: 1 });
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const [isEditorReady, setIsEditorReady] = useState(false);
+  const [currentFileId, setCurrentFileId] = useState<string | null>(null);
   const activeFile = group.tabs.find((tab) => tab.id === group.activeTabId);
 
   // Delay editor rendering until container has proper dimensions
+  // Only reset when the actual file changes, not when group.activeTabId changes
   useEffect(() => {
-    const timer = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        setIsEditorReady(true);
+    if (activeFile?.id !== currentFileId) {
+      setIsEditorReady(false);
+      setCurrentFileId(activeFile?.id ?? null);
+      const timer = requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsEditorReady(true);
+        });
       });
-    });
-    return () => cancelAnimationFrame(timer);
-  }, [group.activeTabId]);
+      return () => cancelAnimationFrame(timer);
+    }
+  }, [activeFile?.id, currentFileId]);
 
   const handleEditorMount: OnMount = useCallback((editor: editor.IStandaloneCodeEditor) => {
     editorRef.current = editor;
@@ -248,4 +254,18 @@ export function EditorGroupContainer({
   );
 }
 
-export const MemoizedEditorGroupContainer = memo(EditorGroupContainer);
+// Memoize with custom comparison to prevent unnecessary re-renders
+const areEqual = (
+  prevProps: EditorGroupContainerProps,
+  nextProps: EditorGroupContainerProps
+): boolean => {
+  return (
+    prevProps.group.id === nextProps.group.id &&
+    prevProps.group.tabs === nextProps.group.tabs &&
+    prevProps.group.activeTabId === nextProps.group.activeTabId &&
+    prevProps.isFocused === nextProps.isFocused &&
+    prevProps.savingTabId === nextProps.savingTabId
+  );
+};
+
+export const MemoizedEditorGroupContainer = memo(EditorGroupContainer, areEqual);

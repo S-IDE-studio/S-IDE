@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getConfig, getWsBase, listFiles } from "./api";
 import { CommonSettings } from "./components/AgentSettings";
 import { ContextStatus } from "./components/ContextStatus";
-import { DeckModal } from "./components/DeckModal";
 import { DiffViewer } from "./components/DiffViewer";
 import { EnvironmentModal } from "./components/EnvironmentModal";
 import { GlobalStatusBar } from "./components/GlobalStatusBar";
@@ -72,7 +71,6 @@ export default function App() {
   const _theme = "dark"; // Force dark theme
   const [defaultRoot, setDefaultRoot] = useState(DEFAULT_ROOT_FALLBACK);
   const [statusMessage, setStatusMessage] = useState("");
-  const [isDeckModalOpen, setIsDeckModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isServerModalOpen, setIsServerModalOpen] = useState(false);
   const [isEnvironmentModalOpen, setIsEnvironmentModalOpen] = useState(false);
@@ -95,7 +93,7 @@ export default function App() {
     useWorkspaceContext();
   const { deckStates, setDeckStates, updateDeckState, initializeDeckStates } = useDeckContext();
 
-  const { workspaces, editorWorkspaceId, setEditorWorkspaceId, handleCreateWorkspace, handleDeleteWorkspace } =
+  const { workspaces, editorWorkspaceId, setEditorWorkspaceId, handleCreateWorkspace, handleDeleteWorkspace, handleUpdateWorkspaceColor } =
     useWorkspaces({
       setStatusMessage,
       defaultRoot,
@@ -129,9 +127,13 @@ export default function App() {
   const defaultDeckState = useMemo(() => createEmptyDeckState(), []);
   const activeWorkspace =
     workspaces.find((workspace) => workspace.id === editorWorkspaceId) || null;
-  const activeWorkspaceState = editorWorkspaceId
-    ? workspaceStates[editorWorkspaceId] || defaultWorkspaceState
-    : defaultWorkspaceState;
+
+  // Memoize activeWorkspaceState to prevent unnecessary re-renders
+  const activeWorkspaceState = useMemo(() => {
+    return editorWorkspaceId
+      ? workspaceStates[editorWorkspaceId] || defaultWorkspaceState
+      : defaultWorkspaceState;
+  }, [editorWorkspaceId, workspaceStates, defaultWorkspaceState]);
 
   const {
     savingFileId,
@@ -896,30 +898,33 @@ export default function App() {
     }
   }, [panelGroups, decks, updateWorkspaceState]);
 
-  const handleOpenDeckModal = useCallback(() => {
+  // Create a new deck with auto-generated name and workspace, then add tab
+  const handleCreateDeckAndTab = useCallback(async () => {
     if (workspaces.length === 0) {
       setStatusMessage(MESSAGE_WORKSPACE_REQUIRED);
       return;
     }
-    setIsDeckModalOpen(true);
-  }, [workspaces.length, setStatusMessage]);
 
-  const handleSubmitDeck = useCallback(
-    async (name: string, workspaceId: string) => {
-      if (!workspaceId) {
-        setStatusMessage(MESSAGE_SELECT_WORKSPACE);
-        return;
-      }
-      const deck = await handleCreateDeck(name, workspaceId);
-      if (deck) {
-        setIsDeckModalOpen(false);
-        // Add deck tab to panel
-        const tab = deckToTab(deck);
-        addTabToPanel(tab);
-      }
-    },
-    [handleCreateDeck, setStatusMessage, addTabToPanel]
-  );
+    // Use active workspace or first workspace
+    const workspaceId = editorWorkspaceId || workspaces[0].id;
+
+    // Calculate next deck number
+    const workspaceDecks = decks.filter((d) => d.workspaceId === workspaceId);
+    const existingNumbers = workspaceDecks
+      .map((d) => {
+        const match = d.name.match(/^Deck\s+(\d+)$/);
+        return match ? parseInt(match[1], 10) : 0;
+      })
+      .filter((n) => n > 0);
+    const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
+    const deckName = `Deck ${maxNumber + 1}`;
+
+    const deck = await handleCreateDeck(deckName, workspaceId);
+    if (deck) {
+      const tab = deckToTab(deck);
+      addTabToPanel(tab);
+    }
+  }, [workspaces, editorWorkspaceId, decks, handleCreateDeck, setStatusMessage, addTabToPanel]);
 
   const handleSaveSettings = useCallback(
     async (settings: {
@@ -1134,7 +1139,7 @@ export default function App() {
         onOpenServerModal={() => setIsServerModalOpen(true)}
         onToggleContextStatus={() => setShowContextStatus((prev) => !prev)}
         onOpenWorkspaceModal={handleOpenWorkspaceModal}
-        onOpenDeckModal={() => setIsDeckModalOpen(true)}
+        onCreateDeck={handleCreateDeckAndTab}
         onCreateAgent={() => {
           /* TODO: Implement agent creation */
         }}
@@ -1146,17 +1151,14 @@ export default function App() {
           } else if (decks.length > 0) {
             handleNewTerminalForDeck(decks[0].id);
           } else {
-            setIsDeckModalOpen(true);
+            // Create a new deck if none exists
+            handleCreateDeckAndTab();
           }
         }}
         onAddServerTab={handleAddServerTab}
         onAddTunnelTab={handleAddTunnelTab}
         onDeleteWorkspace={handleDeleteWorkspace}
-        onUpdateWorkspaceColor={(workspaceId, color) => {
-          setWorkspaces((prev) =>
-            prev.map((w) => (w.id === workspaceId ? { ...w, color } : w))
-          );
-        }}
+        onUpdateWorkspaceColor={handleUpdateWorkspaceColor}
       />
       <main className="main">
         <MemoizedUnifiedPanelView
@@ -1183,6 +1185,7 @@ export default function App() {
           onCreateDirectory={handleCreateDirectory}
           onDeleteFile={handleDeleteFile}
           onDeleteDirectory={handleDeleteDirectory}
+          updateWorkspaceState={updateWorkspaceState}
           deckStates={deckStates}
           wsBase={API_BASE}
           onDeleteTerminal={(terminalId) => {
@@ -1247,14 +1250,6 @@ export default function App() {
           </div>
         </div>
       )}
-      <DeckModal
-        isOpen={isDeckModalOpen}
-        workspaces={workspaces}
-        activeWorkspaceId={editorWorkspaceId}
-        existingDecks={decks}
-        onSubmit={handleSubmitDeck}
-        onClose={() => setIsDeckModalOpen(false)}
-      />
       <SettingsModal
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}

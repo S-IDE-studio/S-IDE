@@ -166,7 +166,7 @@ export function TitleBar({
   onOpenServerModal,
   onToggleContextStatus,
   onOpenWorkspaceModal,
-  onOpenDeckModal,
+  onCreateDeck,
   onCreateAgent,
   onNewTerminal,
   onAddServerTab,
@@ -233,22 +233,34 @@ export function TitleBar({
   // Close context menu when clicking outside
   useEffect(() => {
     if (!contextMenuWorkspace) return;
-    const handleClickOutside = () => {
-      setContextMenuWorkspace(null);
-      setContextMenuPosition(null);
-      setShowColorPicker(false);
+    console.log("[TitleBar] Context menu opened, adding click listener");
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const menu = document.querySelector(".workspace-context-menu");
+      console.log("[TitleBar] Click detected, menu exists:", !!menu, "is inside:", menu?.contains(target));
+      if (menu && !menu.contains(target)) {
+        console.log("[TitleBar] Click outside, closing menu");
+        setContextMenuWorkspace(null);
+        setContextMenuPosition(null);
+        setShowColorPicker(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      console.log("[TitleBar] Context menu click listener removed");
+    };
   }, [contextMenuWorkspace]);
 
   // Handle workspace tab right-click
   const handleWorkspaceContextMenu = useCallback(
     (workspace: Workspace, event: React.MouseEvent) => {
+      console.log("[TitleBar] Context menu requested for workspace:", workspace.name);
       event.preventDefault();
       event.stopPropagation();
       setContextMenuWorkspace(workspace);
       setContextMenuPosition({ x: event.clientX, y: event.clientY });
+      console.log("[TitleBar] Context menu position:", { x: event.clientX, y: event.clientY });
     },
     []
   );
@@ -268,7 +280,9 @@ export function TitleBar({
 
   // Handle workspace delete
   const handleDeleteWorkspace = useCallback(() => {
+    console.log("[TitleBar] Delete button clicked, contextMenuWorkspace:", contextMenuWorkspace);
     if (contextMenuWorkspace && onDeleteWorkspace) {
+      console.log("[TitleBar] Calling onDeleteWorkspace with:", contextMenuWorkspace.id);
       onDeleteWorkspace(contextMenuWorkspace.id);
     }
     setContextMenuWorkspace(null);
@@ -306,7 +320,7 @@ export function TitleBar({
       label: "File",
       children: [
         { label: "New Workspace", action: onOpenWorkspaceModal },
-        { label: "New Deck", action: onOpenDeckModal },
+        { label: "New Deck", action: onCreateDeck },
         { label: "New Terminal", action: onNewTerminal },
       ],
     },

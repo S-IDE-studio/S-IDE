@@ -5465,14 +5465,81 @@ input:focus-visible {
 /* Panel Content Placeholders */
 .agent-panel-content,
 .workspace-panel-content,
-.deck-panel-content,
 .terminal-panel-content {
   padding: 16px;
+}
+
+/* Editor Panel Content - Full height */
+.editor-panel-content {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Deck Panel Layout */
+.deck-panel-content {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  overflow: hidden;
+  padding: 0;
+}
+
+.deck-sidebar {
+  width: 260px;
+  min-width: 150px;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-soft);
+  border-right: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.deck-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.deck-sidebar-title {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.deck-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--bg-soft);
+  border-bottom: 1px solid var(--border);
+  gap: 8px;
+}
+
+.deck-view-toggle {
+  display: flex;
+  gap: 4px;
 }
 
 .terminal-panel-content {
   font-family: "JetBrains Mono", monospace;
   font-size: 13px;
+  padding: 16px;
 }
 
 /* ========================================

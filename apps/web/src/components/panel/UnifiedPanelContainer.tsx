@@ -50,6 +50,11 @@ interface UnifiedPanelContainerProps {
   onCreateDirectory?: (parentPath: string, dirName: string) => void;
   onDeleteFile?: (filePath: string) => void;
   onDeleteDirectory?: (dirPath: string) => void;
+  // Workspace state updater
+  updateWorkspaceState?: (
+    workspaceId: string,
+    updater: (state: import("../../types").WorkspaceState) => import("../../types").WorkspaceState
+  ) => void;
   // Deck/Terminal data
   deckStates?: Record<
     string,
@@ -106,6 +111,7 @@ export function UnifiedPanelContainer({
   onCreateDirectory,
   onDeleteFile,
   onDeleteDirectory,
+  updateWorkspaceState,
   deckStates,
   wsBase,
   onDeleteTerminal,
@@ -232,6 +238,7 @@ export function UnifiedPanelContainer({
             onCreateDirectory={onCreateDirectory}
             onDeleteFile={onDeleteFile}
             onDeleteDirectory={onDeleteDirectory}
+            updateWorkspaceState={updateWorkspaceState}
             deckState={getDeckState()}
             wsBase={wsBase}
             onDeleteTerminal={onDeleteTerminal}

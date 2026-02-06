@@ -32,6 +32,11 @@ interface PanelContentProps {
   onCreateDirectory?: (parentPath: string, dirName: string) => void;
   onDeleteFile?: (filePath: string) => void;
   onDeleteDirectory?: (dirPath: string) => void;
+  // Workspace state updater
+  updateWorkspaceState?: (
+    workspaceId: string,
+    updater: (state: import("../../types").WorkspaceState) => import("../../types").WorkspaceState
+  ) => void;
   // Deck/Terminal data
   deckState?: {
     terminals?: import("../../types").TerminalSession[];
@@ -67,6 +72,7 @@ export function PanelContent({
   onCreateDirectory,
   onDeleteFile,
   onDeleteDirectory,
+  updateWorkspaceState,
   deckState,
   wsBase,
   onDeleteTerminal,
@@ -106,6 +112,7 @@ export function PanelContent({
       return (
         <DeckPanel
           deck={tab.data.deck!}
+          updateWorkspaceState={updateWorkspaceState}
           // FileTree props
           tree={workspaceState?.tree}
           treeLoading={workspaceState?.treeLoading}

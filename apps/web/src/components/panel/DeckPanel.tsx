@@ -1,5 +1,5 @@
 import { PanelLeft } from "lucide-react";
-import { memo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import type {
   EditorFile,
   FileTreeNode,
@@ -13,6 +13,11 @@ import { TerminalPane } from "../TerminalPane";
 
 interface DeckPanelProps {
   deck: { id: string; name: string; root: string; workspaceId: string };
+  // Workspace state updater
+  updateWorkspaceState?: (
+    workspaceId: string,
+    updater: (state: import("../../types").WorkspaceState) => import("../../types").WorkspaceState
+  ) => void;
   // FileTree props
   tree?: FileTreeNode[];
   treeLoading?: boolean;
@@ -51,6 +56,7 @@ type DeckView = "editor" | "terminal";
 
 export function DeckPanel({
   deck,
+  updateWorkspaceState,
   // FileTree props
   tree = [],
   treeLoading,
@@ -87,6 +93,56 @@ export function DeckPanel({
   const [view, setView] = useState<DeckView>("editor");
   const [sidebarVisible, setSidebarVisible] = useState(true);
 
+  // Stabilize callback functions to prevent unnecessary re-renders
+  const handleSelectFile = useCallback(
+    (fileId: string) => {
+      onSelectFile?.(fileId);
+    },
+    [onSelectFile]
+  );
+
+  const handleCloseFile = useCallback(
+    (fileId: string) => {
+      onCloseFile?.(fileId);
+    },
+    [onCloseFile]
+  );
+
+  const handleChangeFile = useCallback(
+    (fileId: string, contents: string) => {
+      onChangeFile?.(fileId, contents);
+    },
+    [onChangeFile]
+  );
+
+  const handleSaveFile = useCallback(
+    (fileId: string) => {
+      onSaveFile?.(fileId);
+    },
+    [onSaveFile]
+  );
+
+  const handleToggleDir = useCallback(
+    (node: FileTreeNode) => {
+      onToggleDir?.(node);
+    },
+    [onToggleDir]
+  );
+
+  const handleOpenFile = useCallback(
+    (node: FileTreeNode) => {
+      onOpenFile?.(node);
+    },
+    [onOpenFile]
+  );
+
+  const handleRefreshTree = useCallback(() => {
+    onRefreshTree?.();
+  }, [onRefreshTree]);
+
+  // Memoize editor files to prevent unnecessary re-renders
+  const memoizedEditorFiles = useMemo(() => editorFiles, [editorFiles]);
+
   return (
     <div className="deck-panel-content">
       {/* File Tree Sidebar */}
@@ -108,9 +164,9 @@ export function DeckPanel({
             entries={tree}
             loading={treeLoading}
             error={treeError}
-            onToggleDir={onToggleDir ?? (() => {})}
-            onOpenFile={onOpenFile ?? (() => {})}
-            onRefresh={onRefreshTree ?? (() => {})}
+            onToggleDir={handleToggleDir}
+            onOpenFile={handleOpenFile}
+            onRefresh={handleRefreshTree}
             onCreateFile={onCreateFile}
             onCreateDirectory={onCreateDirectory}
             onDeleteFile={onDeleteFile}
@@ -155,12 +211,12 @@ export function DeckPanel({
         {/* Editor View */}
         {view === "editor" ? (
           <EditorPane
-            files={editorFiles}
+            files={memoizedEditorFiles}
             activeFileId={activeFileId}
-            onSelectFile={onSelectFile ?? (() => {})}
-            onCloseFile={onCloseFile ?? (() => {})}
-            onChangeFile={onChangeFile ?? (() => {})}
-            onSaveFile={onSaveFile}
+            onSelectFile={handleSelectFile}
+            onCloseFile={handleCloseFile}
+            onChangeFile={handleChangeFile}
+            onSaveFile={handleSaveFile}
             savingFileId={savingFileId}
           />
         ) : (
@@ -183,4 +239,37 @@ export function DeckPanel({
   );
 }
 
-export const MemoizedDeckPanel = memo(DeckPanel);
+// Memoize with custom comparison to prevent unnecessary re-renders
+const areEqual = (prevProps: DeckPanelProps, nextProps: DeckPanelProps): boolean => {
+  // Compare deck basic info
+  if (prevProps.deck.id !== nextProps.deck.id) return false;
+  if (prevProps.deck.name !== nextProps.deck.name) return false;
+
+  // Compare tree state
+  if (prevProps.tree !== nextProps.tree) return false;
+  if (prevProps.treeLoading !== nextProps.treeLoading) return false;
+  if (prevProps.treeError !== nextProps.treeError) return false;
+
+  // Compare editor state by length and active file
+  const prevFiles = prevProps.editorFiles;
+  const nextFiles = nextProps.editorFiles;
+  if (prevFiles.length !== nextFiles.length) return false;
+  if (prevProps.activeFileId !== nextProps.activeFileId) return false;
+
+  // Check if active file contents changed (by comparing the file object)
+  const prevActiveFile = prevFiles.find((f) => f.id === prevProps.activeFileId);
+  const nextActiveFile = nextFiles.find((f) => f.id === nextProps.activeFileId);
+  if (prevActiveFile?.contents !== nextActiveFile?.contents) return false;
+  if (prevActiveFile?.dirty !== nextActiveFile?.dirty) return false;
+
+  // Compare saving state
+  if (prevProps.savingFileId !== nextProps.savingFileId) return false;
+
+  // Compare terminal state by length
+  if (prevProps.terminals.length !== nextProps.terminals.length) return false;
+  if (prevProps.isCreatingTerminal !== nextProps.isCreatingTerminal) return false;
+
+  return true;
+};
+
+export const MemoizedDeckPanel = memo(DeckPanel, areEqual);

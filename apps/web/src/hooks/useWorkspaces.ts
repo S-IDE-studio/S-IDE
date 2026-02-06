@@ -125,11 +125,22 @@ export const useWorkspaces = ({
     [setStatusMessage, setWorkspaceStates]
   );
 
+  const handleUpdateWorkspaceColor = useCallback(
+    (workspaceId: string, color: string) => {
+      console.log("[useWorkspaces] Updating workspace color:", workspaceId, color);
+      setWorkspaces((prev) =>
+        prev.map((w) => (w.id === workspaceId ? { ...w, color } : w))
+      );
+    },
+    []
+  );
+
   return {
     workspaces,
     editorWorkspaceId,
     setEditorWorkspaceId,
     handleCreateWorkspace,
     handleDeleteWorkspace,
+    handleUpdateWorkspaceColor,
   };
 };
