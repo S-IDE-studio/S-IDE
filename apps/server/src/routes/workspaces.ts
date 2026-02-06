@@ -41,6 +41,10 @@ export function createWorkspaceRouter(
     "INSERT INTO workspaces (id, name, path, normalized_path, created_at) VALUES (?, ?, ?, ?, ?)"
   );
 
+  const deleteWorkspaceDb = db.prepare("DELETE FROM workspaces WHERE id = ?");
+
+  const deleteDecksByWorkspace = db.prepare("DELETE FROM decks WHERE workspace_id = ?");
+
   function createWorkspace(inputPath: string, name?: string): Workspace {
     const resolvedPath = normalizeWorkspacePath(inputPath);
     const key = getWorkspaceKey(resolvedPath);
@@ -72,6 +76,29 @@ export function createWorkspaceRouter(
       }
       const workspace = createWorkspace(body.path, body.name);
       return c.json(workspace, 201);
+    } catch (error) {
+      return handleError(c, error);
+    }
+  });
+
+  router.delete("/:workspaceId", (c) => {
+    const { workspaceId } = c.req.param();
+    try {
+      const workspace = workspaces.get(workspaceId);
+      if (!workspace) {
+        throw createHttpError("Workspace not found", 404);
+      }
+
+      // Delete from database
+      deleteWorkspaceDb.run(workspaceId);
+      deleteDecksByWorkspace.run(workspaceId);
+
+      // Remove from memory
+      const key = getWorkspaceKey(workspace.path);
+      workspaces.delete(workspaceId);
+      workspacePathIndex.delete(key);
+
+      return c.json({ success: true });
     } catch (error) {
       return handleError(c, error);
     }

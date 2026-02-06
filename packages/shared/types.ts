@@ -8,6 +8,7 @@ export interface Workspace {
   name: string;
   path: string;
   createdAt: string;
+  color?: string;
 }
 
 // Deck represents a workspace view with terminals and editors

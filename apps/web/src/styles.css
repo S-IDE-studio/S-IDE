@@ -165,10 +165,7 @@
 }
 
 .workspace-dropdown {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 2px;
+  position: fixed;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -209,6 +206,66 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Workspace context menu */
+.workspace-context-menu {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  min-width: 200px;
+  padding: 4px;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-radius: 2px;
+}
+
+.context-menu-item:hover {
+  background: var(--list-hover);
+}
+
+.context-menu-item--danger {
+  color: #ef4444;
+}
+
+.context-menu-item--danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Color picker grid */
+.color-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  padding: 8px;
+}
+
+.color-picker-button {
+  width: 28px;
+  height: 28px;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.color-picker-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .title-bar-right {

@@ -1,8 +1,30 @@
-import { ChevronDown, Minus, Plus, Square, X } from "lucide-react";
+import {
+  ChevronDown,
+  Minus,
+  Palette,
+  Plus,
+  Square,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Workspace } from "../types";
 
 const MAX_VISIBLE_WORKSPACES = 5;
+
+// Accent color options for workspaces
+const ACCENT_COLORS = [
+  "#3b82f6", // blue
+  "#8b5cf6", // purple
+  "#ec4899", // pink
+  "#ef4444", // red
+  "#f97316", // orange
+  "#eab308", // yellow
+  "#22c55e", // green
+  "#14b8a6", // teal
+  "#06b6d4", // cyan,
+  "#6366f1", // indigo
+];
 
 interface TitleBarProps {
   workspaces?: Workspace[];
@@ -17,6 +39,8 @@ interface TitleBarProps {
   onNewTerminal?: () => void;
   onAddServerTab?: () => void;
   onAddTunnelTab?: () => void;
+  onDeleteWorkspace?: (workspaceId: string) => void;
+  onUpdateWorkspaceColor?: (workspaceId: string, color: string) => void;
 }
 
 interface MenuItem {
@@ -147,11 +171,20 @@ export function TitleBar({
   onNewTerminal,
   onAddServerTab,
   onAddTunnelTab,
+  onDeleteWorkspace,
+  onUpdateWorkspaceColor,
 }: TitleBarProps) {
   const [isTauri, setIsTauri] = useState(false);
   const [isMobileMode, setIsMobileMode] = useState(false);
   const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
   const workspaceDropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownTriggerRef = useRef<HTMLButtonElement>(null);
+
+  // Workspace context menu state
+  const [contextMenuWorkspace, setContextMenuWorkspace] = useState<Workspace | null>(null);
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   useEffect(() => {
     // Check if running in Tauri environment
@@ -176,11 +209,70 @@ export function TitleBar({
         !workspaceDropdownRef.current.contains(e.target as Node)
       ) {
         setIsWorkspaceDropdownOpen(false);
+        setDropdownPosition(null);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isWorkspaceDropdownOpen]);
+
+  // Calculate dropdown position when opened
+  useEffect(() => {
+    if (isWorkspaceDropdownOpen && dropdownTriggerRef.current) {
+      const rect = dropdownTriggerRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + 2,
+        left: rect.right,
+      });
+    } else {
+      setDropdownPosition(null);
+    }
+  }, [isWorkspaceDropdownOpen]);
+
+  // Close context menu when clicking outside
+  useEffect(() => {
+    if (!contextMenuWorkspace) return;
+    const handleClickOutside = () => {
+      setContextMenuWorkspace(null);
+      setContextMenuPosition(null);
+      setShowColorPicker(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [contextMenuWorkspace]);
+
+  // Handle workspace tab right-click
+  const handleWorkspaceContextMenu = useCallback(
+    (workspace: Workspace, event: React.MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setContextMenuWorkspace(workspace);
+      setContextMenuPosition({ x: event.clientX, y: event.clientY });
+    },
+    []
+  );
+
+  // Handle workspace color change
+  const handleColorChange = useCallback(
+    (color: string) => {
+      if (contextMenuWorkspace && onUpdateWorkspaceColor) {
+        onUpdateWorkspaceColor(contextMenuWorkspace.id, color);
+      }
+      setContextMenuWorkspace(null);
+      setContextMenuPosition(null);
+      setShowColorPicker(false);
+    },
+    [contextMenuWorkspace, onUpdateWorkspaceColor]
+  );
+
+  // Handle workspace delete
+  const handleDeleteWorkspace = useCallback(() => {
+    if (contextMenuWorkspace && onDeleteWorkspace) {
+      onDeleteWorkspace(contextMenuWorkspace.id);
+    }
+    setContextMenuWorkspace(null);
+    setContextMenuPosition(null);
+  }, [contextMenuWorkspace, onDeleteWorkspace]);
 
   const handleClose = async () => {
     if (!isTauri) return;
@@ -280,7 +372,15 @@ export function TitleBar({
               className={`workspace-tab ${activeWorkspaceId === workspace.id ? "workspace-tab--active" : ""}`}
               data-tauri-drag-region={false}
               onClick={() => onSelectWorkspace?.(workspace.id)}
+              onContextMenu={(e) => handleWorkspaceContextMenu(workspace, e)}
               title={workspace.path}
+              style={
+                workspace.color
+                  ? {
+                      borderBottomColor: workspace.color,
+                    }
+                  : undefined
+              }
             >
               <span className="workspace-tab-name">{workspace.name}</span>
             </button>
@@ -288,6 +388,7 @@ export function TitleBar({
           {showDropdown && (
             <div ref={workspaceDropdownRef} className="workspace-dropdown-container">
               <button
+                ref={dropdownTriggerRef}
                 type="button"
                 className={`workspace-tab workspace-dropdown-trigger ${isWorkspaceDropdownOpen ? "workspace-dropdown-trigger--open" : ""}`}
                 data-tauri-drag-region={false}
@@ -296,8 +397,16 @@ export function TitleBar({
               >
                 <ChevronDown size={14} />
               </button>
-              {isWorkspaceDropdownOpen && (
-                <div className="workspace-dropdown">
+              {isWorkspaceDropdownOpen && dropdownPosition && (
+                <div
+                  className="workspace-dropdown"
+                  style={{
+                    position: "fixed",
+                    top: `${dropdownPosition.top}px`,
+                    left: `${dropdownPosition.left}px`,
+                    transform: "translateX(-100%)",
+                  }}
+                >
                   {hiddenWorkspaces.map((workspace) => (
                     <button
                       key={workspace.id}
@@ -308,6 +417,7 @@ export function TitleBar({
                         onSelectWorkspace?.(workspace.id);
                         setIsWorkspaceDropdownOpen(false);
                       }}
+                      onContextMenu={(e) => handleWorkspaceContextMenu(workspace, e)}
                       title={workspace.path}
                     >
                       <span className="workspace-dropdown-item-name">{workspace.name}</span>
@@ -359,6 +469,54 @@ export function TitleBar({
           >
             <X size={14} />
           </button>
+        </div>
+      )}
+
+      {/* Workspace context menu */}
+      {contextMenuWorkspace && contextMenuPosition && (
+        <div
+          className="workspace-context-menu"
+          style={{
+            position: "fixed",
+            top: `${contextMenuPosition.y}px`,
+            left: `${contextMenuPosition.x}px`,
+            zIndex: 99999,
+          }}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          {showColorPicker ? (
+            <div className="color-picker-grid">
+              {ACCENT_COLORS.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  className="color-picker-button"
+                  onClick={() => handleColorChange(color)}
+                  title={color}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="context-menu-item"
+                onClick={() => setShowColorPicker(true)}
+              >
+                <Palette size={14} />
+                <span>アクセント色を変更</span>
+              </button>
+              <button
+                type="button"
+                className="context-menu-item context-menu-item--danger"
+                onClick={handleDeleteWorkspace}
+              >
+                <Trash2 size={14} />
+                <span>ワークスペースを削除</span>
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

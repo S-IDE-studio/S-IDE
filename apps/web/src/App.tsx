@@ -1,6 +1,6 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getConfig, getWsBase } from "./api";
+import { deleteWorkspace, getConfig, getWsBase } from "./api";
 import { CommonSettings } from "./components/AgentSettings";
 import { ContextStatus } from "./components/ContextStatus";
 import { DeckModal } from "./components/DeckModal";
@@ -1091,6 +1091,31 @@ export default function App() {
         }}
         onAddServerTab={handleAddServerTab}
         onAddTunnelTab={handleAddTunnelTab}
+        onDeleteWorkspace={async (workspaceId) => {
+          try {
+            await deleteWorkspace(workspaceId);
+            // Remove workspace from local state
+            setWorkspaces((prev) => prev.filter((w) => w.id !== workspaceId));
+            // Clear workspace state
+            setWorkspaceStates((prev) => {
+              const newState = { ...prev };
+              delete newState[workspaceId];
+              return newState;
+            });
+            // If deleted workspace was active, clear selection
+            if (editorWorkspaceId === workspaceId) {
+              setEditorWorkspaceId(null);
+            }
+          } catch (error) {
+            console.error("Failed to delete workspace:", error);
+            setStatusMessage("ワークスペースを削除できませんでした");
+          }
+        }}
+        onUpdateWorkspaceColor={(workspaceId, color) => {
+          setWorkspaces((prev) =>
+            prev.map((w) => (w.id === workspaceId ? { ...w, color } : w))
+          );
+        }}
       />
       <main className="main">
         <MemoizedUnifiedPanelView
