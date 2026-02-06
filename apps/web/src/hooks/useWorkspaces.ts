@@ -30,8 +30,16 @@ export const useWorkspaces = ({
         if (signal.aborted) return;
         setWorkspaces(data);
         setEditorWorkspaceId((prev) => {
+          // Keep previous selection if valid
           if (prev && data.some((workspace) => workspace.id === prev)) {
             return prev;
+          }
+          // Auto-select most recent workspace (by createdAt)
+          if (data.length > 0) {
+            const sortedByDate = [...data].sort(
+              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+            return sortedByDate[0].id;
           }
           return null;
         });
