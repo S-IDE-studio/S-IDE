@@ -61,6 +61,7 @@
   flex-shrink: 0;
   padding: 0;
   position: relative;
+  z-index: 10000;
 }
 
 /* Left section - app icon and menu bar */
@@ -176,7 +177,7 @@
   max-width: 300px;
   max-height: 400px;
   overflow-y: auto;
-  z-index: 1000;
+  z-index: 99999;
 }
 
 .workspace-dropdown-item {
