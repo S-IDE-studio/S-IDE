@@ -28,6 +28,7 @@ interface UnifiedPanelContainerProps {
   onResize: (delta: number) => void;
   onContextMenuAction: (action: TabContextMenuAction, tabId: string) => void;
   onTabDoubleClick?: (tab: import("../../types").UnifiedTab) => void;
+  isDraggingOver?: boolean;
   // Active deck IDs (from title bar selection)
   activeDeckIds?: string[];
   // Deck data for displaying without tabs
@@ -63,6 +64,7 @@ interface UnifiedPanelContainerProps {
       terminals?: import("../../types").TerminalSession[];
       terminalGroups?: import("../../types").TerminalGroup[];
       isCreatingTerminal?: boolean;
+      view?: "filetree" | "terminal";
     }
   >;
   wsBase?: string;
@@ -102,6 +104,7 @@ export function UnifiedPanelContainer({
   onResize,
   onContextMenuAction,
   onTabDoubleClick,
+  isDraggingOver,
   activeDeckIds,
   decks,
   workspaceStates,
@@ -220,6 +223,7 @@ export function UnifiedPanelContainer({
           onTabMove={handleTabMove}
           onContextMenuAction={(action, tab) => handleContextMenuAction(action, tab.id)}
           onTabDoubleClick={onTabDoubleClick}
+          isDraggingOver={isDraggingOver}
         />
 
         {/* Panel Controls */}

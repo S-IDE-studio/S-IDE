@@ -71,6 +71,7 @@ interface UnifiedPanelViewProps {
       terminals?: import("../../types").TerminalSession[];
       terminalGroups?: import("../../types").TerminalGroup[];
       isCreatingTerminal?: boolean;
+      view?: "filetree" | "terminal";
     }
   >;
   wsBase?: string;
@@ -131,6 +132,7 @@ export function UnifiedPanelView({
   // Drag and drop state
   const [activeTab, setActiveTab] = useState<UnifiedTab | null>(null);
   const [activeTabSourceGroup, setActiveTabSourceGroup] = useState<string | null>(null);
+  const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
 
   // DnD sensors
   const sensors = useSensors(
@@ -163,7 +165,10 @@ export function UnifiedPanelView({
   const handleDragOver = useCallback(
     (event: DragOverEvent) => {
       const { active, over } = event;
-      if (!over) return;
+      if (!over) {
+        setDragOverGroupId(null);
+        return;
+      }
 
       // Find which group the droppable target belongs to
       const overId = String(over.id);
@@ -184,12 +189,14 @@ export function UnifiedPanelView({
         }
       }
 
-      // If dropping into a different group, set it as target
-      if (targetGroupId && targetGroupId !== activeTabSourceGroup && activeTab) {
-        // Visual feedback could be added here
+      // Update drag-over state for visual feedback
+      if (targetGroupId && targetGroupId !== activeTabSourceGroup) {
+        setDragOverGroupId(targetGroupId);
+      } else {
+        setDragOverGroupId(null);
       }
     },
-    [groups, activeTabSourceGroup, activeTab]
+    [groups, activeTabSourceGroup]
   );
 
   // Handle drag end
@@ -198,6 +205,7 @@ export function UnifiedPanelView({
       const { active, over } = event;
       setActiveTab(null);
       setActiveTabSourceGroup(null);
+      setDragOverGroupId(null); // Reset drag-over state
 
       if (!over) return;
 
@@ -460,6 +468,7 @@ export function UnifiedPanelView({
           onResize={createResizeHandler(group.id)}
           onContextMenuAction={createContextMenuHandler(group.id)}
           onTabDoubleClick={onTabDoubleClick}
+          isDraggingOver={dragOverGroupId === group.id}
           activeDeckIds={activeDeckIds}
           decks={decks}
           workspaceStates={workspaceStates}
@@ -531,6 +540,7 @@ export function UnifiedPanelView({
             onResize={createResizeHandler(group.id)}
             onContextMenuAction={createContextMenuHandler(group.id)}
             onTabDoubleClick={onTabDoubleClick}
+            isDraggingOver={dragOverGroupId === group.id}
             activeDeckIds={activeDeckIds}
             decks={decks}
             workspaceStates={workspaceStates}
