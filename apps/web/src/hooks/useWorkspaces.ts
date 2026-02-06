@@ -97,10 +97,16 @@ export const useWorkspaces = ({
 
   const handleDeleteWorkspace = useCallback(
     async (workspaceId: string) => {
+      console.log("[useWorkspaces] Deleting workspace:", workspaceId);
       try {
-        await apiDeleteWorkspace(workspaceId);
+        const result = await apiDeleteWorkspace(workspaceId);
+        console.log("[useWorkspaces] Delete result:", result);
         // Remove from local state
-        setWorkspaces((prev) => prev.filter((w) => w.id !== workspaceId));
+        setWorkspaces((prev) => {
+          const filtered = prev.filter((w) => w.id !== workspaceId);
+          console.log("[useWorkspaces] Workspaces after delete:", filtered);
+          return filtered;
+        });
         // Clear workspace state
         setWorkspaceStates((prev) => {
           const newState = { ...prev };
@@ -110,6 +116,7 @@ export const useWorkspaces = ({
         // If deleted workspace was active, clear selection
         setEditorWorkspaceId((prev) => (prev === workspaceId ? null : prev));
       } catch (error: unknown) {
+        console.error("[useWorkspaces] Failed to delete workspace:", error);
         setStatusMessage(
           `\u30ef\u30fc\u30af\u30b9\u30da\u30fc\u30b9\u3092\u524a\u9664\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f: ${getErrorMessage(error)}`
         );

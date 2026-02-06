@@ -220,9 +220,10 @@ export function TitleBar({
   useEffect(() => {
     if (isWorkspaceDropdownOpen && dropdownTriggerRef.current) {
       const rect = dropdownTriggerRef.current.getBoundingClientRect();
+      // Position dropdown to the right of the trigger, aligned to the right edge
       setDropdownPosition({
         top: rect.bottom + 2,
-        left: rect.right,
+        left: rect.left,
       });
     } else {
       setDropdownPosition(null);
@@ -404,7 +405,6 @@ export function TitleBar({
                     position: "fixed",
                     top: `${dropdownPosition.top}px`,
                     left: `${dropdownPosition.left}px`,
-                    transform: "translateX(-100%)",
                   }}
                 >
                   {hiddenWorkspaces.map((workspace) => (
