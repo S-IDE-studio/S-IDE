@@ -99,6 +99,7 @@ export interface WorkspaceState {
 export interface DeckState {
   terminals: TerminalSession[];
   terminalsLoaded: boolean;
+  view: "filetree" | "terminal";
 }
 
 // API Response types

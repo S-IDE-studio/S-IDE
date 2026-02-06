@@ -42,9 +42,11 @@ interface PanelContentProps {
     terminals?: import("../../types").TerminalSession[];
     terminalGroups?: import("../../types").TerminalGroup[];
     isCreatingTerminal?: boolean;
+    view?: "filetree" | "terminal";
   };
   wsBase?: string;
   // Deck/Terminal handlers
+  onDeckViewChange?: (deckId: string, view: "filetree" | "terminal") => void;
   onDeleteTerminal?: (terminalId: string) => void;
   onReorderTerminals?: (deckId: string, newOrder: import("../../types").TerminalSession[]) => void;
   onCreateTerminal?: () => void;
@@ -75,6 +77,7 @@ export function PanelContent({
   updateWorkspaceState,
   deckState,
   wsBase,
+  onDeckViewChange,
   onDeleteTerminal,
   onReorderTerminals,
   onCreateTerminal,
@@ -125,14 +128,6 @@ export function PanelContent({
           onCreateDirectory={onCreateDirectory}
           onDeleteFile={onDeleteFile}
           onDeleteDirectory={onDeleteDirectory}
-          // Editor props
-          editorFiles={workspaceState?.files}
-          activeFileId={activeFileId}
-          onSelectFile={onSelectFile}
-          onCloseFile={onCloseFile}
-          onChangeFile={onChangeFile}
-          onSaveFile={onSaveFile}
-          savingFileId={savingFileId}
           // Terminal props
           terminals={deckState?.terminals}
           terminalGroups={deckState?.terminalGroups}
@@ -145,6 +140,8 @@ export function PanelContent({
           onToggleGroupCollapsed={onToggleGroupCollapsed}
           onDeleteGroup={onDeleteGroup}
           onRenameGroup={onRenameGroup}
+          view={deckState?.view}
+          onViewChange={(newView) => onDeckViewChange?.(tab.data.deck!.id, newView)}
         />
       );
     case "terminal":

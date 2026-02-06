@@ -1,6 +1,6 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getConfig, getWsBase, listFiles } from "./api";
+import { getConfig, getWsBase, listFiles, readFile } from "./api";
 import { CommonSettings } from "./components/AgentSettings";
 import { ContextStatus } from "./components/ContextStatus";
 import { DiffViewer } from "./components/DiffViewer";
@@ -20,7 +20,6 @@ import {
   API_BASE,
   DEFAULT_ROOT_FALLBACK,
   MESSAGE_SAVED,
-  MESSAGE_SELECT_WORKSPACE,
   MESSAGE_WORKSPACE_REQUIRED,
   SAVED_MESSAGE_TIMEOUT,
   STORAGE_KEY_THEME,
@@ -33,9 +32,9 @@ import { useGitState } from "./hooks/useGitState";
 import { useServerStatus } from "./hooks/useServerStatus";
 import { useWorkspaces } from "./hooks/useWorkspaces";
 import type { EditorFile, PanelGroup, PanelLayout, SidebarPanel, WorkspaceMode } from "./types";
+import { getLanguageFromPath, toTreeNodes } from "./utils";
 import { createEditorGroup, createSingleGroupLayout } from "./utils/editorGroupUtils";
 import { createEmptyDeckState, createEmptyWorkspaceState } from "./utils/stateUtils";
-import { toTreeNodes } from "./utils";
 import {
   agentToTab,
   createEmptyPanelGroup,
@@ -45,10 +44,24 @@ import {
   serverToTab,
   tunnelToTab,
 } from "./utils/unifiedTabUtils";
-import { parseUrlState } from "./utils/urlUtils";
+import { loadTabState, parseUrlState, saveTabState } from "./utils/urlUtils";
 
 export default function App() {
   const initialUrlState = parseUrlState();
+
+  // Initialize panel state from localStorage
+  const getInitialPanelState = () => {
+    const saved = loadTabState();
+    if (saved) {
+      return {
+        groups: saved.panelGroups,
+        layout: saved.panelLayout,
+      };
+    }
+    return createSinglePanelLayout();
+  };
+
+  const initialPanelState = getInitialPanelState();
 
   // Update check
   const {
@@ -85,21 +98,32 @@ export default function App() {
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
 
   // Unified panel state
-  const [panelGroups, setPanelGroups] = useState<PanelGroup[]>(createSinglePanelLayout().groups);
-  const [panelLayout, setPanelLayout] = useState<PanelLayout>(createSinglePanelLayout().layout);
+  const [panelGroups, setPanelGroups] = useState<PanelGroup[]>(initialPanelState.groups);
+  const [panelLayout, setPanelLayout] = useState<PanelLayout>(initialPanelState.layout);
   const [focusedPanelId, setFocusedPanelId] = useState<string | null>(null);
+
+  // Save tab state to localStorage when panels change
+  useEffect(() => {
+    saveTabState(panelGroups, panelLayout);
+  }, [panelGroups, panelLayout]);
 
   const { workspaceStates, setWorkspaceStates, updateWorkspaceState, initializeWorkspaceStates } =
     useWorkspaceContext();
   const { deckStates, setDeckStates, updateDeckState, initializeDeckStates } = useDeckContext();
 
-  const { workspaces, editorWorkspaceId, setEditorWorkspaceId, handleCreateWorkspace, handleDeleteWorkspace, handleUpdateWorkspaceColor } =
-    useWorkspaces({
-      setStatusMessage,
-      defaultRoot,
-      initializeWorkspaceStates,
-      setWorkspaceStates,
-    });
+  const {
+    workspaces,
+    editorWorkspaceId,
+    setEditorWorkspaceId,
+    handleCreateWorkspace,
+    handleDeleteWorkspace,
+    handleUpdateWorkspaceColor,
+  } = useWorkspaces({
+    setStatusMessage,
+    defaultRoot,
+    initializeWorkspaceStates,
+    setWorkspaceStates,
+  });
 
   const {
     decks,
@@ -153,16 +177,6 @@ export default function App() {
     updateWorkspaceState,
     setStatusMessage,
   });
-
-  // Wrap handleOpenFile to add tab to panel
-  const handleOpenFile = useCallback(
-    (...args: Parameters<typeof baseHandleOpenFile>) => {
-      const result = baseHandleOpenFile(...args);
-      // Add tab after file is opened (activeWorkspaceState.files will be updated)
-      return result;
-    },
-    [baseHandleOpenFile]
-  );
 
   // Editor group handlers
   const handleSplitGroup = useCallback(
@@ -547,23 +561,181 @@ export default function App() {
     [handleSplitPanel]
   );
 
+  // Helper function to find existing editor tab by file path
+  const findExistingEditorTab = useCallback(
+    (filePath: string): { groupId: string; tab: import("./types").UnifiedTab } | null => {
+      for (const group of panelGroups) {
+        const tab = group.tabs.find((t) => t.kind === "editor" && t.data.editor?.path === filePath);
+        if (tab) {
+          return { groupId: group.id, tab };
+        }
+      }
+      return null;
+    },
+    [panelGroups]
+  );
+
   // Tab population helpers
-  const addTabToPanel = useCallback((tab: import("./types").UnifiedTab) => {
-    setPanelGroups((prev) => {
-      if (prev.length === 0) {
-        return createSinglePanelLayout().groups;
+  const addTabToPanel = useCallback(
+    (
+      tab: import("./types").UnifiedTab,
+      targetGroupId?: string, // Optional target panel group ID
+      options?: { skipIfExists?: boolean; activateOnly?: boolean }
+    ) => {
+      setPanelGroups((prev) => {
+        if (prev.length === 0) {
+          return createSinglePanelLayout().groups;
+        }
+
+        const newGroups = [...prev];
+
+        // For editor tabs, check if already exists to prevent duplicates
+        if (tab.kind === "editor" && tab.data.editor) {
+          const filePath = tab.data.editor.path;
+          for (let i = 0; i < newGroups.length; i++) {
+            const group = newGroups[i];
+            const existingTab = group.tabs.find(
+              (t) => t.kind === "editor" && t.data.editor?.path === filePath
+            );
+            if (existingTab) {
+              // File already open, just activate it
+              if (options?.skipIfExists) {
+                return prev; // No changes
+              }
+              return newGroups.map((g, idx) => ({
+                ...g,
+                activeTabId: idx === i ? existingTab.id : g.activeTabId,
+                focused: idx === i,
+              }));
+            }
+          }
+        }
+
+        // Determine target group
+        let targetGroupIndex = 0;
+        if (targetGroupId) {
+          const foundIndex = newGroups.findIndex((g) => g.id === targetGroupId);
+          if (foundIndex !== -1) {
+            targetGroupIndex = foundIndex;
+          }
+        }
+
+        // Add tab to target group
+        newGroups[targetGroupIndex] = {
+          ...newGroups[targetGroupIndex],
+          tabs: [...newGroups[targetGroupIndex].tabs, tab],
+          activeTabId: tab.id,
+          focused: true,
+        };
+
+        // Unfocus other groups
+        for (let i = 0; i < newGroups.length; i++) {
+          if (i !== targetGroupIndex) {
+            newGroups[i] = { ...newGroups[i], focused: false };
+          }
+        }
+
+        return newGroups;
+      });
+    },
+    []
+  );
+
+  // Wrap handleOpenFile to add tab to panel
+  const handleOpenFile = useCallback(
+    async (entry: import("./types").FileTreeNode) => {
+      if (!editorWorkspaceId || entry.type !== "file") return;
+
+      const workspaceId = editorWorkspaceId;
+
+      // Check if file is already open in tabs (single source of truth)
+      const existing = findExistingEditorTab(entry.path);
+      if (existing) {
+        // File is already open, just activate the tab
+        handleSelectTab(existing.groupId, existing.tab.id);
+        // Also update workspace state activeFileId
+        updateWorkspaceState(workspaceId, (s) => ({
+          ...s,
+          activeFileId: existing.tab.data.editor?.id ?? s.activeFileId,
+        }));
+        return;
       }
 
-      // Add to first panel for now (can be extended later)
-      const newGroups = [...prev];
-      newGroups[0] = {
-        ...newGroups[0],
-        tabs: [...newGroups[0].tabs, tab],
-        activeTabId: tab.id,
-      };
-      return newGroups;
-    });
-  }, []);
+      // Check if file exists in workspace state but not in tabs
+      const state = workspaceStates[workspaceId];
+      const existingFile = state?.files.find((f) => f.path === entry.path);
+      if (existingFile) {
+        // File exists in workspace but not in tabs, create tab
+        const tab = editorToTab(existingFile);
+        updateWorkspaceState(workspaceId, (s) => ({
+          ...s,
+          activeFileId: existingFile.id,
+        }));
+        addTabToPanel(tab);
+        return;
+      }
+
+      // New file - read and create
+      try {
+        const data = await readFile(workspaceId, entry.path);
+        const newFile: EditorFile = {
+          id: crypto.randomUUID(),
+          name: entry.name,
+          path: entry.path,
+          language: getLanguageFromPath(entry.path),
+          contents: data.contents,
+          dirty: false,
+        };
+
+        // Add to workspace state
+        updateWorkspaceState(workspaceId, (s) => ({
+          ...s,
+          files: [...s.files, newFile],
+          activeFileId: newFile.id,
+        }));
+
+        // Create editor tab
+        const tab = editorToTab(newFile);
+
+        // Auto-split panel if only one panel exists (for Deck file opening)
+        if (panelGroups.length === 1) {
+          const currentGroupId = panelGroups[0]?.id;
+          if (currentGroupId) {
+            // Create new panel group to the right
+            const newGroup = createEmptyPanelGroup(50);
+            const newGroups: typeof panelGroups = [
+              { ...panelGroups[0], percentage: 50, focused: false },
+              { ...newGroup, percentage: 50, focused: true },
+            ];
+            setPanelGroups(newGroups);
+            setPanelLayout({ direction: "horizontal", sizes: [50, 50] });
+
+            // Add tab to the new right panel
+            const targetGroupId = newGroups[1].id;
+            addTabToPanel(tab, targetGroupId);
+            return;
+          }
+        }
+
+        // Add editor tab to existing panel
+        addTabToPanel(tab);
+      } catch (error) {
+        setStatusMessage(
+          `ファイルを開けませんでした: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    },
+    [
+      editorWorkspaceId,
+      workspaceStates,
+      updateWorkspaceState,
+      panelGroups,
+      handleSelectTab,
+      addTabToPanel,
+      setStatusMessage,
+      findExistingEditorTab,
+    ]
+  );
 
   // Handler for adding server tab
   const handleAddServerTab = useCallback(() => {
@@ -622,34 +794,6 @@ export default function App() {
     // Mark initial setup as done
     initialPanelSetupDoneRef.current = true;
   }, [agents]); // Run when agents are loaded
-
-  // Add editor tabs when files change
-  useEffect(() => {
-    if (activeWorkspaceState.files && activeWorkspaceState.files.length > 0) {
-      setPanelGroups((currentGroups) => {
-        const newGroups = [...currentGroups];
-        const group = newGroups[0];
-
-        // Collect existing editor tab IDs
-        const existingEditorIds = group.tabs
-          .filter((t) => t.kind === "editor")
-          .map((t) => t.data.editor?.id);
-
-        const newTabs = [...group.tabs];
-
-        // Add files that don't exist
-        activeWorkspaceState.files.forEach((file) => {
-          if (!existingEditorIds.includes(file.id)) {
-            newTabs.push(editorToTab(file));
-          }
-        });
-
-        // Preserve activeTabId
-        newGroups[0] = { ...group, tabs: newTabs, activeTabId: group.activeTabId };
-        return newGroups;
-      });
-    }
-  }, [activeWorkspaceState.files]);
 
   const {
     gitState,
@@ -1019,7 +1163,10 @@ export default function App() {
 
   const handleNewTerminalForDeck = useCallback(
     (deckId: string) => {
+      console.log("[App] handleNewTerminalForDeck called with deckId:", deckId);
       const deckState = deckStates[deckId] || defaultDeckState;
+      console.log("[App] deckState:", deckState);
+      console.log("[App] terminals count:", deckState.terminals.length);
       handleCreateTerminal(deckId, deckState.terminals.length);
     },
     [deckStates, defaultDeckState, handleCreateTerminal]
@@ -1144,14 +1291,20 @@ export default function App() {
           /* TODO: Implement agent creation */
         }}
         onNewTerminal={() => {
+          console.log("[App] New Terminal requested");
+          console.log("[App] activeDeckIds:", activeDeckIds);
+          console.log("[App] decks:", decks);
           // Create a new terminal in the first available deck
           const firstDeckId = activeDeckIds[0];
           if (firstDeckId) {
+            console.log("[App] Using activeDeckId:", firstDeckId);
             handleNewTerminalForDeck(firstDeckId);
           } else if (decks.length > 0) {
+            console.log("[App] Using first deck:", decks[0].id);
             handleNewTerminalForDeck(decks[0].id);
           } else {
             // Create a new deck if none exists
+            console.log("[App] No deck found, creating new deck");
             handleCreateDeckAndTab();
           }
         }}
@@ -1221,6 +1374,9 @@ export default function App() {
                 handleUpdateGroup(groupId, { name: newName });
               }
             }
+          }}
+          onDeckViewChange={(deckId, view) => {
+            updateDeckState(deckId, (state) => ({ ...state, view }));
           }}
           onChangeFile={handleFileChange}
           onSaveFile={handleSaveFile}

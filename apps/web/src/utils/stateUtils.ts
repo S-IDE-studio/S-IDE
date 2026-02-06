@@ -24,5 +24,6 @@ export function createEmptyDeckState(): DeckState {
   return {
     terminals: [],
     terminalsLoaded: false,
+    view: "filetree",
   };
 }

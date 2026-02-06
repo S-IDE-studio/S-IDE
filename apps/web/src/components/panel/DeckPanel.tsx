@@ -1,13 +1,6 @@
 import { PanelLeft } from "lucide-react";
-import { memo, useCallback, useMemo, useState } from "react";
-import type {
-  EditorFile,
-  FileTreeNode,
-  GitFileStatus,
-  TerminalGroup,
-  TerminalSession,
-} from "../../types";
-import { EditorPane } from "../EditorPane";
+import { memo, useCallback, useEffect, useState } from "react";
+import type { FileTreeNode, GitFileStatus, TerminalGroup, TerminalSession } from "../../types";
 import { FileTree } from "../FileTree";
 import { TerminalPane } from "../TerminalPane";
 
@@ -30,14 +23,6 @@ interface DeckPanelProps {
   onCreateDirectory?: (parentPath: string, dirName: string) => void;
   onDeleteFile?: (filePath: string) => void;
   onDeleteDirectory?: (dirPath: string) => void;
-  // Editor props
-  editorFiles?: EditorFile[];
-  activeFileId?: string | null;
-  onSelectFile?: (fileId: string) => void;
-  onCloseFile?: (fileId: string) => void;
-  onChangeFile?: (fileId: string, contents: string) => void;
-  onSaveFile?: (fileId: string) => void;
-  savingFileId?: string | null;
   // TerminalPane props
   terminals?: TerminalSession[];
   wsBase?: string;
@@ -50,9 +35,12 @@ interface DeckPanelProps {
   onDeleteGroup?: (groupId: string) => void;
   onRenameGroup?: (groupId: string) => void;
   isCreatingTerminal?: boolean;
+  // View control (optional - if not provided, uses local state)
+  view?: "filetree" | "terminal";
+  onViewChange?: (view: "filetree" | "terminal") => void;
 }
 
-type DeckView = "editor" | "terminal";
+type DeckView = "filetree" | "terminal";
 
 export function DeckPanel({
   deck,
@@ -69,14 +57,6 @@ export function DeckPanel({
   onCreateDirectory,
   onDeleteFile,
   onDeleteDirectory,
-  // Editor props
-  editorFiles = [],
-  activeFileId = null,
-  onSelectFile,
-  onCloseFile,
-  onChangeFile,
-  onSaveFile,
-  savingFileId = null,
   // TerminalPane props
   terminals = [],
   wsBase = "",
@@ -89,38 +69,22 @@ export function DeckPanel({
   onDeleteGroup,
   onRenameGroup,
   isCreatingTerminal = false,
+  // View control props
+  view: controlledView,
+  onViewChange,
 }: DeckPanelProps) {
-  const [view, setView] = useState<DeckView>("editor");
+  // Use controlled view if provided, otherwise use local state
+  const [localView, setLocalView] = useState<DeckView>("filetree");
+  const view = controlledView ?? localView;
+
+  // Sync local state when controlled view changes
+  useEffect(() => {
+    if (controlledView !== undefined) {
+      setLocalView(controlledView);
+    }
+  }, [controlledView]);
+
   const [sidebarVisible, setSidebarVisible] = useState(true);
-
-  // Stabilize callback functions to prevent unnecessary re-renders
-  const handleSelectFile = useCallback(
-    (fileId: string) => {
-      onSelectFile?.(fileId);
-    },
-    [onSelectFile]
-  );
-
-  const handleCloseFile = useCallback(
-    (fileId: string) => {
-      onCloseFile?.(fileId);
-    },
-    [onCloseFile]
-  );
-
-  const handleChangeFile = useCallback(
-    (fileId: string, contents: string) => {
-      onChangeFile?.(fileId, contents);
-    },
-    [onChangeFile]
-  );
-
-  const handleSaveFile = useCallback(
-    (fileId: string) => {
-      onSaveFile?.(fileId);
-    },
-    [onSaveFile]
-  );
 
   const handleToggleDir = useCallback(
     (node: FileTreeNode) => {
@@ -140,13 +104,21 @@ export function DeckPanel({
     onRefreshTree?.();
   }, [onRefreshTree]);
 
-  // Memoize editor files to prevent unnecessary re-renders
-  const memoizedEditorFiles = useMemo(() => editorFiles, [editorFiles]);
+  const handleSetView = useCallback(
+    (newView: DeckView) => {
+      if (onViewChange) {
+        onViewChange(newView);
+      } else {
+        setLocalView(newView);
+      }
+    },
+    [onViewChange]
+  );
 
   return (
     <div className="deck-panel-content">
-      {/* File Tree Sidebar */}
-      {sidebarVisible && (
+      {/* Sidebar - FileTree */}
+      {sidebarVisible && view === "filetree" && (
         <div className="deck-sidebar">
           <div className="deck-sidebar-header">
             <span className="deck-sidebar-title">{deck.name}</span>
@@ -192,15 +164,15 @@ export function DeckPanel({
             <div className="deck-view-toggle">
               <button
                 type="button"
-                className={`chip ${view === "editor" ? "active" : ""}`}
-                onClick={() => setView("editor")}
+                className={`chip ${view === "filetree" ? "active" : ""}`}
+                onClick={() => handleSetView("filetree")}
               >
-                Editor
+                Files
               </button>
               <button
                 type="button"
                 className={`chip ${view === "terminal" ? "active" : ""}`}
-                onClick={() => setView("terminal")}
+                onClick={() => handleSetView("terminal")}
               >
                 Terminal
               </button>
@@ -208,18 +180,15 @@ export function DeckPanel({
           </div>
         )}
 
-        {/* Editor View */}
-        {view === "editor" ? (
-          <EditorPane
-            files={memoizedEditorFiles}
-            activeFileId={activeFileId}
-            onSelectFile={handleSelectFile}
-            onCloseFile={handleCloseFile}
-            onChangeFile={handleChangeFile}
-            onSaveFile={handleSaveFile}
-            savingFileId={savingFileId}
-          />
-        ) : (
+        {/* FileTree View */}
+        {view === "filetree" && sidebarVisible && (
+          <div className="deck-placeholder">
+            <p>ファイルを開くには、左側のファイルツリーからファイルを選択してください</p>
+          </div>
+        )}
+
+        {/* Terminal View */}
+        {view === "terminal" ? (
           <TerminalPane
             terminals={terminals}
             wsBase={wsBase}
@@ -233,7 +202,7 @@ export function DeckPanel({
             onRenameGroup={onRenameGroup}
             isCreatingTerminal={isCreatingTerminal}
           />
-        )}
+        ) : null}
       </div>
     </div>
   );
@@ -241,35 +210,16 @@ export function DeckPanel({
 
 // Memoize with custom comparison to prevent unnecessary re-renders
 const areEqual = (prevProps: DeckPanelProps, nextProps: DeckPanelProps): boolean => {
-  // Compare deck basic info
-  if (prevProps.deck.id !== nextProps.deck.id) return false;
-  if (prevProps.deck.name !== nextProps.deck.name) return false;
-
-  // Compare tree state
-  if (prevProps.tree !== nextProps.tree) return false;
-  if (prevProps.treeLoading !== nextProps.treeLoading) return false;
-  if (prevProps.treeError !== nextProps.treeError) return false;
-
-  // Compare editor state by length and active file
-  const prevFiles = prevProps.editorFiles;
-  const nextFiles = nextProps.editorFiles;
-  if (prevFiles.length !== nextFiles.length) return false;
-  if (prevProps.activeFileId !== nextProps.activeFileId) return false;
-
-  // Check if active file contents changed (by comparing the file object)
-  const prevActiveFile = prevFiles.find((f) => f.id === prevProps.activeFileId);
-  const nextActiveFile = nextFiles.find((f) => f.id === nextProps.activeFileId);
-  if (prevActiveFile?.contents !== nextActiveFile?.contents) return false;
-  if (prevActiveFile?.dirty !== nextActiveFile?.dirty) return false;
-
-  // Compare saving state
-  if (prevProps.savingFileId !== nextProps.savingFileId) return false;
-
-  // Compare terminal state by length
-  if (prevProps.terminals.length !== nextProps.terminals.length) return false;
-  if (prevProps.isCreatingTerminal !== nextProps.isCreatingTerminal) return false;
-
-  return true;
+  return (
+    prevProps.deck.id === nextProps.deck.id &&
+    prevProps.deck.name === nextProps.deck.name &&
+    prevProps.tree === nextProps.tree &&
+    prevProps.treeLoading === nextProps.treeLoading &&
+    prevProps.treeError === nextProps.treeError &&
+    (prevProps.terminals?.length ?? 0) === (nextProps.terminals?.length ?? 0) &&
+    prevProps.isCreatingTerminal === nextProps.isCreatingTerminal &&
+    prevProps.view === nextProps.view
+  );
 };
 
 export const MemoizedDeckPanel = memo(DeckPanel, areEqual);

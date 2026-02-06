@@ -2,6 +2,7 @@
  * Unified Panel Container - VSCode-style panel with tabs, split, and resize
  */
 
+import { useDroppable } from "@dnd-kit/core";
 import { memo, useCallback } from "react";
 import type { PanelGroup, SplitDirection, TabContextMenuAction } from "../../types";
 import { PanelContent } from "./PanelContent";
@@ -72,6 +73,7 @@ interface UnifiedPanelContainerProps {
   onToggleGroupCollapsed?: (groupId: string) => void;
   onDeleteGroup?: (groupId: string) => void;
   onRenameGroup?: (groupId: string) => void;
+  onDeckViewChange?: (deckId: string, view: "filetree" | "terminal") => void;
   // Editor handlers
   onChangeFile?: (fileId: string, contents: string) => void;
   onSaveFile?: (fileId: string) => void;
@@ -120,6 +122,7 @@ export function UnifiedPanelContainer({
   onToggleGroupCollapsed,
   onDeleteGroup,
   onRenameGroup,
+  onDeckViewChange,
   onChangeFile,
   onSaveFile,
   savingFileId,
@@ -128,6 +131,14 @@ export function UnifiedPanelContainer({
   onCloseFile,
 }: UnifiedPanelContainerProps) {
   const activeTab = group.tabs.find((t) => t.id === group.activeTabId);
+
+  // Make this panel a droppable target for tabs
+  const { setNodeRef: setDroppableRef } = useDroppable({
+    id: `group-${group.id}`,
+    data: {
+      groupId: group.id,
+    },
+  });
 
   const handleContainerClick = useCallback(() => {
     onFocus();
@@ -192,6 +203,7 @@ export function UnifiedPanelContainer({
 
   return (
     <div
+      ref={setDroppableRef}
       className={`panel-group ${isFocused ? "focused" : ""}`}
       onClick={handleContainerClick}
       style={{ flex: `${group.percentage}%` }}
@@ -241,6 +253,7 @@ export function UnifiedPanelContainer({
             updateWorkspaceState={updateWorkspaceState}
             deckState={getDeckState()}
             wsBase={wsBase}
+            onDeckViewChange={onDeckViewChange}
             onDeleteTerminal={onDeleteTerminal}
             onReorderTerminals={onReorderTerminals}
             onCreateTerminal={onCreateTerminal}
