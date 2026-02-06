@@ -178,7 +178,8 @@ const areEqual = (prevProps: EditorPaneProps, nextProps: EditorPaneProps): boole
     if (prevProps.editorGroups && nextProps.editorGroups) {
       for (let i = 0; i < prevProps.editorGroups.length; i++) {
         if (prevProps.editorGroups[i].id !== nextProps.editorGroups[i].id) return false;
-        if (prevProps.editorGroups[i].activeTabId !== nextProps.editorGroups[i].activeTabId) return false;
+        if (prevProps.editorGroups[i].activeTabId !== nextProps.editorGroups[i].activeTabId)
+          return false;
       }
     }
   }

@@ -32,7 +32,6 @@ import type { UnifiedTab } from "../../types";
 interface DraggableTabProps {
   tab: UnifiedTab;
   isActive: boolean;
-  isDragging: boolean;
   onSelect: (tabId: string) => void;
   onClose: (tabId: string) => void;
   onContextMenu: (tab: UnifiedTab, event: React.MouseEvent) => void;
@@ -110,7 +109,6 @@ function getFileIcon(fileType?: string) {
 export function DraggableTab({
   tab,
   isActive,
-  isDragging,
   onSelect,
   onClose,
   onContextMenu,

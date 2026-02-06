@@ -1,12 +1,4 @@
-import {
-  ChevronDown,
-  Minus,
-  Palette,
-  Plus,
-  Square,
-  Trash2,
-  X,
-} from "lucide-react";
+import { ChevronDown, Minus, Palette, Plus, Square, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Workspace } from "../types";
 
@@ -34,7 +26,7 @@ interface TitleBarProps {
   onOpenServerModal?: () => void;
   onToggleContextStatus?: () => void;
   onOpenWorkspaceModal?: () => void;
-  onOpenDeckModal?: () => void;
+  onCreateDeck?: () => void;
   onCreateAgent?: () => void;
   onNewTerminal?: () => void;
   onAddServerTab?: () => void;
@@ -177,13 +169,17 @@ export function TitleBar({
   const [isTauri, setIsTauri] = useState(false);
   const [isMobileMode, setIsMobileMode] = useState(false);
   const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
-  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(
+    null
+  );
   const workspaceDropdownRef = useRef<HTMLDivElement>(null);
   const dropdownTriggerRef = useRef<HTMLButtonElement>(null);
 
   // Workspace context menu state
   const [contextMenuWorkspace, setContextMenuWorkspace] = useState<Workspace | null>(null);
-  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(
+    null
+  );
   const [showColorPicker, setShowColorPicker] = useState(false);
 
   useEffect(() => {
@@ -237,7 +233,12 @@ export function TitleBar({
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
       const menu = document.querySelector(".workspace-context-menu");
-      console.log("[TitleBar] Click detected, menu exists:", !!menu, "is inside:", menu?.contains(target));
+      console.log(
+        "[TitleBar] Click detected, menu exists:",
+        !!menu,
+        "is inside:",
+        menu?.contains(target)
+      );
       if (menu && !menu.contains(target)) {
         console.log("[TitleBar] Click outside, closing menu");
         setContextMenuWorkspace(null);
@@ -344,8 +345,8 @@ export function TitleBar({
   ];
 
   // Calculate visible and hidden workspaces
-  const visibleWorkspaces = workspaces.slice(0, MAX_VISIBLE_WORKSPACES);
-  const hiddenWorkspaces = workspaces.slice(MAX_VISIBLE_WORKSPACES);
+  const visibleWorkspaces: Workspace[] = workspaces.slice(0, MAX_VISIBLE_WORKSPACES);
+  const hiddenWorkspaces: Workspace[] = workspaces.slice(MAX_VISIBLE_WORKSPACES);
   const showDropdown = hiddenWorkspaces.length > 0;
 
   return (

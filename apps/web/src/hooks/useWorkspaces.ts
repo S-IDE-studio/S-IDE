@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { createWorkspace as apiCreateWorkspace, deleteWorkspace as apiDeleteWorkspace, listWorkspaces } from "../api";
+import {
+  createWorkspace as apiCreateWorkspace,
+  deleteWorkspace as apiDeleteWorkspace,
+  listWorkspaces,
+} from "../api";
 import type { Workspace } from "../types";
 import { createEmptyWorkspaceState, getErrorMessage, normalizeWorkspacePath } from "../utils";
 
@@ -125,15 +129,10 @@ export const useWorkspaces = ({
     [setStatusMessage, setWorkspaceStates]
   );
 
-  const handleUpdateWorkspaceColor = useCallback(
-    (workspaceId: string, color: string) => {
-      console.log("[useWorkspaces] Updating workspace color:", workspaceId, color);
-      setWorkspaces((prev) =>
-        prev.map((w) => (w.id === workspaceId ? { ...w, color } : w))
-      );
-    },
-    []
-  );
+  const handleUpdateWorkspaceColor = useCallback((workspaceId: string, color: string) => {
+    console.log("[useWorkspaces] Updating workspace color:", workspaceId, color);
+    setWorkspaces((prev) => prev.map((w) => (w.id === workspaceId ? { ...w, color } : w)));
+  }, []);
 
   return {
     workspaces,

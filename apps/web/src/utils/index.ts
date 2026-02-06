@@ -17,6 +17,6 @@ export type { ThemeMode } from "./themeUtils";
 
 // Theme utilities
 export { getInitialTheme } from "./themeUtils";
-export type { UrlState } from "./urlUtils";
+export type { TabPersistState, UrlState } from "./urlUtils";
 // URL utilities
-export { parseUrlState } from "./urlUtils";
+export { clearTabState, loadTabState, parseUrlState, saveTabState } from "./urlUtils";

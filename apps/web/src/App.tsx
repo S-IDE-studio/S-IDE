@@ -42,6 +42,7 @@ import {
   deckToTab,
   editorToTab,
   serverToTab,
+  terminalToTab,
   tunnelToTab,
 } from "./utils/unifiedTabUtils";
 import { loadTabState, parseUrlState, saveTabState } from "./utils/urlUtils";
@@ -1162,30 +1163,66 @@ export default function App() {
   }, [handleCreateWorkspace]);
 
   const handleNewTerminalForDeck = useCallback(
-    (deckId: string) => {
+    async (deckId: string) => {
       console.log("[App] handleNewTerminalForDeck called with deckId:", deckId);
       const deckState = deckStates[deckId] || defaultDeckState;
       console.log("[App] deckState:", deckState);
       console.log("[App] terminals count:", deckState.terminals.length);
-      handleCreateTerminal(deckId, deckState.terminals.length);
+      const terminal = await handleCreateTerminal(deckId, deckState.terminals.length);
+      if (terminal) {
+        // Create and add terminal tab
+        const deck = decks.find((d) => d.id === deckId);
+        if (deck) {
+          const tab = terminalToTab(
+            { id: terminal.id, command: terminal.command || "", cwd: deck.root },
+            deckId
+          );
+          addTabToPanel(tab);
+        }
+      }
     },
-    [deckStates, defaultDeckState, handleCreateTerminal]
+    [deckStates, defaultDeckState, handleCreateTerminal, decks, addTabToPanel]
   );
 
   const handleNewClaudeTerminalForDeck = useCallback(
-    (deckId: string) => {
+    async (deckId: string) => {
       const deckState = deckStates[deckId] || defaultDeckState;
-      handleCreateTerminal(deckId, deckState.terminals.length, "claude", "Claude Code");
+      const terminal = await handleCreateTerminal(
+        deckId,
+        deckState.terminals.length,
+        "claude",
+        "Claude Code"
+      );
+      if (terminal) {
+        const deck = decks.find((d) => d.id === deckId);
+        if (deck) {
+          const tab = terminalToTab(
+            { id: terminal.id, command: terminal.command || "", cwd: deck.root },
+            deckId
+          );
+          addTabToPanel(tab);
+        }
+      }
     },
-    [deckStates, defaultDeckState, handleCreateTerminal]
+    [deckStates, defaultDeckState, handleCreateTerminal, decks, addTabToPanel]
   );
 
   const handleNewCodexTerminalForDeck = useCallback(
-    (deckId: string) => {
+    async (deckId: string) => {
       const deckState = deckStates[deckId] || defaultDeckState;
-      handleCreateTerminal(deckId, deckState.terminals.length, "codex", "Codex");
+      const terminal = await handleCreateTerminal(deckId, deckState.terminals.length, "codex", "Codex");
+      if (terminal) {
+        const deck = decks.find((d) => d.id === deckId);
+        if (deck) {
+          const tab = terminalToTab(
+            { id: terminal.id, command: terminal.command || "", cwd: deck.root },
+            deckId
+          );
+          addTabToPanel(tab);
+        }
+      }
     },
-    [deckStates, defaultDeckState, handleCreateTerminal]
+    [deckStates, defaultDeckState, handleCreateTerminal, decks, addTabToPanel]
   );
 
   const handleTerminalDeleteForDeck = useCallback(

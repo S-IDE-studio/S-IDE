@@ -148,7 +148,12 @@ export const useDecks = ({
   );
 
   const handleCreateTerminal = useCallback(
-    async (deckId: string, terminalsCount: number, command?: string, customTitle?: string) => {
+    async (
+      deckId: string,
+      terminalsCount: number,
+      command?: string,
+      customTitle?: string
+    ): Promise<{ id: string; title: string; command?: string } | null> => {
       console.log("[useDecks] handleCreateTerminal called:", {
         deckId,
         terminalsCount,
@@ -163,21 +168,24 @@ export const useDecks = ({
         console.log("[useDecks] Creating terminal with title:", title);
         const session = await apiCreateTerminal(deckId, title, command);
         console.log("[useDecks] Terminal created:", session);
+        const terminal = {
+          id: session.id,
+          title: session.title || title,
+          command: command || "",
+        };
         updateDeckState(deckId, (state) => {
-          const terminal = {
-            id: session.id,
-            title: session.title || title,
-          };
           return {
             ...state,
-            terminals: [...state.terminals, terminal],
+            terminals: [...state.terminals, { id: terminal.id, title: terminal.title }],
             terminalsLoaded: true,
             view: "terminal",
           };
         });
+        return terminal;
       } catch (error: unknown) {
         console.error("[useDecks] Failed to create terminal:", error);
         setStatusMessage(`ターミナルを起動できませんでした: ${getErrorMessage(error)}`);
+        return null;
       } finally {
         // Clear loading state
         setCreatingTerminalDeckIds((prev) => {

@@ -260,7 +260,9 @@
   border: 2px solid transparent;
   border-radius: 4px;
   cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
 }
 
 .color-picker-button:hover {
@@ -5235,6 +5237,10 @@ input:focus-visible {
   user-select: none;
 }
 
+.panel-tabs-container.drag-over {
+  background: rgba(59, 130, 246, 0.1); /* Light blue highlight */
+}
+
 .panel-tabs {
   display: flex;
   overflow-x: auto;
@@ -5294,6 +5300,23 @@ input:focus-visible {
 
 /* Active tab indicator - top border */
 .panel-tab.active {
+  background: var(--panel);
+  color: var(--ink);
+  border-top-color: var(--accent);
+  border-top-width: 2px;
+}
+
+/* Dragging tab style */
+.panel-tab-dragging {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.8;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  background: var(--panel);
+}
+
+.panel-tab:hover {
   background: var(--panel);
   color: var(--ink);
   border-top-color: var(--accent);
@@ -5534,6 +5557,17 @@ input:focus-visible {
 .deck-view-toggle {
   display: flex;
   gap: 4px;
+}
+
+.deck-placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-muted);
+  font-size: 14px;
+  padding: 16px;
+  text-align: center;
 }
 
 .terminal-panel-content {
