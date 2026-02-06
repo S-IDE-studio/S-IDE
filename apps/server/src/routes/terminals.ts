@@ -10,8 +10,9 @@ import {
   type PersistedTerminal,
   saveTerminal,
 } from "../utils/database.js";
+import { sanitizeEnvVars } from "../utils/env.js";
 import { createHttpError, handleError, readJson } from "../utils/error.js";
-import { getDefaultShell } from "../utils/shell.js";
+import { getDefaultShellPath, getShellById } from "../utils/shells.js";
 
 // Track terminal index per deck for unique naming
 const deckTerminalCounters = new Map<string, number>();
@@ -27,49 +28,6 @@ const DANGEROUS_COMMAND_PATTERNS = [
   // Control characters (except tab, newline, carriage return)
   /[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/,
 ];
-
-// Allowed prefixes for custom environment variables
-const ALLOWED_ENV_PREFIXES = ["CUSTOM_", "PROJECT_", "USER_", "npm_config_", "NODE_"];
-
-/**
- * Sanitizes environment variables to prevent command injection
- * Removes null bytes and control characters, and only allows safe prefixes
- */
-function sanitizeEnvVars(env: Record<string, string> = {}): Record<string, string> {
-  const result: Record<string, string> = {};
-
-  for (const [key, value] of Object.entries(env)) {
-    // Remove null bytes and control characters from key and value
-    const cleanKey = key.replace(/[\x00-\x1F]/g, "");
-    const cleanValue = String(value).replace(/[\x00-\x1F]/g, "");
-
-    // Only allow variables with safe prefixes or built-in environment variables
-    const isAllowedPrefix = ALLOWED_ENV_PREFIXES.some((prefix) => cleanKey.startsWith(prefix));
-    const isBuiltinEnv = [
-      "PATH",
-      "Path",
-      "TERM",
-      "HOME",
-      "USER",
-      "USERPROFILE",
-      "LANG",
-      "LC_ALL",
-      "LC_CTYPE",
-      "COLORTERM",
-      "TERM_PROGRAM",
-      "TERM_PROGRAM_VERSION",
-      "MSYS2_PATH",
-      "NODE_ENV",
-      "DEBUG",
-    ].includes(cleanKey);
-
-    if (isAllowedPrefix || isBuiltinEnv) {
-      result[cleanKey] = cleanValue;
-    }
-  }
-
-  return result;
-}
 
 /**
  * Validate terminal command to prevent obvious injection attacks
@@ -145,21 +103,40 @@ export function createTerminalRouter(
     return next;
   }
 
-  function createTerminalSession(
+  async function createTerminalSession(
     deck: Deck,
     title?: string,
     command?: string,
-    options?: { id?: string; initialBuffer?: string; skipDbSave?: boolean }
-  ): TerminalSession {
+    options?: {
+      id?: string;
+      initialBuffer?: string;
+      skipDbSave?: boolean;
+      shellId?: string;
+      envOverrides?: Record<string, string>;
+    }
+  ): Promise<TerminalSession> {
     const id = options?.id || crypto.randomUUID();
 
     // Determine shell and arguments
     let shell: string;
     let shellArgs: string[] = [];
+    let shellName = "unknown";
 
-    if (command) {
+    if (options?.shellId) {
+      // Use specified shell
+      const shellInfo = await getShellById(options.shellId);
+      if (shellInfo) {
+        shell = shellInfo.path;
+        shellArgs = shellInfo.args;
+        shellName = shellInfo.name;
+      } else {
+        // Shell not found, fall back to default
+        console.warn(`[TERMINAL] Shell ${options.shellId} not found, using default`);
+        shell = getDefaultShellPath();
+      }
+    } else if (command) {
       // Run custom command through shell
-      const defaultShell = getDefaultShell();
+      const defaultShell = getDefaultShellPath();
       const isBash = defaultShell.toLowerCase().includes("bash");
 
       if (process.platform === "win32") {
@@ -184,7 +161,7 @@ export function createTerminalRouter(
       }
     } else {
       // Default shell with no arguments
-      shell = getDefaultShell();
+      shell = getDefaultShellPath();
     }
 
     const env: Record<string, string> = {};
@@ -194,6 +171,12 @@ export function createTerminalRouter(
       if (value !== undefined) {
         env[key] = value;
       }
+    }
+
+    // Apply sanitized environment overrides from the request (if any).
+    if (options?.envOverrides) {
+      const safeOverrides = sanitizeEnvVars(options.envOverrides);
+      Object.assign(env, safeOverrides);
     }
 
     // Ensure PATH includes user's local bin for commands like claude
@@ -265,11 +248,11 @@ export function createTerminalRouter(
       const spawnTime = Date.now() - spawnStart;
 
       console.log(
-        `[TERMINAL] Spawned terminal ${id}: shell=${shell}, pid=${term.pid}, cwd=${deck.root}`
+        `[TERMINAL] Spawned terminal ${id}: shell=${shellName || shell}, pid=${term.pid}, cwd=${deck.root}`
       );
       if (command) {
         console.log(
-          `[TERMINAL] Created terminal ${id} with command="${command}" using shell=${shell} args=${JSON.stringify(shellArgs)}`
+          `[TERMINAL] Created terminal ${id} with command="${command}" using shell=${shellName || shell} args=${JSON.stringify(shellArgs)}`
         );
       } else {
         console.log(
@@ -479,7 +462,13 @@ export function createTerminalRouter(
 
   router.post("/", async (c) => {
     try {
-      const body = await readJson<{ deckId?: string; title?: string; command?: string }>(c);
+      const body = await readJson<{
+        deckId?: string;
+        title?: string;
+        command?: string;
+        shellId?: string;
+        env?: Record<string, string>;
+      }>(c);
       const deckId = body?.deckId;
       if (!deckId) {
         throw createHttpError("deckId is required", 400);
@@ -494,7 +483,10 @@ export function createTerminalRouter(
         validateCommand(body.command);
       }
 
-      const session = createTerminalSession(deck, body?.title, body?.command);
+      const session = await createTerminalSession(deck, body?.title, body?.command, {
+        shellId: body?.shellId,
+        envOverrides: body?.env,
+      });
       return c.json({ id: session.id, title: session.title }, 201);
     } catch (error) {
       return handleError(c, error);
@@ -551,7 +543,7 @@ export function createTerminalRouter(
   });
 
   // Function to restore terminals from persisted data
-  function restoreTerminals(persistedTerminals: PersistedTerminal[]): void {
+  async function restoreTerminals(persistedTerminals: PersistedTerminal[]): Promise<void> {
     for (const persisted of persistedTerminals) {
       const deck = decks.get(persisted.deckId);
       if (!deck) {
@@ -571,7 +563,7 @@ export function createTerminalRouter(
           validateCommand(persisted.command);
         }
 
-        createTerminalSession(deck, persisted.title, persisted.command || undefined, {
+        await createTerminalSession(deck, persisted.title, persisted.command || undefined, {
           id: persisted.id,
           initialBuffer: persisted.buffer,
           skipDbSave: true,

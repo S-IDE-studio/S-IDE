@@ -4,56 +4,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-// Import the sanitizeEnvVars function
-// Note: We need to access it from the terminals module
-// For now, we'll test the logic independently
+import { sanitizeEnvVars } from "../../utils/env.js";
 
 describe("Environment Variable Sanitization", () => {
-  // Allowed prefixes from terminals.ts
-  const ALLOWED_ENV_PREFIXES = ["CUSTOM_", "PROJECT_", "USER_", "npm_config_", "NODE_"];
-
-  // Builtin environment variables
-  const BUILTIN_ENV_VARS = [
-    "PATH",
-    "Path",
-    "TERM",
-    "HOME",
-    "USER",
-    "USERPROFILE",
-    "LANG",
-    "LC_ALL",
-    "LC_CTYPE",
-    "COLORTERM",
-    "TERM_PROGRAM",
-    "TERM_PROGRAM_VERSION",
-    "MSYS2_PATH",
-    "NODE_ENV",
-    "DEBUG",
-  ];
-
-  function sanitizeEnvVars(env: Record<string, string> = {}): Record<string, string> {
-    const result: Record<string, string> = {};
-
-    for (const [key, value] of Object.entries(env)) {
-      // Remove null bytes and control characters from key and value
-      // biome-ignore lint/suspicious/noControlCharactersInRegex: Testing control character sanitization
-      const cleanKey = key.replace(/[\x00-\x1F]/g, "");
-      // biome-ignore lint/suspicious/noControlCharactersInRegex: Testing control character sanitization
-      const cleanValue = String(value).replace(/[\x00-\x1F]/g, "");
-
-      // Only allow variables with safe prefixes or built-in environment variables
-      const isAllowedPrefix = ALLOWED_ENV_PREFIXES.some((prefix) => cleanKey.startsWith(prefix));
-      const isBuiltinEnv = BUILTIN_ENV_VARS.includes(cleanKey);
-
-      if (isAllowedPrefix || isBuiltinEnv) {
-        result[cleanKey] = cleanValue;
-      }
-    }
-
-    return result;
-  }
-
   describe("prefix validation", () => {
     it("should allow variables with allowed prefixes", () => {
       const input = {

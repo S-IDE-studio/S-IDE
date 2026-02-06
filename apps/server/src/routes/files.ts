@@ -198,9 +198,16 @@ export function createFileRouter(workspaces: Map<string, Workspace>) {
       if (!workspaceId) {
         throw createHttpError("workspaceId is required", 400);
       }
+      const requestedPath = c.req.query("path");
+      if (!requestedPath) {
+        throw createHttpError("path is required", 400);
+      }
       const workspace = requireWorkspace(workspaces, workspaceId);
-      const target = await resolveSafePath(workspace.path, c.req.query("path") || "");
+      const target = await resolveSafePath(workspace.path, requestedPath);
       const stats = await fs.stat(target);
+      if (!stats.isFile()) {
+        throw createHttpError("Path is not a file", 400);
+      }
       if (stats.size > MAX_FILE_SIZE) {
         throw createHttpError(
           `File too large (${Math.round(stats.size / 1024 / 1024)}MB). Maximum size is ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB.`,
@@ -208,7 +215,7 @@ export function createFileRouter(workspaces: Map<string, Workspace>) {
         );
       }
       const contents = await fs.readFile(target, "utf8");
-      return c.json({ path: c.req.query("path"), contents });
+      return c.json({ path: requestedPath, contents });
     } catch (error) {
       return handleError(c, error);
     }
@@ -225,8 +232,11 @@ export function createFileRouter(workspaces: Map<string, Workspace>) {
       if (!workspaceId) {
         throw createHttpError("workspaceId is required", 400);
       }
+      if (!body?.path) {
+        throw createHttpError("path is required", 400);
+      }
       const workspace = requireWorkspace(workspaces, workspaceId);
-      const target = await resolveSafePath(workspace.path, body?.path || "");
+      const target = await resolveSafePath(workspace.path, body.path);
       const contents = body?.contents ?? "";
       const contentSize = Buffer.byteLength(contents, "utf8");
       if (contentSize > MAX_FILE_SIZE) {
@@ -237,7 +247,7 @@ export function createFileRouter(workspaces: Map<string, Workspace>) {
       }
 
       // Validate file extension for security
-      validateFileExtension(body?.path || "");
+      validateFileExtension(body.path);
 
       await fs.mkdir(path.dirname(target), { recursive: true });
       await fs.writeFile(target, contents, "utf8");
@@ -279,6 +289,13 @@ export function createFileRouter(workspaces: Map<string, Workspace>) {
       }
 
       const contents = body?.contents ?? "";
+      const contentSize = Buffer.byteLength(contents, "utf8");
+      if (contentSize > MAX_FILE_SIZE) {
+        throw createHttpError(
+          `Content size exceeds maximum allowed size of ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB`,
+          413
+        );
+      }
       await fs.mkdir(path.dirname(target), { recursive: true });
       await fs.writeFile(target, contents, "utf8");
       return c.json({ path: body.path, created: true });
