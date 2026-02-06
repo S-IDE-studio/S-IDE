@@ -1,6 +1,6 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { deleteWorkspace, getConfig, getWsBase } from "./api";
+import { getConfig, getWsBase, listFiles } from "./api";
 import { CommonSettings } from "./components/AgentSettings";
 import { ContextStatus } from "./components/ContextStatus";
 import { DeckModal } from "./components/DeckModal";
@@ -36,6 +36,7 @@ import { useWorkspaces } from "./hooks/useWorkspaces";
 import type { EditorFile, PanelGroup, PanelLayout, SidebarPanel, WorkspaceMode } from "./types";
 import { createEditorGroup, createSingleGroupLayout } from "./utils/editorGroupUtils";
 import { createEmptyDeckState, createEmptyWorkspaceState } from "./utils/stateUtils";
+import { toTreeNodes } from "./utils";
 import {
   agentToTab,
   createEmptyPanelGroup,
@@ -94,7 +95,7 @@ export default function App() {
     useWorkspaceContext();
   const { deckStates, setDeckStates, updateDeckState, initializeDeckStates } = useDeckContext();
 
-  const { workspaces, editorWorkspaceId, setEditorWorkspaceId, handleCreateWorkspace } =
+  const { workspaces, editorWorkspaceId, setEditorWorkspaceId, handleCreateWorkspace, handleDeleteWorkspace } =
     useWorkspaces({
       setStatusMessage,
       defaultRoot,
@@ -821,6 +822,9 @@ export default function App() {
   // Track if we've loaded tree for current workspace
   const treeLoadedRef = useRef<string | null>(null);
 
+  // Track which deck workspace trees we've loaded
+  const deckWorkspaceTreesLoadedRef = useRef<Set<string>>(new Set());
+
   // Refresh file tree when opening workspace editor
   useEffect(() => {
     if (workspaceMode !== "editor" || !editorWorkspaceId) {
@@ -835,6 +839,62 @@ export default function App() {
       refreshGitStatus();
     }
   }, [workspaceMode, editorWorkspaceId, handleRefreshTree, refreshGitStatus]);
+
+  // Initialize workspace states for all deck workspace IDs when decks are loaded
+  useEffect(() => {
+    if (decks.length === 0) return;
+
+    const deckWorkspaceIds = [...new Set(decks.map((d) => d.workspaceId))];
+    initializeWorkspaceStates(deckWorkspaceIds);
+  }, [decks, initializeWorkspaceStates]);
+
+  // Load file tree for deck workspaces when deck tab is activated
+  useEffect(() => {
+    // Find the active tab across all panel groups
+    const activeGroup = panelGroups.find((g) => g.focused) || panelGroups[0];
+    if (!activeGroup || !activeGroup.activeTabId) return;
+
+    const activeTab = activeGroup.tabs.find((t) => t.id === activeGroup.activeTabId);
+    if (!activeTab || activeTab.kind !== "deck" || !activeTab.data.deck) return;
+
+    const deckWorkspaceId = activeTab.data.deck.workspaceId;
+    if (!deckWorkspaceId) return;
+
+    // Only load if we haven't loaded for this workspace yet
+    if (!deckWorkspaceTreesLoadedRef.current.has(deckWorkspaceId)) {
+      deckWorkspaceTreesLoadedRef.current.add(deckWorkspaceId);
+
+      // Load file tree for this deck's workspace
+      const abortController = new AbortController();
+
+      updateWorkspaceState(deckWorkspaceId, (state) => ({
+        ...state,
+        treeLoading: true,
+        treeError: null,
+      }));
+
+      listFiles(deckWorkspaceId, "")
+        .then((entries) => {
+          if (abortController.signal.aborted) return;
+          updateWorkspaceState(deckWorkspaceId, (state) => ({
+            ...state,
+            tree: toTreeNodes(entries),
+            treeLoading: false,
+          }));
+        })
+        .catch((error: unknown) => {
+          if (!abortController.signal.aborted) {
+            updateWorkspaceState(deckWorkspaceId, (state) => ({
+              ...state,
+              treeLoading: false,
+              treeError: error instanceof Error ? error.message : String(error),
+            }));
+          }
+        });
+
+      return () => abortController.abort();
+    }
+  }, [panelGroups, decks, updateWorkspaceState]);
 
   const handleOpenDeckModal = useCallback(() => {
     if (workspaces.length === 0) {
@@ -1091,26 +1151,7 @@ export default function App() {
         }}
         onAddServerTab={handleAddServerTab}
         onAddTunnelTab={handleAddTunnelTab}
-        onDeleteWorkspace={async (workspaceId) => {
-          try {
-            await deleteWorkspace(workspaceId);
-            // Remove workspace from local state
-            setWorkspaces((prev) => prev.filter((w) => w.id !== workspaceId));
-            // Clear workspace state
-            setWorkspaceStates((prev) => {
-              const newState = { ...prev };
-              delete newState[workspaceId];
-              return newState;
-            });
-            // If deleted workspace was active, clear selection
-            if (editorWorkspaceId === workspaceId) {
-              setEditorWorkspaceId(null);
-            }
-          } catch (error) {
-            console.error("Failed to delete workspace:", error);
-            setStatusMessage("ワークスペースを削除できませんでした");
-          }
-        }}
+        onDeleteWorkspace={handleDeleteWorkspace}
         onUpdateWorkspaceColor={(workspaceId, color) => {
           setWorkspaces((prev) =>
             prev.map((w) => (w.id === workspaceId ? { ...w, color } : w))

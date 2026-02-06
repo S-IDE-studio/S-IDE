@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { createWorkspace as apiCreateWorkspace, listWorkspaces } from "../api";
+import { createWorkspace as apiCreateWorkspace, deleteWorkspace as apiDeleteWorkspace, listWorkspaces } from "../api";
 import type { Workspace } from "../types";
 import { createEmptyWorkspaceState, getErrorMessage, normalizeWorkspacePath } from "../utils";
 
@@ -95,10 +95,34 @@ export const useWorkspaces = ({
     [workspaces, defaultRoot, setStatusMessage, setWorkspaceStates]
   );
 
+  const handleDeleteWorkspace = useCallback(
+    async (workspaceId: string) => {
+      try {
+        await apiDeleteWorkspace(workspaceId);
+        // Remove from local state
+        setWorkspaces((prev) => prev.filter((w) => w.id !== workspaceId));
+        // Clear workspace state
+        setWorkspaceStates((prev) => {
+          const newState = { ...prev };
+          delete newState[workspaceId];
+          return newState;
+        });
+        // If deleted workspace was active, clear selection
+        setEditorWorkspaceId((prev) => (prev === workspaceId ? null : prev));
+      } catch (error: unknown) {
+        setStatusMessage(
+          `\u30ef\u30fc\u30af\u30b9\u30da\u30fc\u30b9\u3092\u524a\u9664\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f: ${getErrorMessage(error)}`
+        );
+      }
+    },
+    [setStatusMessage, setWorkspaceStates]
+  );
+
   return {
     workspaces,
     editorWorkspaceId,
     setEditorWorkspaceId,
     handleCreateWorkspace,
+    handleDeleteWorkspace,
   };
 };

@@ -174,6 +174,7 @@ export function createWorkspace(path: string): Promise<Workspace> {
  * Deletes a workspace
  */
 export function deleteWorkspace(workspaceId: string): Promise<{ success: boolean }> {
+  console.log("[API] Deleting workspace:", workspaceId);
   return request<{ success: boolean }>(`/api/workspaces/${workspaceId}`, {
     method: HTTP_METHOD_DELETE,
   });
