@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef } from "react";
-import { Terminal } from "xterm";
+import { type IDisposable, Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import { Unicode11Addon } from "xterm-addon-unicode11";
 import { WebLinksAddon } from "xterm-addon-web-links";
@@ -36,6 +36,7 @@ export function TerminalPanelContent({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
+  const dataDisposableRef = useRef<IDisposable | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -159,6 +160,16 @@ export function TerminalPanelContent({
     const connect = async (isReconnect = false) => {
       if (cancelled) return;
 
+      // Dispose previous data handler if exists
+      if (dataDisposableRef.current) {
+        try {
+          dataDisposableRef.current.dispose();
+        } catch {
+          // Ignore dispose errors
+        }
+        dataDisposableRef.current = null;
+      }
+
       try {
         const { token, authEnabled } = await getWsToken();
         if (cancelled) return;
@@ -206,9 +217,11 @@ export function TerminalPanelContent({
           }
         });
 
-        const dataDisposable = term.onData((data) => {
-          if (socket && socket.readyState === WebSocket.OPEN) {
-            socket.send(data);
+        // Set up data handler using socketRef.current (closure will use current value)
+        dataDisposableRef.current = term.onData((data) => {
+          const currentSocket = socketRef.current;
+          if (currentSocket && currentSocket.readyState === WebSocket.OPEN) {
+            currentSocket.send(data);
           }
         });
       } catch (err) {
@@ -233,6 +246,17 @@ export function TerminalPanelContent({
         clearTimeout(reconnectTimeout);
       }
       resizeObserver.disconnect();
+
+      // Dispose data handler
+      if (dataDisposableRef.current) {
+        try {
+          dataDisposableRef.current.dispose();
+        } catch {
+          // Ignore dispose errors
+        }
+        dataDisposableRef.current = null;
+      }
+
       if (socketRef.current) {
         socketRef.current.close();
       }
