@@ -67,7 +67,7 @@ jobs:
           security find-identity -v build.keychain
 
       - name: Build desktop app
-        run: pnpm --filter @side-ide/desktop tauri build ${{ matrix.args }}
+        run: pnpm --filter side-desktop tauri build ${{ matrix.args }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_SIGNING_IDENTITY: ${{ matrix.platform == 'macos-latest' && 'Developer ID Application' || '' }}
