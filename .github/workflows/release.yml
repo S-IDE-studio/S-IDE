@@ -17,9 +17,6 @@ jobs:
           - platform: 'macos-14'
             args: '--target aarch64-apple-darwin'
             stable_macos: 's-ide-macos-arm64.dmg'
-          - platform: 'macos-13'
-            args: '--target x86_64-apple-darwin'
-            stable_macos: 's-ide-macos-x64.dmg'
           - platform: 'windows-latest'
             args: ''
           - platform: 'ubuntu-latest'
@@ -44,7 +41,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ startsWith(matrix.platform, 'macos') && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
@@ -59,7 +56,7 @@ jobs:
         run: pnpm --filter @side-ide/shared run build
 
       - name: Import Apple Certificate (macOS only)
-        if: matrix.platform == 'macos-latest'
+        if: startsWith(matrix.platform, 'macos')
         run: |
           echo "${{ secrets.APPLE_CERTIFICATE }}" | base64 --decode > certificate.p12
           security create-keychain -p actions build.keychain
@@ -74,7 +71,7 @@ jobs:
         run: pnpm --filter side-desktop tauri build ${{ matrix.args }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_SIGNING_IDENTITY: ${{ matrix.platform == 'macos-latest' && 'Developer ID Application' || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ startsWith(matrix.platform, 'macos') && 'Developer ID Application' || '' }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
