@@ -142,6 +142,18 @@ export interface CreateDeckRequest {
 export interface CreateTerminalRequest {
   deckId: string;
   title?: string;
+  command?: string;
+  shellId?: string;
+}
+
+// Shell information for terminal creation
+export interface ShellInfo {
+  id: string;
+  name: string;
+  path: string;
+  args: string[];
+  icon?: string;
+  category: "default" | "wsl" | "git" | "other";
 }
 
 export interface SaveFileRequest {

@@ -11,7 +11,7 @@ import { ServerPanelContent } from "./ServerPanelContent";
 import { ServerSettingsPanelContent } from "./ServerSettingsPanelContent";
 import { SetupPanelContent } from "./SetupPanelContent";
 import { TerminalPanelContent } from "./TerminalPanelContent";
-import { TunnelPanelContent } from "./TunnelPanelContent";
+import { RemoteAccessPanelContent } from "./RemoteAccessPanelContent";
 import { WorkspacePanel } from "./WorkspacePanel";
 
 interface PanelContentProps {
@@ -166,8 +166,9 @@ export function PanelContent({
       return <ServerPanelContent />;
     case "mcp":
       return <McpPanelContent />;
-    case "tunnel":
-      return <TunnelPanelContent />;
+    case "remoteAccess":
+    case "tunnel": // Legacy alias
+      return <RemoteAccessPanelContent />;
     case "serverSettings":
       return <ServerSettingsPanelContent />;
     case "agentStatus":

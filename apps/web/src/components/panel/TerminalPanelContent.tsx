@@ -119,7 +119,46 @@ export function TerminalPanelContent({
       if (cancelled) return;
       try {
         if (containerRef.current) {
+          // Set tabindex to make container focusable for keyboard events
+          containerRef.current.tabIndex = 0;
           term.open(containerRef.current);
+
+          // Find the canvas element and ensure it can receive keyboard events
+          const canvas = containerRef.current.querySelector("canvas");
+          if (canvas) {
+            canvas.tabIndex = 0;
+            console.log("[Terminal] Found canvas element, setting tabindex");
+          } else {
+            console.warn("[Terminal] No canvas element found after open");
+          }
+
+          // Focus terminal when opened and on click
+          const focusHandler = () => {
+            console.log("[Terminal] Click handler: focusing terminal");
+            term.focus();
+            if (canvas) canvas.focus();
+          };
+          containerRef.current.addEventListener("click", focusHandler);
+
+          // Debug: Track keydown events on container
+          containerRef.current.addEventListener("keydown", (e) => {
+            console.log(
+              "[Terminal] Container keydown:",
+              e.key,
+              "target:",
+              e.target,
+              "currentTarget:",
+              e.currentTarget
+            );
+          });
+
+          // Initial focus after a delay to ensure DOM is ready
+          requestAnimationFrame(() => {
+            term.focus();
+            if (canvas) canvas.focus();
+            console.log("[Terminal] Initial focus applied, terminal element:", term.element);
+          });
+          console.log("[Terminal] Opened terminal with rows:", term.rows, "cols:", term.cols);
         }
       } catch (err) {
         console.warn("[Terminal] Error during terminal open:", err);
@@ -174,11 +213,15 @@ export function TerminalPanelContent({
         const { token, authEnabled } = await getWsToken();
         if (cancelled) return;
 
-        const finalUrl = authEnabled ? `${wsBase}/api/terminals/${terminal.id}?token=${token}` : `${wsBase}/api/terminals/${terminal.id}`;
+        const finalUrl = authEnabled
+          ? `${wsBase}/api/terminals/${terminal.id}?token=${token}`
+          : `${wsBase}/api/terminals/${terminal.id}`;
+        console.log("[Terminal] Connecting to WebSocket:", finalUrl);
         const socket = new WebSocket(finalUrl);
         socketRef.current = socket;
 
         socket.addEventListener("open", () => {
+          console.log("[Terminal] WebSocket opened for terminal:", terminal.id);
           reconnectAttempts = 0;
           hasConnectedOnce = true;
           sendResize();
@@ -187,6 +230,15 @@ export function TerminalPanelContent({
           } else {
             term.write(`\r\n${TEXT_CONNECTED}\r\n\r\n`);
           }
+        });
+
+        socket.addEventListener("error", (event) => {
+          console.error("[Terminal] WebSocket error:", event);
+          console.error("[Terminal] WebSocket readyState:", socket.readyState);
+        });
+
+        socket.addEventListener("close", (event) => {
+          console.log("[Terminal] WebSocket closed:", event.code, event.reason);
         });
 
         socket.addEventListener("message", (event) => {
@@ -219,11 +271,26 @@ export function TerminalPanelContent({
 
         // Set up data handler using socketRef.current (closure will use current value)
         dataDisposableRef.current = term.onData((data) => {
+          console.log(
+            "[Terminal] onData fired:",
+            JSON.stringify(data),
+            "socket state:",
+            socketRef.current?.readyState
+          );
           const currentSocket = socketRef.current;
           if (currentSocket && currentSocket.readyState === WebSocket.OPEN) {
+            console.log("[Terminal] Sending data to WebSocket:", JSON.stringify(data));
             currentSocket.send(data);
+          } else {
+            console.warn(
+              "[Terminal] Cannot send - socket not open. State:",
+              currentSocket?.readyState,
+              "WebSocket.OPEN:",
+              WebSocket.OPEN
+            );
           }
         });
+        console.log("[Terminal] onData handler registered for terminal:", terminal.id);
       } catch (err) {
         console.error("[Terminal] Failed to connect:", err);
         if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS && hasConnectedOnce) {

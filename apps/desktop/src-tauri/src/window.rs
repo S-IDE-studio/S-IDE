@@ -2,7 +2,9 @@
 
 use tauri::{Emitter, Manager};
 use crate::common;
+use crate::remote_access;
 use tokio::sync::Mutex as TokioMutex;
+use serde_json::json;
 
 /// Global server handle for cleanup
 static SERVER_HANDLE: TokioMutex<Option<tokio::process::Child>> = TokioMutex::const_new(None);
@@ -108,6 +110,20 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
                 // Notify frontend that server is ready using emit() instead of eval()
                 let _ = app_handle.emit("server-ready", ());
+
+                // Auto-start Remote Access (HTTPS) if enabled in Desktop settings.
+                // This is best-effort: failures should not prevent app startup.
+                let ra_settings = remote_access::load_settings().await;
+                if ra_settings.auto_start {
+                    let port = read_server_port_from_settings().unwrap_or(crate::common::DEFAULT_PORT);
+                    println!("[Desktop] Remote Access auto-start enabled. Serving HTTPS for port {port}");
+                    if let Err(e) = remote_access::start_https(port).await {
+                        eprintln!("[Desktop] Failed to auto-start Remote Access: {e}");
+                        let _ = app_handle.emit("remote-access-error", json!({
+                            "message": format!("Failed to auto-start Remote Access: {e}")
+                        }));
+                    }
+                }
             }
             Err(e) => {
                 eprintln!("[Desktop] Failed to start server: {e}");
@@ -146,4 +162,15 @@ fn find_server_directory() -> Result<std::path::PathBuf, String> {
     }
 
     Err("Could not find server directory. Please run from the project root.".to_string())
+}
+
+/// Read configured server port from apps/server/settings.json (development).
+///
+/// In production builds, the server port may be fixed; we fall back to DEFAULT_PORT.
+fn read_server_port_from_settings() -> Option<u16> {
+    let server_dir = find_server_directory().ok()?;
+    let settings_path = server_dir.join("settings.json");
+    let raw = std::fs::read_to_string(settings_path).ok()?;
+    let v: serde_json::Value = serde_json::from_str(&raw).ok()?;
+    v.get("port").and_then(|p| p.as_u64()).and_then(|p| u16::try_from(p).ok())
 }

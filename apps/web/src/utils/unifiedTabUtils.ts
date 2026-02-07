@@ -110,17 +110,20 @@ export function serverToTab(): UnifiedTab {
 }
 
 /**
- * Create tunnel management tab
+ * Create Remote Access tab
  */
-export function tunnelToTab(): UnifiedTab {
+export function remoteAccessToTab(): UnifiedTab {
   return {
     id: generateTabId(),
-    kind: "tunnel",
+    kind: "remoteAccess",
     title: "Remote Access",
     // Icon is rendered by DraggableTab based on kind
-    data: { tunnel: { id: "tunnel", name: "Remote Access" } },
+    data: { remoteAccess: { id: "remote-access", name: "Remote Access" } },
   };
 }
+
+// Legacy alias (old code / persisted state may still call this).
+export const tunnelToTab = remoteAccessToTab;
 
 /**
  * Create MCP server management tab

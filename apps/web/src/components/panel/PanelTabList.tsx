@@ -19,6 +19,10 @@ interface PanelTabListProps {
   onContextMenuAction: (action: TabContextMenuAction, tab: UnifiedTab) => void;
   onTabDoubleClick?: (tab: UnifiedTab) => void;
   isDraggingOver?: boolean;
+  // Drag state from parent (for real-time preview)
+  activeDragId?: string | null;
+  // Real-time tabs state from parent (for visual feedback during drag)
+  realTimeTabs?: UnifiedTab[];
 }
 
 export function PanelTabList({
@@ -32,6 +36,8 @@ export function PanelTabList({
   onContextMenuAction,
   onTabDoubleClick,
   isDraggingOver,
+  activeDragId,
+  realTimeTabs,
 }: PanelTabListProps) {
   const [contextMenuTab, setContextMenuTab] = useState<UnifiedTab | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(
@@ -55,9 +61,11 @@ export function PanelTabList({
     [onContextMenuAction]
   );
 
-  const tabIds = useMemo(() => tabs.map((tab) => tab.id), [tabs]);
+  // Use real-time tabs during drag, otherwise use original tabs
+  const displayTabs = realTimeTabs || tabs;
+  const tabIds = useMemo(() => displayTabs.map((tab) => tab.id), [displayTabs]);
 
-  if (tabs.length === 0) {
+  if (displayTabs.length === 0) {
     return (
       <div className="panel-tabs-empty">
         <span className="panel-tabs-empty-text">No tabs open</span>
@@ -70,11 +78,13 @@ export function PanelTabList({
       <div className={`panel-tabs-container ${isDraggingOver ? "drag-over" : ""}`}>
         <SortableContext items={tabIds} strategy={horizontalListSortingStrategy}>
           <div className="panel-tabs">
-            {tabs.map((tab) => (
+            {displayTabs.map((tab) => (
               <MemoizedDraggableTab
                 key={tab.id}
                 tab={tab}
+                groupId={groupId}
                 isActive={tab.id === activeTabId}
+                isDragging={tab.id === activeDragId}
                 onSelect={onTabSelect}
                 onClose={onTabClose}
                 onContextMenu={handleContextMenu}

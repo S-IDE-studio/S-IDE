@@ -64,13 +64,6 @@ export function isBasicAuthEnabled(): boolean {
 }
 
 export function verifyWebSocketAuth(req: import("http").IncomingMessage): boolean {
-  // If auth is not configured, deny access for security (require explicit opt-in)
-  if (!BASIC_AUTH_USER || !BASIC_AUTH_PASSWORD) {
-    // Log security event: unauthenticated WebSocket connection attempted
-    console.warn("[SECURITY] WebSocket connection attempted without authentication configured");
-    return false;
-  }
-
   // Extract IP address from various headers with validation
   const forwardedFor = req.headers["x-forwarded-for"];
   const realIp = req.headers["x-real-ip"];
@@ -102,7 +95,13 @@ export function verifyWebSocketAuth(req: import("http").IncomingMessage): boolea
     return true;
   }
 
-  // Fall back to Basic Auth header with timing-safe comparison
+  // If no valid token and Basic Auth is configured, check Basic Auth
+  if (!BASIC_AUTH_USER || !BASIC_AUTH_PASSWORD) {
+    // No auth configured, allow connection for local development
+    return true;
+  }
+
+  // Basic Auth is configured, require valid credentials
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Basic ")) {
     return false;

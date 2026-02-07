@@ -10,7 +10,7 @@ interface TerminalPaneProps {
   onDeleteTerminal: (terminalId: string) => void;
   onReorderTerminals?: (deckId: string, newOrder: TerminalSession[]) => void;
   terminalGroups?: TerminalGroup[];
-  onCreateTerminal?: () => void;
+  onCreateTerminal?: (shellId?: string) => void;
   onToggleGroupCollapsed?: (groupId: string) => void;
   onDeleteGroup?: (groupId: string) => void;
   onRenameGroup?: (groupId: string) => void;

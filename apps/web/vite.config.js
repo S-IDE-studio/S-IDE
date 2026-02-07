@@ -29,6 +29,7 @@ export default defineConfig(({ mode }) => ({
       "/api": {
         target: "http://localhost:8787",
         changeOrigin: true,
+        ws: true, // Enable WebSocket proxy for /api paths
       },
       "/ws": {
         target: "ws://localhost:8787",

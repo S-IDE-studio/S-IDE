@@ -4,6 +4,8 @@ use std::time::Duration;
 
 use crate::common::DEFAULT_PORT;
 use crate::server;
+use crate::tailscale;
+use crate::remote_access;
 use crate::tunnel;
 use crate::ServerState;
 use crate::TunnelState;
@@ -157,14 +159,17 @@ pub async fn start_tunnel(
     }
 
     let handle = tunnel::start(port).map_err(|e| e)?;
+
+    // Wait a bit for URL to be captured
+    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+
     let url = tunnel::get_url(&handle).await;
 
     *tunnel_state = Some(handle);
 
-    match url {
-        Some(u) => Ok(u),
-        None => Err("Tunnel started but URL not available".to_string()),
-    }
+    // Return success even if URL is not yet available
+    // Frontend can poll get_tunnel_status for the URL
+    Ok(url.unwrap_or_else(|| "Tunnel starting...".to_string()))
 }
 
 /// Stops the local tunnel
@@ -194,14 +199,13 @@ pub async fn stop_tunnel(state: State<'_, TunnelState>) -> CommandResult<String>
 pub async fn get_tunnel_status(state: State<'_, TunnelState>) -> CommandResult<TunnelStatus> {
     let tunnel_state = state.0.lock().await;
     let running = tunnel_state.is_some();
-    let (url, password) = if let Some(handle) = tunnel_state.as_ref() {
-        let url = tunnel::get_url(handle).await;
-        let password = tunnel::get_password(handle).await;
-        (url, password)
+    let url = if let Some(handle) = tunnel_state.as_ref() {
+        tunnel::get_url(handle).await
     } else {
-        (None, None)
+        None
     };
-    Ok(TunnelStatus { running, url, password })
+    // Password is always None for localtunnel (uses IP-based verification)
+    Ok(TunnelStatus { running, url, password: None })
 }
 
 /// Status information for the tunnel
@@ -213,6 +217,51 @@ pub struct TunnelStatus {
     pub url: Option<String>,
     /// The password for accessing the tunnel (if available)
     pub password: Option<String>,
+}
+
+// Tailscale commands (Remote Access)
+
+/// Gets the current Tailscale status summary for Remote Access.
+///
+/// This shells out to `tailscale status --json` when the CLI is available.
+#[tauri::command]
+pub async fn get_tailscale_status() -> CommandResult<tailscale::TailscaleStatusSummary> {
+    Ok(tailscale::get_status_summary().await)
+}
+
+/// Gets Remote Access status (Tailscale + Serve + Desktop settings).
+#[tauri::command]
+pub async fn get_remote_access_status() -> CommandResult<remote_access::RemoteAccessStatus> {
+    Ok(remote_access::get_status().await)
+}
+
+/// Gets Desktop Remote Access settings.
+#[tauri::command]
+pub async fn get_remote_access_settings() -> CommandResult<remote_access::RemoteAccessSettings> {
+    Ok(remote_access::load_settings().await)
+}
+
+/// Sets Desktop Remote Access settings.
+#[tauri::command]
+pub async fn set_remote_access_settings(auto_start: bool) -> CommandResult<String> {
+    let settings = remote_access::RemoteAccessSettings { auto_start };
+    remote_access::save_settings(&settings).await?;
+    Ok("Remote Access settings saved".to_string())
+}
+
+/// Start HTTPS Remote Access via `tailscale serve`.
+#[tauri::command]
+pub async fn start_remote_access_https(port: u16) -> CommandResult<String> {
+    crate::common::validate_port(port)?;
+    remote_access::start_https(port).await?;
+    Ok(format!("Remote Access enabled (HTTPS -> localhost:{port})"))
+}
+
+/// Stop Remote Access (`tailscale serve reset`).
+#[tauri::command]
+pub async fn stop_remote_access() -> CommandResult<String> {
+    remote_access::stop().await?;
+    Ok("Remote Access disabled".to_string())
 }
 
 // Environment check commands

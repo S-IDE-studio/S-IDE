@@ -1,5 +1,5 @@
 /**
- * Server Panel Content - Local server list with tunnel integration
+ * Server Panel Content - Local server list with remote access integration
  */
 
 import { ServerListPanel } from "../ServerListPanel";

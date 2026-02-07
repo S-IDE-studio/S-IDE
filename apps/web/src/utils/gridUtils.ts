@@ -748,6 +748,91 @@ export function migrateToGridState(
 }
 
 /**
+ * Find the nearest sibling leaf node to a given location
+ * Used for focus transfer when closing a panel
+ * @param state - Grid state
+ * @param location - Location of the leaf to find sibling for
+ * @returns Location and leaf of nearest sibling, or null if no siblings
+ */
+export function findNearestSiblingLeaf(
+  state: GridState,
+  location: GridLocation
+): [GridLocation, GridLeafNode] | null {
+  if (location.length === 0) {
+    return null; // Root has no siblings
+  }
+
+  const [parentLocation, index] = tail(location);
+  const parentNode = findNodeAtLocation(state, parentLocation);
+
+  if (!parentNode || !isGridBranchNode(parentNode)) {
+    return null; // Invalid parent
+  }
+
+  // Try to find a sibling leaf
+  const siblingIndices: number[] = [];
+
+  // Add previous sibling indices in reverse order (closest first)
+  for (let i = index - 1; i >= 0; i--) {
+    siblingIndices.push(i);
+  }
+
+  // Add next sibling indices
+  for (let i = index + 1; i < parentNode.children.length; i++) {
+    siblingIndices.push(i);
+  }
+
+  for (const siblingIndex of siblingIndices) {
+    const sibling = parentNode.children[siblingIndex];
+    const siblingLocation = [...parentLocation, siblingIndex];
+
+    // If sibling is a leaf, return it
+    if (isGridLeafNode(sibling)) {
+      return [siblingLocation, sibling];
+    }
+
+    // If sibling is a branch, find first leaf descendant
+    if (isGridBranchNode(sibling)) {
+      const firstLeaf = findFirstLeafInBranch(sibling, siblingLocation);
+      if (firstLeaf) {
+        return firstLeaf;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Find the first leaf node in a branch (depth-first search)
+ * @param branch - Branch node to search
+ * @param branchLocation - Location of the branch
+ * @returns Location and leaf of first descendant, or null if no leaves
+ */
+function findFirstLeafInBranch(
+  branch: GridBranchNode,
+  branchLocation: GridLocation
+): [GridLocation, GridLeafNode] | null {
+  for (let i = 0; i < branch.children.length; i++) {
+    const child = branch.children[i];
+    const childLocation = [...branchLocation, i];
+
+    if (isGridLeafNode(child)) {
+      return [childLocation, child];
+    }
+
+    if (isGridBranchNode(child)) {
+      const result = findFirstLeafInBranch(child, childLocation);
+      if (result) {
+        return result;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
  * Convert GridState back to flat PanelGroup[] array
  * This is used for backward compatibility during migration
  * @param state - Grid state
@@ -757,7 +842,10 @@ export function migrateToGridState(
 export function migrateFromGridState(
   state: GridState,
   panelGroupsMap: Record<string, PanelGroup>
-): { groups: PanelGroup[]; layout: { direction: "horizontal" | "vertical" | "single"; sizes: number[] } } {
+): {
+  groups: PanelGroup[];
+  layout: { direction: "horizontal" | "vertical" | "single"; sizes: number[] };
+} {
   const leaves = getAllLeaves(state);
 
   if (leaves.length === 0) {

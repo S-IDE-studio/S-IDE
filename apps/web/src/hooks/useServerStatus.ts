@@ -55,9 +55,23 @@ export function useServerStatus(): ServerStatus {
           setError(undefined);
           consecutiveFailures = 0;
         } else {
-          setStatus("stopped");
-          setPort(result.port);
-          setError(undefined);
+          // Avoid false negatives (e.g. server running on a non-default port, or transient state):
+          // verify via /health before claiming it's stopped.
+          const isHealthy = await checkServerHealth();
+          if (signal.aborted) return;
+
+          if (isHealthy) {
+            setStatus("running");
+            // Prefer the current origin port when API_BASE is same-origin.
+            const originPort = Number(window.location.port || DEFAULT_SERVER_PORT);
+            setPort(Number.isFinite(originPort) ? originPort : result.port);
+            setError(undefined);
+            consecutiveFailures = 0;
+          } else {
+            setStatus("stopped");
+            setPort(result.port);
+            setError(undefined);
+          }
         }
       } catch {
         // Not in Tauri environment - check health endpoint (web mode)

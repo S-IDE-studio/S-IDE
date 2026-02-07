@@ -41,8 +41,10 @@ import { createGitRouter } from "./routes/git.js";
 import { createLocalServerRouter } from "./routes/local-server.js";
 import { createSettingsRouter } from "./routes/settings.js";
 import { createSharedResourcesRouter } from "./routes/shared-resources.js";
+import { createShellsRouter } from "./routes/shells.js";
 import { createTerminalRouter } from "./routes/terminals.js";
 import { createTunnelRouter } from "./routes/tunnel.js";
+import { createTabsRouter } from "./routes/tabs.js";
 import { createWorkspaceRouter, getConfigHandler } from "./routes/workspaces.js";
 import type { Deck, TerminalSession, Workspace } from "./types.js";
 import {
@@ -53,6 +55,7 @@ import {
   loadPersistedTerminals,
   saveAllTerminalBuffers,
 } from "./utils/database.js";
+import { scanShells } from "./utils/shells.js";
 import {
   clearAllConnections,
   getConnectionLimit,
@@ -83,7 +86,7 @@ const requestIdMiddleware: MiddlewareHandler = async (c, next) => {
   }
 };
 
-export function createServer(portOverride?: number) {
+export async function createServer(portOverride?: number): Promise<Server> {
   // Use override port or default from config
   const serverPort = portOverride || PORT;
 
@@ -132,8 +135,6 @@ export function createServer(portOverride?: number) {
   );
 
   // Apply rate limiting to sensitive endpoints
-  // Auth endpoints (login attempts)
-  app.use("/api/ws-token", strictRateLimit);
   // Agent execution (prevents abuse)
   app.use("/api/agents/*/execute", strictRateLimit);
   app.use("/api/agents/*/send", mediumRateLimit);
@@ -180,6 +181,7 @@ export function createServer(portOverride?: number) {
   app.route("/api/settings", createSettingsRouter());
   app.route("/api/workspaces", createWorkspaceRouter(db, workspaces, workspacePathIndex));
   app.route("/api/decks", createDeckRouter(db, workspaces, decks));
+  app.route("/api/shells", createShellsRouter());
   const { router: terminalRouter, restoreTerminals } = createTerminalRouter(db, decks, terminals);
   app.route("/api/terminals", terminalRouter);
   app.route("/api/git", createGitRouter(workspaces));
@@ -190,12 +192,13 @@ export function createServer(portOverride?: number) {
   app.route("/api/mcp", agentRouter);
   app.route("/api/local-server", createLocalServerRouter());
   app.route("/api/tunnel", createTunnelRouter());
+  app.route("/api/tabs", createTabsRouter());
 
   // Restore persisted terminals
   const persistedTerminals = loadPersistedTerminals(db, decks);
   if (persistedTerminals.length > 0) {
     console.log(`[TERMINAL] Restoring ${persistedTerminals.length} terminal(s) from database...`);
-    restoreTerminals(persistedTerminals);
+    await restoreTerminals(persistedTerminals);
   }
 
   // Config endpoint
@@ -296,13 +299,26 @@ export function createServer(portOverride?: number) {
   setupWebSocketServer(server, terminals);
 
   // Server startup
-  server.on("listening", () => {
+  server.on("listening", async () => {
     const baseUrl = `http://localhost:${serverPort}`;
     console.log(`Deck IDE server listening on ${baseUrl}`);
     console.log(`UI: ${baseUrl}`);
     console.log(`API: ${baseUrl}/api`);
     console.log(`Health: ${baseUrl}/health`);
     console.log("");
+
+    // Scan for available shells on startup
+    try {
+      const shells = await scanShells();
+      console.log(`[SHELLS] Found ${shells.length} available shell(s)`);
+      for (const shell of shells) {
+        console.log(`  - ${shell.name} (${shell.id})`);
+      }
+    } catch (error) {
+      console.error("[SHELLS] Failed to scan shells:", error);
+    }
+    console.log("");
+
     console.log("Security Status:");
     console.log(
       `  - Basic Auth: ${BASIC_AUTH_USER && BASIC_AUTH_PASSWORD ? `enabled (user: ${BASIC_AUTH_USER})` : "DISABLED (WARNING: API is publicly accessible!)"}`

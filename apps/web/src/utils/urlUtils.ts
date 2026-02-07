@@ -3,6 +3,7 @@
  */
 
 import type { GridState, GroupLayout, PanelGroup } from "../types";
+import { migratePanelGroupsMapTabKinds, migratePanelGroupTabKinds } from "./tabMigration";
 
 type AppView = "workspace" | "terminal";
 type WorkspaceMode = "list" | "editor";
@@ -76,7 +77,9 @@ export function saveTabState(
   try {
     // Detect which overload was called based on types
     const isGridFormat =
-      typeof gridStateOrGroups === "object" && "root" in gridStateOrGroups && "orientation" in gridStateOrGroups;
+      typeof gridStateOrGroups === "object" &&
+      "root" in gridStateOrGroups &&
+      "orientation" in gridStateOrGroups;
 
     if (isGridFormat) {
       // New grid format
@@ -132,7 +135,7 @@ export function loadTabState():
       }
       return {
         gridState: state.gridState,
-        panelGroupsMap: state.panelGroupsMap,
+        panelGroupsMap: migratePanelGroupsMapTabKinds(state.panelGroupsMap),
         format: "grid",
       };
     }
@@ -147,7 +150,7 @@ export function loadTabState():
     }
 
     return {
-      panelGroups: state.panelGroups,
+      panelGroups: state.panelGroups.map(migratePanelGroupTabKinds),
       panelLayout: state.panelLayout,
       format: "old",
     };

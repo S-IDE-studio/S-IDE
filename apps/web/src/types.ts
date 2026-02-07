@@ -135,7 +135,8 @@ export type TabKind =
   | "editor" // Editor tab (file)
   | "server" // Local server monitor
   | "mcp" // MCP server management
-  | "tunnel" // Remote tunnel
+  | "remoteAccess" // Remote access (Tailscale)
+  | "tunnel" // Legacy: remote tunnel (migrated to remoteAccess)
   | "serverSettings" // Server settings
   | "agentStatus" // Agent status panel
   | "agentConfig" // Agent config (global)
@@ -149,6 +150,13 @@ export interface UnifiedTab {
   icon?: string;
   dirty?: boolean;
   pinned?: boolean;
+  /**
+   * Multi-device tabs sync:
+   * - `synced` tabs are mirrored from other clients and should not be persisted or re-advertised.
+   * - `syncKey` is a stable identifier used for union/merge across devices.
+   */
+  synced?: boolean;
+  syncKey?: string;
   data: {
     agent?: { id: string; name: string; icon: string };
     workspace?: { id: string; path: string; name: string };
@@ -156,7 +164,8 @@ export interface UnifiedTab {
     terminal?: { id: string; command: string; cwd: string; workspaceId?: string };
     editor?: EditorFile;
     server?: { id: string; name: string };
-    tunnel?: { id: string; name: string; url?: string; status?: string };
+    remoteAccess?: { id: string; name: string };
+    tunnel?: { id: string; name: string; url?: string; status?: string }; // Legacy
     mcp?: { id: string; name: string };
     serverSettings?: {};
     agentStatus?: {};

@@ -59,11 +59,13 @@ mod tests {
         let status_with_url = TunnelStatus {
             running: true,
             url: Some("https://example.com".to_string()),
+            password: None,
         };
 
         let status_without_url = TunnelStatus {
             running: false,
             url: None,
+            password: None,
         };
 
         assert_eq!(status_with_url.running, true);

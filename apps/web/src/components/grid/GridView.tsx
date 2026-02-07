@@ -4,6 +4,14 @@
  * Based on VSCode's gridview.ts implementation
  */
 
+import {
+  DndContext,
+  type DragEndEvent,
+  type DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import type {
   GridLocation,
@@ -43,8 +51,8 @@ export const DEFAULT_VIEW_CONSTRAINTS: ViewConstraints = {
  * Props for GridView component
  */
 export interface GridViewProps {
-  /** Grid state to render */
-  gridState: GridNode;
+  /** Root node of the grid tree to render */
+  rootNode: GridNode;
   /** Orientation of the root split */
   orientation?: GridOrientation;
   /** Panel groups data indexed by groupId */
@@ -187,7 +195,7 @@ function createInitialLayoutContext(
  * - Layout change propagation
  */
 export function GridView({
-  gridState,
+  rootNode,
   orientation = "vertical",
   panelGroups,
   width = 0,
@@ -238,19 +246,35 @@ export function GridView({
 }: GridViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [layoutEnabled, setLayoutEnabled] = useState(false);
-  const [currentGridState, setCurrentGridState] = useState<GridNode>(gridState);
+  const [currentGridState, setCurrentGridState] = useState<GridNode>(rootNode);
   const layoutContextRef = useRef<LayoutContext>(
     createInitialLayoutContext(width, height, orientation)
   );
-  // Drop target state
+  // Drop target state (for HTML5 drag-drop - panel splitting)
   const [dropTargetVisible, setDropTargetVisible] = useState(false);
   const [dropDirection, setDropDirection] = useState<SplitDirection | null>(null);
   const [dropLocation, setDropLocation] = useState<GridLocation>([]);
 
+  // dnd-kit drag state
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [activeDragData, setActiveDragData] = useState<{
+    tab: UnifiedTab;
+    groupId: string;
+  } | null>(null);
+
+  // Configure dnd-kit sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 5px movement before drag starts
+      },
+    })
+  );
+
   // Update grid state when prop changes
   useEffect(() => {
-    setCurrentGridState(gridState);
-  }, [gridState]);
+    setCurrentGridState(rootNode);
+  }, [rootNode]);
 
   // Update layout context when dimensions change
   useEffect(() => {
@@ -389,6 +413,84 @@ export function GridView({
     [isDragging, draggedTabId, dropDirection, dropLocation, onTabDrop]
   );
 
+  /**
+   * Handle drag start - track active drag for dnd-kit
+   */
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const { active } = event;
+    const data = active.data.current as { tab?: UnifiedTab; groupId?: string } | undefined;
+
+    if (data?.tab && data?.groupId) {
+      setActiveDragId(active.id as string);
+      setActiveDragData({
+        tab: data.tab,
+        groupId: data.groupId,
+      });
+    }
+  }, []);
+
+  /**
+   * Handle drag end - process drop for dnd-kit
+   * Detects: tab reordering, tab movement between panels
+   */
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      const dragData = activeDragData;
+
+      // Reset drag state
+      setActiveDragId(null);
+      setActiveDragData(null);
+
+      if (!dragData || !over) {
+        return;
+      }
+
+      const overData = over.data.current as
+        | { tab?: UnifiedTab; groupId?: string; type?: string }
+        | undefined;
+
+      if (!overData) {
+        return;
+      }
+
+      // Case 1: Dropped on another tab (reordering or moving)
+      if (overData.tab && overData.groupId) {
+        const targetTabId = overData.tab.id;
+        const targetGroupId = overData.groupId;
+
+        // Same panel: reorder tabs
+        if (dragData.groupId === targetGroupId) {
+          const sourceGroup = panelGroups[targetGroupId];
+          if (!sourceGroup) return;
+
+          const oldIndex = sourceGroup.tabs.findIndex((t) => t.id === dragData.tab.id);
+          const newIndex = sourceGroup.tabs.findIndex((t) => t.id === targetTabId);
+
+          if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+            onTabsReorder?.(targetGroupId, oldIndex, newIndex);
+          }
+        } else {
+          // Different panel: move tab to target panel
+          onTabMove?.(dragData.tab.id, dragData.groupId, targetGroupId);
+        }
+        return;
+      }
+
+      // Case 2: Dropped on a panel droppable area
+      if (overData.type === "panel" && overData.groupId) {
+        const targetGroupId = overData.groupId;
+
+        // If different panel, move the tab
+        if (dragData.groupId !== targetGroupId) {
+          onTabMove?.(dragData.tab.id, dragData.groupId, targetGroupId);
+        }
+        return;
+      }
+    },
+    [activeDragData, panelGroups, onTabsReorder, onTabMove]
+  );
+
   // Calculate container style
   const containerStyleCombined: React.CSSProperties = {
     ...containerStyle,
@@ -399,75 +501,78 @@ export function GridView({
   };
 
   return (
-    <div
-      ref={containerRef}
-      className={`grid-view ${className}`}
-      style={containerStyleCombined}
-      onDragOver={(e) => handleDragOver(e, [])}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
-      {layoutEnabled && (
-        <GridRenderer
-          node={currentGridState}
-          orientation={orientation}
-          layoutContext={layoutContextRef.current}
-          panelGroups={panelGroups}
-          onLayoutChange={handleLayoutChange}
-          onPanelResize={handlePanelResize}
-          getViewConstraints={getViewConstraints}
-          proportionalLayout={proportionalLayout}
-          location={[]}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          focusedPanelGroupId={focusedPanelGroupId}
-          onFocusPanel={onFocusPanel}
-          onSelectTab={onSelectTab}
-          onCloseTab={onCloseTab}
-          onTabsReorder={onTabsReorder}
-          onTabMove={onTabMove}
-          onSplitPanel={onSplitPanel}
-          onClosePanel={onClosePanel}
-          onContextMenuAction={onContextMenuAction}
-          onTabDoubleClick={onTabDoubleClick}
-          isDragging={isDragging}
-          draggedTabId={draggedTabId}
-          activeDeckIds={activeDeckIds}
-          decks={decks}
-          workspaceStates={workspaceStates}
-          gitFiles={gitFiles}
-          onToggleDir={onToggleDir}
-          onOpenFile={onOpenFile}
-          onRefreshTree={onRefreshTree}
-          onCreateFile={onCreateFile}
-          onCreateDirectory={onCreateDirectory}
-          onDeleteFile={onDeleteFile}
-          onDeleteDirectory={onDeleteDirectory}
-          updateWorkspaceState={updateWorkspaceState}
-          deckStates={deckStates}
-          wsBase={wsBase}
-          onDeleteTerminal={onDeleteTerminal}
-          onReorderTerminals={onReorderTerminals}
-          onCreateTerminal={onCreateTerminal}
-          onToggleGroupCollapsed={onToggleGroupCollapsed}
-          onDeleteGroup={onDeleteGroup}
-          onRenameGroup={onRenameGroup}
-          onDeckViewChange={onDeckViewChange}
-          onChangeFile={onChangeFile}
-          onSaveFile={onSaveFile}
-          savingFileId={savingFileId}
-        />
-      )}
-      {dropTargetVisible && dropDirection && (
-        <GridDropTarget
-          visible={dropTargetVisible}
-          direction={dropDirection}
-          width={width}
-          height={height}
-        />
-      )}
-    </div>
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <div
+        ref={containerRef}
+        className={`grid-view ${className}`}
+        style={containerStyleCombined}
+        onDragOver={(e) => handleDragOver(e, [])}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {layoutEnabled && (
+          <GridRenderer
+            node={currentGridState}
+            orientation={orientation}
+            layoutContext={layoutContextRef.current}
+            panelGroups={panelGroups}
+            onLayoutChange={handleLayoutChange}
+            onPanelResize={handlePanelResize}
+            getViewConstraints={getViewConstraints}
+            proportionalLayout={proportionalLayout}
+            location={[]}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            focusedPanelGroupId={focusedPanelGroupId}
+            onFocusPanel={onFocusPanel}
+            onSelectTab={onSelectTab}
+            onCloseTab={onCloseTab}
+            onTabsReorder={onTabsReorder}
+            onTabMove={onTabMove}
+            onSplitPanel={onSplitPanel}
+            onClosePanel={onClosePanel}
+            onContextMenuAction={onContextMenuAction}
+            onTabDoubleClick={onTabDoubleClick}
+            isDragging={isDragging}
+            draggedTabId={draggedTabId}
+            activeDragId={activeDragId}
+            activeDeckIds={activeDeckIds}
+            decks={decks}
+            workspaceStates={workspaceStates}
+            gitFiles={gitFiles}
+            onToggleDir={onToggleDir}
+            onOpenFile={onOpenFile}
+            onRefreshTree={onRefreshTree}
+            onCreateFile={onCreateFile}
+            onCreateDirectory={onCreateDirectory}
+            onDeleteFile={onDeleteFile}
+            onDeleteDirectory={onDeleteDirectory}
+            updateWorkspaceState={updateWorkspaceState}
+            deckStates={deckStates}
+            wsBase={wsBase}
+            onDeleteTerminal={onDeleteTerminal}
+            onReorderTerminals={onReorderTerminals}
+            onCreateTerminal={onCreateTerminal}
+            onToggleGroupCollapsed={onToggleGroupCollapsed}
+            onDeleteGroup={onDeleteGroup}
+            onRenameGroup={onRenameGroup}
+            onDeckViewChange={onDeckViewChange}
+            onChangeFile={onChangeFile}
+            onSaveFile={onSaveFile}
+            savingFileId={savingFileId}
+          />
+        )}
+        {dropTargetVisible && dropDirection && (
+          <GridDropTarget
+            visible={dropTargetVisible}
+            direction={dropDirection}
+            width={width}
+            height={height}
+          />
+        )}
+      </div>
+    </DndContext>
   );
 }
 
@@ -499,6 +604,7 @@ interface GridRendererProps {
   onTabDoubleClick?: (tab: UnifiedTab) => void;
   isDragging?: boolean;
   draggedTabId?: string | null;
+  activeDragId?: string | null;
   activeDeckIds?: string[];
   decks?: import("../../types").Deck[];
   workspaceStates?: Record<string, import("../../types").WorkspaceState>;
@@ -553,6 +659,7 @@ function GridRenderer({
   onTabDoubleClick,
   isDragging,
   draggedTabId,
+  activeDragId,
   activeDeckIds,
   decks,
   workspaceStates,
@@ -616,6 +723,7 @@ function GridRenderer({
             onTabDoubleClick={onTabDoubleClick}
             isDragging={isDragging}
             draggedTabId={draggedTabId}
+            activeDragId={activeDragId}
             activeDeckIds={activeDeckIds}
             decks={decks}
             workspaceStates={workspaceStates}
@@ -648,11 +756,20 @@ function GridRenderer({
     );
   }
 
+  // Get the panel group for this leaf, or create a default empty one
+  const panelGroup = panelGroups[node.groupId] ?? {
+    id: node.groupId,
+    tabs: [],
+    activeTabId: null,
+    focused: false,
+    percentage: node.size,
+  };
+
   return (
     <GridLeafNodeView
       node={node}
       layoutContext={layoutContext}
-      panelGroup={panelGroups[node.groupId]}
+      panelGroup={panelGroup}
       onResize={(width, height) => onPanelResize(node.groupId, width, height)}
       getViewConstraints={getViewConstraints}
       onDragOver={(e) => onDragOver(e, location)}
@@ -672,7 +789,7 @@ function GridRenderer({
       splitDirection={null}
       isSplitTarget={false}
       splitTargetLocation={null}
-      activeDragId={draggedTabId}
+      activeDragId={activeDragId ?? draggedTabId}
       activeDeckIds={activeDeckIds}
       decks={decks}
       workspaceStates={workspaceStates}

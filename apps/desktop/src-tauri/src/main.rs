@@ -6,6 +6,8 @@ mod common;
 mod commands;
 mod scanner;
 mod server;
+mod tailscale;
+mod remote_access;
 mod tunnel;
 mod window;
 
@@ -14,6 +16,8 @@ mod window;
 mod commands_tests;
 #[cfg(test)]
 mod server_tests;
+#[cfg(test)]
+mod tailscale_tests;
 #[cfg(test)]
 mod tunnel_tests;
 
@@ -38,6 +42,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(ServerState(TokioMutex::new(None)))
         .manage(TunnelState(TokioMutex::new(None)))
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             window::setup(app)?;
@@ -51,6 +56,12 @@ pub fn run() {
             commands::start_tunnel,
             commands::stop_tunnel,
             commands::get_tunnel_status,
+            commands::get_tailscale_status,
+            commands::get_remote_access_status,
+            commands::get_remote_access_settings,
+            commands::set_remote_access_settings,
+            commands::start_remote_access_https,
+            commands::stop_remote_access,
             commands::check_environment,
             commands::check_port,
             commands::scan_local_servers,

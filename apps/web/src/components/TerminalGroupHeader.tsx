@@ -5,7 +5,7 @@ interface TerminalGroupHeaderProps {
   group: TerminalGroup;
   terminalCount: number;
   onToggleCollapsed: () => void;
-  onCreateTerminal?: () => void;
+  onCreateTerminal?: (shellId?: string) => void;
   onDeleteGroup?: () => void;
   onRenameGroup?: () => void;
 }
@@ -30,7 +30,7 @@ export function TerminalGroupHeader({
           <button
             type="button"
             className="terminal-group-action-btn"
-            onClick={onCreateTerminal}
+            onClick={() => onCreateTerminal()}
             title="Add terminal to group"
           >
             <Plus size={12} />

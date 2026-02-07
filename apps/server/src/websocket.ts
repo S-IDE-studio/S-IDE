@@ -199,6 +199,11 @@ export function setupWebSocketServer(
         // Convert to string
         const message = data.toString("utf8");
 
+        console.log(
+          `[WS] Received message for terminal ${id}:`,
+          JSON.stringify(message.substring(0, 100))
+        );
+
         // Check message size
         const messageSize = Buffer.byteLength(message, "utf8");
         if (messageSize > MAX_MESSAGE_SIZE) {

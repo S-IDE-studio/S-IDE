@@ -14,8 +14,9 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
+  GridLocation,
   PanelGroup,
   PanelLayout,
   SplitDirection,
@@ -23,6 +24,95 @@ import type {
   UnifiedTab,
 } from "../../types";
 import { MemoizedUnifiedPanelContainer } from "./UnifiedPanelContainer";
+
+// Split configuration - VSCode style
+const SPLIT_THRESHOLD_RATIO = 0.33; // 33% threshold for split zones (like VSCode)
+const EDGE_THRESHOLD_RATIO = 0.1; // 10% threshold for edge detection
+
+// Detect which edge of the panel is being hovered based on mouse position
+// Uses percentage-based thresholds like VSCode
+// Now supports 2D grid splits with orientation awareness
+function detectEdgeDirection(
+  mouseX: number,
+  mouseY: number,
+  rect: DOMRect,
+  preferSplitVertically: boolean = false,
+  orientation?: "horizontal" | "vertical" | "single"
+): "left" | "right" | "up" | "down" | null {
+  const { left, right, top, bottom, width, height } = rect;
+  const relativeX = mouseX - left;
+  const relativeY = mouseY - top;
+
+  // Calculate thresholds based on panel size
+  const edgeWidthThreshold = width * EDGE_THRESHOLD_RATIO;
+  const edgeHeightThreshold = height * EDGE_THRESHOLD_RATIO;
+  const splitWidthThreshold = width * SPLIT_THRESHOLD_RATIO;
+  const splitHeightThreshold = height * SPLIT_THRESHOLD_RATIO;
+
+  // Check if mouse is in the center area (no split - merge instead)
+  if (
+    relativeX > edgeWidthThreshold &&
+    relativeX < width - edgeWidthThreshold &&
+    relativeY > edgeHeightThreshold &&
+    relativeY < height - edgeHeightThreshold
+  ) {
+    return null; // Center area - no split
+  }
+
+  // For 2D grid splits, consider the current orientation
+  // If in a horizontal split, prefer vertical splits (up/down) for 2D
+  // If in a vertical split, prefer horizontal splits (left/right) for 2D
+  let preferVertical = preferSplitVertically;
+  if (orientation === "horizontal") {
+    // Already split horizontally - prefer vertical for 2D
+    preferVertical = false;
+  } else if (orientation === "vertical") {
+    // Already split vertically - prefer horizontal for 2D
+    preferVertical = true;
+  }
+
+  // Determine split direction based on mouse position and preference
+  // VSCode offers larger hitzone for preferred split direction
+  if (preferVertical) {
+    // User prefers vertical split (left/right):
+    // Offer larger hitzone for left/right like:
+    // ----------------------------------------------
+    // |    |      SPLIT UP      |                  |
+    // |    |---------------------|      RIGHT       |
+    // |    |       MERGE         |                  |
+    // |LEFT|---------------------|                  |
+    // |    |     SPLIT DOWN      |                  |
+    // ----------------------------------------------
+    if (relativeX < splitWidthThreshold) {
+      return "left";
+    } else if (relativeX > width - splitWidthThreshold) {
+      return "right";
+    } else if (relativeY < height / 2) {
+      return "up";
+    } else {
+      return "down";
+    }
+  } else {
+    // User prefers horizontal split (up/down):
+    // Offer larger hitzone for up/down like:
+    // ----------------------------------------------
+    // |          SPLIT UP                           |
+    // |---------------------------------------------|
+    // |   LEFT   |      MERGE        |   RIGHT     |
+    // |---------------------------------------------|
+    // |         SPLIT DOWN                           |
+    // ----------------------------------------------
+    if (relativeY < splitHeightThreshold) {
+      return "up";
+    } else if (relativeY > height - splitHeightThreshold) {
+      return "down";
+    } else if (relativeX < width / 2) {
+      return "left";
+    } else {
+      return "right";
+    }
+  }
+}
 
 interface UnifiedPanelViewProps {
   groups: PanelGroup[];
@@ -32,11 +122,18 @@ interface UnifiedPanelViewProps {
   onFocusGroup: (groupId: string) => void;
   onTabsReorder: (groupId: string, oldIndex: number, newIndex: number) => void;
   onTabMove: (tabId: string, sourceGroupId: string, targetGroupId: string) => void;
-  onSplitPanel: (groupId: string, direction: SplitDirection) => void;
+  onSplitPanel: (groupId: string, direction: SplitDirection, activeTabId?: string) => string; // Returns new panel ID
   onClosePanel: (groupId: string) => void;
   onResizePanel: (groupId: string, delta: number) => void;
   onContextMenuAction: (action: TabContextMenuAction, groupId: string, tabId: string) => void;
   onTabDoubleClick?: (tab: import("../../types").UnifiedTab) => void;
+  // Grid-based drop handler (for GridView integration)
+  onTabDrop?: (
+    tabId: string,
+    sourceGroupId: string,
+    location: GridLocation,
+    direction: SplitDirection
+  ) => void;
   // Active deck IDs (from title bar selection)
   activeDeckIds?: string[];
   // Deck data for displaying without tabs
@@ -102,6 +199,7 @@ export function UnifiedPanelView({
   onResizePanel,
   onContextMenuAction,
   onTabDoubleClick,
+  onTabDrop,
   activeDeckIds,
   decks,
   workspaceStates,
@@ -129,10 +227,42 @@ export function UnifiedPanelView({
 }: UnifiedPanelViewProps) {
   const focusedGroupId = groups.find((g) => g.focused)?.id ?? groups[0]?.id;
 
+  // Track global mouse position during drag
+  const mousePosition = useRef({ x: 0, y: 0 });
+
   // Drag and drop state
   const [activeTab, setActiveTab] = useState<UnifiedTab | null>(null);
   const [activeTabSourceGroup, setActiveTabSourceGroup] = useState<string | null>(null);
   const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
+  const [splitDirection, setSplitDirection] = useState<SplitDirection | null>(null);
+  const [splitTargetGroupId, setSplitTargetGroupId] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Grid-based drop state
+  const [splitTargetLocation, setSplitTargetLocation] = useState<GridLocation | null>(null);
+
+  // Track mouse position globally during drag
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      mousePosition.current = { x: e.clientX, y: e.clientY };
+    };
+
+    // Also track pointer events for better compatibility
+    const handlePointerMove = (e: PointerEvent) => {
+      if (e.pointerType === "mouse") {
+        mousePosition.current = { x: e.clientX, y: e.clientY };
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("pointermove", handlePointerMove);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("pointermove", handlePointerMove);
+    };
+  }, [isDragging]);
 
   // DnD sensors
   const sensors = useSensors(
@@ -154,6 +284,7 @@ export function UnifiedPanelView({
         if (tab) {
           setActiveTab(tab);
           setActiveTabSourceGroup(group.id);
+          setIsDragging(true);
           break;
         }
       }
@@ -161,33 +292,100 @@ export function UnifiedPanelView({
     [groups]
   );
 
-  // Handle drag over for panel-to-panel movement
+  // Handle drag over for panel-to-panel movement and split detection
   const handleDragOver = useCallback(
     (event: DragOverEvent) => {
       const { active, over } = event;
+
       if (!over) {
         setDragOverGroupId(null);
+        setSplitDirection(null);
+        setSplitTargetGroupId(null);
+        setSplitTargetLocation(null);
         return;
       }
 
-      // Find which group the droppable target belongs to
+      const activeId = String(active.id);
       const overId = String(over.id);
+
+      // Find which group the droppable target belongs to
       let targetGroupId: string | null = null;
+      let targetLocation: GridLocation = []; // Default to root location
 
       // Check if dropping on a group container
       for (const group of groups) {
-        // The group's droppable id would be `group-${group.id}`
         if (overId === `group-${group.id}`) {
           targetGroupId = group.id;
+          // Calculate location based on group index
+          targetLocation = [groups.indexOf(group)];
           break;
         }
         // Check if dropping on a tab within a group
         const tabInGroup = group.tabs.find((t) => t.id === overId);
         if (tabInGroup) {
           targetGroupId = group.id;
+          targetLocation = [groups.indexOf(group)];
           break;
         }
       }
+
+      if (!targetGroupId) {
+        setDragOverGroupId(null);
+        setSplitDirection(null);
+        setSplitTargetGroupId(null);
+        setSplitTargetLocation(null);
+        return;
+      }
+
+      // Get mouse position from activatorEvent or fall back to global tracking
+      let mouseX = mousePosition.current.x;
+      let mouseY = mousePosition.current.y;
+
+      // Try to get mouse position from activatorEvent for more accuracy
+      const activator = event.activatorEvent as MouseEvent | PointerEvent | undefined;
+      if (activator && "clientX" in activator && "clientY" in activator) {
+        mouseX = activator.clientX;
+        mouseY = activator.clientY;
+      }
+
+      // Detect split direction based on mouse position
+      // Find the panel group element directly from the DOM
+      const panelGroupElement = document.querySelector(
+        `[data-group-id="${targetGroupId}"]`
+      ) as HTMLDivElement | null;
+
+      if (panelGroupElement) {
+        const rect = panelGroupElement.getBoundingClientRect();
+
+        // Determine preferred split direction based on current layout
+        // VSCode uses 'openSideBySideDirection' setting, we use layout direction
+        const preferSplitVertically = layout.direction === "vertical";
+
+        // Use the more accurate mouse position with preferred direction
+        // Pass the current layout orientation for 2D grid support
+        const direction = detectEdgeDirection(
+          mouseX,
+          mouseY,
+          rect,
+          preferSplitVertically,
+          layout.direction
+        );
+
+        // Allow splitting within the same panel when dragging to edge
+        // This enables "drag to edge to split" functionality
+        if (direction) {
+          setSplitDirection(direction);
+          setSplitTargetGroupId(targetGroupId);
+          setSplitTargetLocation(targetLocation);
+          setDragOverGroupId(null);
+          return;
+        }
+      }
+
+      // No split - regular tab move/reorder
+      setSplitDirection(null);
+      setSplitTargetGroupId(null);
+      setSplitTargetLocation(null);
 
       // Update drag-over state for visual feedback
       if (targetGroupId && targetGroupId !== activeTabSourceGroup) {
@@ -196,7 +394,7 @@ export function UnifiedPanelView({
         setDragOverGroupId(null);
       }
     },
-    [groups, activeTabSourceGroup]
+    [groups, activeTabSourceGroup, layout.direction]
   );
 
   // Handle drag end
@@ -205,7 +403,18 @@ export function UnifiedPanelView({
       const { active, over } = event;
       setActiveTab(null);
       setActiveTabSourceGroup(null);
-      setDragOverGroupId(null); // Reset drag-over state
+      setDragOverGroupId(null);
+      setIsDragging(false);
+
+      const shouldSplit = Boolean(splitDirection && (splitTargetGroupId || splitTargetLocation));
+      const finalSplitDirection = splitDirection;
+      const finalSplitTarget = splitTargetGroupId;
+      const finalSplitLocation = splitTargetLocation;
+
+      // Reset split state
+      setSplitDirection(null);
+      setSplitTargetGroupId(null);
+      setSplitTargetLocation(null);
 
       if (!over) return;
 
@@ -227,9 +436,28 @@ export function UnifiedPanelView({
         }
       }
 
-      if (!sourceTab || !sourceGroupId) return;
+      if (!sourceTab || !sourceGroupId) {
+        return;
+      }
 
-      // Determine target
+      // Handle grid-based drop first (for GridView integration)
+      if (shouldSplit && finalSplitDirection && finalSplitLocation && onTabDrop) {
+        // Use the new grid-based drop handler
+        onTabDrop(activeId, sourceGroupId, finalSplitLocation, finalSplitDirection);
+        return;
+      }
+
+      // Handle split first (legacy flat panel system)
+      if (shouldSplit && finalSplitDirection && finalSplitTarget && sourceGroupId) {
+        // Split the panel and get the new panel ID
+        // Pass activeId to move the tab to the new panel
+        onSplitPanel(finalSplitTarget, finalSplitDirection, activeId);
+
+        // No need to move tab separately since handleSplitPanel already moved it
+        return;
+      }
+
+      // Determine target for regular move/reorder
       let targetGroupId: string | null = null;
       let targetTabIndex = -1;
 
@@ -237,7 +465,7 @@ export function UnifiedPanelView({
       for (const group of groups) {
         if (overId === `group-${group.id}`) {
           targetGroupId = group.id;
-          targetTabIndex = group.tabs.length; // Append to end
+          targetTabIndex = group.tabs.length;
           break;
         }
         // Check if dropping on a tab
@@ -261,7 +489,16 @@ export function UnifiedPanelView({
         onTabMove(activeId, sourceGroupId, targetGroupId);
       }
     },
-    [groups, onTabsReorder, onTabMove]
+    [
+      groups,
+      onTabsReorder,
+      onTabMove,
+      onSplitPanel,
+      onTabDrop,
+      splitDirection,
+      splitTargetGroupId,
+      splitTargetLocation,
+    ]
   );
 
   // Determine split capabilities based on current layout and group count
@@ -310,10 +547,21 @@ export function UnifiedPanelView({
   );
 
   const createSplitHandler = useCallback(
-    (groupId: string) => (direction: SplitDirection) => {
-      onSplitPanel(groupId, direction);
-    },
-    [onSplitPanel]
+    (groupId: string) =>
+      (direction: SplitDirection): string => {
+        // Find the group's active tab ID to move it to the new panel
+        const group = groups.find((g) => g.id === groupId);
+        const activeTabId = group?.activeTabId ?? undefined;
+
+        // For grid integration, also return the location of this group
+        // This allows the grid system to know where to insert the new view
+        const groupIndex = groups.findIndex((g) => g.id === groupId);
+        const location: GridLocation = groupIndex >= 0 ? [groupIndex] : [];
+
+        // Call the split panel handler
+        return onSplitPanel(groupId, direction, activeTabId);
+      },
+    [onSplitPanel, groups]
   );
 
   const createClosePanelHandler = useCallback(
@@ -469,6 +717,10 @@ export function UnifiedPanelView({
           onContextMenuAction={createContextMenuHandler(group.id)}
           onTabDoubleClick={onTabDoubleClick}
           isDraggingOver={dragOverGroupId === group.id}
+          splitDirection={splitDirection}
+          isSplitTarget={splitTargetGroupId === group.id}
+          splitTargetLocation={splitTargetLocation}
+          activeDragId={activeTab?.id ?? null}
           activeDeckIds={activeDeckIds}
           decks={decks}
           workspaceStates={workspaceStates}
@@ -541,6 +793,10 @@ export function UnifiedPanelView({
             onContextMenuAction={createContextMenuHandler(group.id)}
             onTabDoubleClick={onTabDoubleClick}
             isDraggingOver={dragOverGroupId === group.id}
+            splitDirection={splitDirection}
+            isSplitTarget={splitTargetGroupId === group.id}
+            splitTargetLocation={splitTargetLocation}
+            activeDragId={activeTab?.id ?? null}
             activeDeckIds={activeDeckIds}
             decks={decks}
             workspaceStates={workspaceStates}

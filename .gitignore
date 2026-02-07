@@ -23,3 +23,7 @@ apps/mobile/ios/build/
 apps/mobile/android/build/
 apps/web/dist/
 private.key
+docs/vscode/
+coverage/
+.tmp-*/
+apps/server/settings.json

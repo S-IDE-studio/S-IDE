@@ -13,7 +13,7 @@ import { ServerStatus } from "./components/ServerStatus";
 import { SettingsModal } from "./components/SettingsModal";
 import { StatusMessage } from "./components/StatusMessage";
 import { TitleBar } from "./components/TitleBar";
-import { TunnelControl } from "./components/TunnelControl";
+import { RemoteAccessControl } from "./components/RemoteAccessControl";
 import { UpdateNotification, useUpdateCheck } from "./components/UpdateNotification";
 import { UpdateProgress } from "./components/UpdateProgress";
 import {
@@ -29,6 +29,7 @@ import { useDecks } from "./hooks/useDecks";
 import { useFileOperations } from "./hooks/useFileOperations";
 import { useGitState } from "./hooks/useGitState";
 import { useServerStatus } from "./hooks/useServerStatus";
+import { useTabsPresenceSync } from "./hooks/useTabsPresenceSync";
 import { useWorkspaces } from "./hooks/useWorkspaces";
 import type {
   EditorFile,
@@ -48,6 +49,7 @@ import {
   addViewToGrid,
   createGridState,
   findLeafByGroupId,
+  findNearestSiblingLeaf,
   generateGridLeafId,
   getAllLeaves,
   migrateToGridState,
@@ -60,7 +62,7 @@ import {
   editorToTab,
   serverToTab,
   terminalToTab,
-  tunnelToTab,
+  remoteAccessToTab,
 } from "./utils/unifiedTabUtils";
 import { loadTabState, parseUrlState, saveTabState } from "./utils/urlUtils";
 
@@ -72,9 +74,32 @@ export default function App() {
     const saved = loadTabState();
     if (saved) {
       if (saved.format === "grid") {
+        // Ensure panelGroupsMap has entries for all leaf nodes in gridState
+        const { gridState, panelGroupsMap: savedPanelGroupsMap } = saved;
+        const panelGroupsMap: Record<string, PanelGroup> = { ...savedPanelGroupsMap };
+
+        // Helper function to ensure all leaf nodes have panel group entries
+        const ensurePanelGroupsForLeaves = (node: GridNode): void => {
+          if (node.type === "leaf") {
+            if (!panelGroupsMap[node.groupId]) {
+              panelGroupsMap[node.groupId] = {
+                id: node.groupId,
+                tabs: [],
+                activeTabId: null,
+                focused: false,
+                percentage: node.size,
+              };
+            }
+          } else {
+            node.children.forEach(ensurePanelGroupsForLeaves);
+          }
+        };
+
+        ensurePanelGroupsForLeaves(gridState.root);
+
         return {
-          gridState: saved.gridState,
-          panelGroupsMap: saved.panelGroupsMap,
+          gridState,
+          panelGroupsMap,
           focusedPanelGroupId: null,
         };
       }
@@ -155,7 +180,12 @@ export default function App() {
     if (gridState && panelGroupsMap) {
       // Save grid format
       const serializedMap = Object.fromEntries(
-        Object.entries(panelGroupsMap).filter(([_, g]) => g.tabs.length > 0)
+        Object.entries(panelGroupsMap)
+          .map(([id, g]) => {
+            const tabs = g.tabs.filter((t) => !t.synced);
+            return [id, { ...g, tabs }] as const;
+          })
+          .filter(([_, g]) => g.tabs.length > 0)
       ) as Record<string, PanelGroup>;
       saveTabState(gridState, serializedMap);
     }
@@ -386,12 +416,28 @@ export default function App() {
     }));
   }, [gridState, panelGroupsMap]);
 
+  // Multi-device sync: union open tabs across clients.
+  // Synced tabs are mirrored (not persisted, not re-advertised) and disappear when no clients have them open.
+  useTabsPresenceSync({
+    enabled: true,
+    panelGroups,
+    panelGroupsMap,
+    setPanelGroupsMap,
+    workspaceStates,
+  });
+
   const handleSelectTab = useCallback((groupId: string, tabId: string) => {
     setPanelGroupsMap((prev) => {
       const updated: Record<string, PanelGroup> = {};
       for (const [id, group] of Object.entries(prev)) {
+        // Promote a synced tab to local when the user selects it (so it becomes "owned" by this client).
+        const tabs =
+          id === groupId
+            ? group.tabs.map((t) => (t.id === tabId && t.synced ? { ...t, synced: false } : t))
+            : group.tabs;
         updated[id] = {
           ...group,
+          tabs,
           activeTabId: id === groupId ? tabId : group.activeTabId,
           focused: id === groupId,
         };
@@ -582,28 +628,51 @@ export default function App() {
   );
 
   // Panel close handler
-  const handleClosePanel = useCallback((groupId: string) => {
-    setGridState((prevGridState) => {
-      if (!prevGridState) return prevGridState;
+  const handleClosePanel = useCallback(
+    (groupId: string) => {
+      setGridState((prevGridState) => {
+        if (!prevGridState) return prevGridState;
 
-      // Find the location of the group to close
-      const location = findLeafByGroupId(prevGridState, groupId)?.[0];
-      if (!location) return prevGridState;
+        // Find the location of the group to close
+        const leafInfo = findLeafByGroupId(prevGridState, groupId);
+        if (!leafInfo) return prevGridState;
 
-      // Remove the view from the grid
-      const newGridState = removeViewFromGrid(prevGridState, location);
+        const [location] = leafInfo;
 
-      // Update panel groups map - remove the closed group
-      setPanelGroupsMap((prevMap) => {
-        if (!prevMap) return prevMap;
-        const newMap = { ...prevMap };
-        delete newMap[groupId];
-        return newMap;
+        // Find nearest sibling for focus transfer before closing
+        const nearestSibling = findNearestSiblingLeaf(prevGridState, location);
+        const newFocusedGroupId = nearestSibling?.[1].groupId ?? null;
+
+        // Remove the view from the grid
+        const newGridState = removeViewFromGrid(prevGridState, location);
+
+        // Update panel groups map - remove the closed group
+        setPanelGroupsMap((prevMap) => {
+          if (!prevMap) return prevMap;
+          const newMap = { ...prevMap };
+          delete newMap[groupId];
+
+          // Update focus to nearest sibling if the closed panel was focused
+          if (groupId === focusedPanelGroupId && newFocusedGroupId) {
+            newMap[newFocusedGroupId] = {
+              ...newMap[newFocusedGroupId],
+              focused: true,
+            };
+          }
+
+          return newMap;
+        });
+
+        // Update focused panel group ID if needed
+        if (groupId === focusedPanelGroupId) {
+          setFocusedPanelGroupId(newFocusedGroupId);
+        }
+
+        return newGridState;
       });
-
-      return newGridState;
-    });
-  }, []);
+    },
+    [focusedPanelGroupId]
+  );
 
   // Panel layout change handler (called by GridView on resize)
   const handleGridLayoutChange = useCallback((newGridNode: GridNode) => {
@@ -881,9 +950,9 @@ export default function App() {
     addTabToPanel(tab);
   }, [addTabToPanel]);
 
-  // Handler for adding tunnel tab
-  const handleAddTunnelTab = useCallback(() => {
-    const tab = tunnelToTab();
+  // Handler for adding Remote Access tab
+  const handleAddRemoteAccessTab = useCallback(() => {
+    const tab = remoteAccessToTab();
     addTabToPanel(tab);
   }, [addTabToPanel]);
 
@@ -1068,6 +1137,48 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [statusMessage]);
 
+  // Auto-create tabs on initialization when panelGroupsMap is empty but decks exist
+  // This follows VSCode's approach where editors are opened during initialization flow
+  useEffect(() => {
+    // Only run when:
+    // 1. No tabs exist in any panel group
+    // 2. Decks have been loaded from API
+    // 3. Grid state has a valid leaf node
+    const hasAnyTabs = Object.values(panelGroupsMap).some((g) => g.tabs.length > 0);
+    if (hasAnyTabs || decks.length === 0 || !gridState || gridState.root.type !== "leaf") {
+      return;
+    }
+
+    // Create tabs for active decks, or first deck if no active decks
+    const deckIdsToOpen = activeDeckIds.length > 0 ? activeDeckIds : decks[0] ? [decks[0].id] : [];
+
+    // Get the existing groupId from gridState
+    const existingGroupId = gridState.root.groupId;
+
+    // Create tabs for decks
+    const tabs: UnifiedTab[] = [];
+    for (const deckId of deckIdsToOpen) {
+      const deck = decks.find((d) => d.id === deckId);
+      if (deck) {
+        tabs.push(deckToTab(deck));
+      }
+    }
+
+    if (tabs.length > 0) {
+      // Update panelGroupsMap with the existing groupId from gridState
+      setPanelGroupsMap({
+        [existingGroupId]: {
+          id: existingGroupId,
+          tabs,
+          activeTabId: tabs[0].id,
+          focused: true,
+          percentage: 100,
+        },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [decks, activeDeckIds]); // Only depend on decks and activeDeckIds
+
   // Load available agents (only once on mount)
   // Note: activeAgent is intentionally in deps to prevent re-fetching when user changes active agent
   useEffect(() => {
@@ -1223,9 +1334,23 @@ export default function App() {
       basicAuthEnabled: boolean;
       basicAuthUser: string;
       basicAuthPassword: string;
+      remoteAccessAutoStart?: boolean;
     }) => {
       const abortController = new AbortController();
       try {
+        // Persist Desktop-only settings (best-effort).
+        const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
+        if (isTauri && typeof settings.remoteAccessAutoStart === "boolean") {
+          try {
+            const tauri = await import("@tauri-apps/api/core");
+            await tauri.invoke("set_remote_access_settings", {
+              auto_start: settings.remoteAccessAutoStart,
+            });
+          } catch (e) {
+            console.warn("[settings] failed to save remote access settings:", e);
+          }
+        }
+
         const response = await fetch("/api/settings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1508,14 +1633,14 @@ export default function App() {
           }
         }}
         onAddServerTab={handleAddServerTab}
-        onAddTunnelTab={handleAddTunnelTab}
+        onAddRemoteAccessTab={handleAddRemoteAccessTab}
         onDeleteWorkspace={handleDeleteWorkspace}
         onUpdateWorkspaceColor={handleUpdateWorkspaceColor}
       />
       <main className="main">
         {gridState && panelGroupsMap && (
           <MemoizedGridView
-            gridState={gridState.root}
+            rootNode={gridState.root}
             orientation={gridState.orientation}
             panelGroups={panelGroupsMap}
             width={window.innerWidth}
@@ -1600,7 +1725,7 @@ export default function App() {
       <StatusMessage message={statusMessage} />
       <GlobalStatusBar
         serverStatus={<ServerStatus status={serverStatus.status} port={serverStatus.port} />}
-        tunnelControl={<TunnelControl />}
+        remoteAccessControl={<RemoteAccessControl />}
         activeTerminalsCount={activeTerminalsCount}
         contextHealthScore={contextHealthScore}
         onToggleContextStatus={() => setShowContextStatus((prev) => !prev)}

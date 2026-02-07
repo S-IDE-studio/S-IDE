@@ -3,7 +3,13 @@
  */
 
 // API configuration
-export const API_BASE = import.meta.env.VITE_API_BASE || "";
+import { resolveApiBase } from "./utils/apiBase";
+
+const _configuredApiBase = import.meta.env.VITE_API_BASE || "";
+export const API_BASE =
+  typeof window === "undefined"
+    ? _configuredApiBase
+    : resolveApiBase(_configuredApiBase, window.location.hostname);
 export const DEFAULT_ROOT_FALLBACK = import.meta.env.VITE_DEFAULT_ROOT || "";
 
 // UI messages

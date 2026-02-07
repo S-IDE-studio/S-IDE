@@ -114,26 +114,31 @@ export interface GridLeafNodeViewProps {
 
 /**
  * Calculate box dimensions based on layout context
+ * For single leaf nodes, size represents the full available size
  */
 function calculateBox(
   size: number,
   orthogonalSize: number,
   absoluteOffset: number,
   absoluteOrthogonalOffset: number,
+  absoluteSize: number,
   orientation: "horizontal" | "vertical"
 ): { top: number; left: number; width: number; height: number } {
+  // size is a percentage (0-100), convert to fraction
+  const sizeFraction = size / 100;
+
   if (orientation === "horizontal") {
     return {
       top: absoluteOffset,
       left: absoluteOrthogonalOffset,
-      width: orthogonalSize,
-      height: size,
+      width: orthogonalSize * sizeFraction,
+      height: absoluteSize,
     };
   }
   return {
     top: absoluteOrthogonalOffset,
     left: absoluteOffset,
-    width: size,
+    width: absoluteSize * sizeFraction,
     height: orthogonalSize,
   };
 }
@@ -221,6 +226,7 @@ export function GridLeafNodeView({
       layoutContext.orthogonalSize,
       layoutContext.absoluteOffset,
       layoutContext.absoluteOrthogonalOffset,
+      layoutContext.absoluteSize,
       orientation
     );
   }, [node.size, layoutContext, orientation]);
@@ -245,14 +251,14 @@ export function GridLeafNodeView({
 
   /**
    * Style for the leaf node container
+   * The parent split-view-view already handles positioning and sizing,
+   * so we just need to fill 100% of the parent.
    */
   const style: React.CSSProperties = useMemo(
     () => ({
-      position: "absolute",
-      top: `${box.top}px`,
-      left: `${box.left}px`,
-      width: `${box.width}px`,
-      height: `${box.height}px`,
+      position: "relative",
+      width: "100%",
+      height: "100%",
       minWidth: `${constraints.minimumWidth}px`,
       maxWidth:
         constraints.maximumWidth === Number.POSITIVE_INFINITY
@@ -265,7 +271,7 @@ export function GridLeafNodeView({
           : `${constraints.maximumHeight}px`,
       overflow: "hidden",
     }),
-    [box, constraints]
+    [constraints]
   );
 
   // Render the panel group content using UnifiedPanelContainer

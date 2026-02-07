@@ -6,8 +6,16 @@ import type {
   GitRepoInfo,
   GitStatus,
   MultiRepoGitStatus,
+  ShellInfo,
   Workspace,
 } from "./types";
+
+export interface TabsPresenceTab {
+  syncKey: string;
+  kind: string;
+  title: string;
+  data?: unknown;
+}
 
 const HTTP_STATUS_NO_CONTENT = 204;
 
@@ -312,12 +320,13 @@ export function deleteDirectory(
 export function createTerminal(
   deckId: string,
   title?: string,
-  command?: string
+  command?: string,
+  shellId?: string
 ): Promise<{ id: string; title: string }> {
   return request<{ id: string; title: string }>("/api/terminals", {
     method: HTTP_METHOD_POST,
     headers: { "Content-Type": CONTENT_TYPE_JSON },
-    body: JSON.stringify({ deckId, title, command }),
+    body: JSON.stringify({ deckId, title, command, shellId }),
   });
 }
 
@@ -600,4 +609,73 @@ export function getGitLog(
   }
   const query = new URLSearchParams(params);
   return request(`/api/git/log?${query.toString()}`);
+}
+
+/**
+ * Shell API
+ */
+
+/**
+ * Gets list of available shells on the system
+ */
+export function getAvailableShells(): Promise<{
+  shells: ShellInfo[];
+  defaultShell: string;
+}> {
+  return request("/api/shells/available");
+}
+
+/**
+ * Refreshes the list of available shells
+ */
+export function refreshShells(): Promise<{
+  shells: ShellInfo[];
+  defaultShell: string;
+}> {
+  return request("/api/shells/refresh", {
+    method: HTTP_METHOD_POST,
+  });
+}
+
+/**
+ * Gets the current default shell
+ */
+export function getDefaultShell(): Promise<ShellInfo & { isUserConfigured: boolean }> {
+  return request("/api/shells/default");
+}
+
+/**
+ * Sets the default shell
+ */
+export function setDefaultShell(shellId: string): Promise<{
+  success: boolean;
+  shell: ShellInfo;
+}> {
+  return request("/api/shells/default", {
+    method: HTTP_METHOD_PUT,
+    headers: { "Content-Type": CONTENT_TYPE_JSON },
+    body: JSON.stringify({ shellId }),
+  });
+}
+
+/**
+ * Tabs presence sync (multi-device)
+ */
+export function postTabsPresence(payload: {
+  clientId: string;
+  activeSyncKey?: string | null;
+  tabs: TabsPresenceTab[];
+}): Promise<{ ok: boolean; tabs: TabsPresenceTab[] }> {
+  return request<{ ok: boolean; tabs: TabsPresenceTab[] }>("/api/tabs/presence", {
+    method: HTTP_METHOD_POST,
+    headers: { "Content-Type": CONTENT_TYPE_JSON },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getTabsState(): Promise<{
+  tabs: TabsPresenceTab[];
+  clients: Array<{ clientId: string; activeSyncKey: string | null; updatedAt: number }>;
+}> {
+  return request("/api/tabs/state");
 }

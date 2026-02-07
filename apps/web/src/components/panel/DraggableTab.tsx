@@ -2,6 +2,7 @@
  * Draggable Tab - Individual tab with drag and drop support
  */
 
+import { useDraggable } from "@dnd-kit/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
@@ -31,7 +32,9 @@ import type { UnifiedTab } from "../../types";
 
 interface DraggableTabProps {
   tab: UnifiedTab;
+  groupId: string;
   isActive: boolean;
+  isDragging: boolean;
   onSelect: (tabId: string) => void;
   onClose: (tabId: string) => void;
   onContextMenu: (tab: UnifiedTab, event: React.MouseEvent) => void;
@@ -53,7 +56,8 @@ const getTabIcon = (tab: UnifiedTab) => {
       return <Terminal size={14} />;
     case "server":
       return <Server size={14} />;
-    case "tunnel":
+    case "remoteAccess":
+    case "tunnel": // Legacy alias
       return <Globe size={14} />;
     case "mcp":
       return <Network size={14} />;
@@ -108,15 +112,18 @@ function getFileIcon(fileType?: string) {
 
 export function DraggableTab({
   tab,
+  groupId,
   isActive,
+  isDragging,
   onSelect,
   onClose,
   onContextMenu,
   onDoubleClick,
 }: DraggableTabProps) {
+  // Combine useSortable and useDraggable for tab reordering and panel-to-panel movement
   const {
-    attributes,
-    listeners,
+    attributes: sortableAttributes,
+    listeners: sortableListeners,
     setNodeRef,
     transform,
     transition,
@@ -124,7 +131,39 @@ export function DraggableTab({
   } = useSortable({
     id: tab.id,
     disabled: tab.pinned,
+    data: {
+      tab,
+      groupId,
+    },
   });
+
+  const {
+    attributes: draggableAttributes,
+    listeners: draggableListeners,
+    setNodeRef: setDraggableRef,
+  } = useDraggable({
+    id: tab.id,
+    data: {
+      tab,
+      groupId,
+    },
+  });
+
+  // Combine refs and attributes
+  const combinedRef = (node: HTMLDivElement | null) => {
+    setNodeRef(node);
+    setDraggableRef(node);
+  };
+
+  const combinedAttributes = {
+    ...sortableAttributes,
+    ...draggableAttributes,
+  };
+
+  // Combine listeners (sortable handles tab reordering, draggable handles panel movement)
+  const combinedListeners = {
+    ...sortableListeners,
+  };
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -157,15 +196,16 @@ export function DraggableTab({
 
   return (
     <div
-      ref={setNodeRef}
+      ref={combinedRef}
       style={style}
       className={`panel-tab ${isActive ? "active" : ""} ${tab.dirty ? "dirty" : ""} ${tab.pinned ? "pinned" : ""}`}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
       onDoubleClick={handleDoubleClick}
-      {...attributes}
-      {...listeners}
+      {...combinedAttributes}
+      {...combinedListeners}
       data-tab-id={tab.id}
+      data-group-id={groupId}
     >
       <span className="panel-tab-icon">
         {tab.pinned ? (

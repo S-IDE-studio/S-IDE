@@ -5,6 +5,7 @@
  */
 
 import {
+  forwardRef,
   memo,
   type ReactNode,
   useCallback,
@@ -109,16 +110,18 @@ interface ViewState {
 /**
  * SplitView component - one-dimensional flex-like layout with resizable views
  */
-export function SplitView({
-  orientation = "vertical",
-  size: containerSize = 0,
-  views: propViews = [],
-  onDidChange,
-  proportionalLayout = true,
-  className = "",
-  style: containerStyle,
-  ref: externalRef,
-}: SplitViewProps) {
+export const SplitView = forwardRef<SplitViewHandle, SplitViewProps>(function SplitView(
+  {
+    orientation = "vertical",
+    size: containerSize = 0,
+    views: propViews = [],
+    onDidChange,
+    proportionalLayout = true,
+    className = "",
+    style: containerStyle,
+  },
+  externalRef
+) {
   const [views, setViews] = useState<ViewState[]>([]);
   const [sashes, setSashes] = useState<number[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -621,7 +624,7 @@ export function SplitView({
       })}
     </div>
   );
-}
+});
 
 /**
  * Hook to access SplitView methods imperatively

@@ -152,21 +152,23 @@ export const useDecks = ({
       deckId: string,
       terminalsCount: number,
       command?: string,
-      customTitle?: string
+      customTitle?: string,
+      shellId?: string
     ): Promise<{ id: string; title: string; command?: string } | null> => {
       console.log("[useDecks] handleCreateTerminal called:", {
         deckId,
         terminalsCount,
         command,
         customTitle,
+        shellId,
       });
       // Set loading state
       setCreatingTerminalDeckIds((prev) => new Set(prev).add(deckId));
       try {
         const index = terminalsCount + 1;
         const title = customTitle || `ターミナル ${index}`;
-        console.log("[useDecks] Creating terminal with title:", title);
-        const session = await apiCreateTerminal(deckId, title, command);
+        console.log("[useDecks] Creating terminal with title:", title, "shellId:", shellId);
+        const session = await apiCreateTerminal(deckId, title, command, shellId);
         console.log("[useDecks] Terminal created:", session);
         const terminal = {
           id: session.id,

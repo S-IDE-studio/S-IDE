@@ -1,6 +1,7 @@
 import { ChevronDown, Minus, Palette, Plus, Square, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { Workspace } from "../types";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getAvailableShells } from "../api";
+import type { ShellInfo, Workspace } from "../types";
 
 const MAX_VISIBLE_WORKSPACES = 5;
 
@@ -28,9 +29,9 @@ interface TitleBarProps {
   onOpenWorkspaceModal?: () => void;
   onCreateDeck?: () => void;
   onCreateAgent?: () => void;
-  onNewTerminal?: () => void;
+  onNewTerminal?: (shellId?: string) => void;
   onAddServerTab?: () => void;
-  onAddTunnelTab?: () => void;
+  onAddRemoteAccessTab?: () => void;
   onDeleteWorkspace?: (workspaceId: string) => void;
   onUpdateWorkspaceColor?: (workspaceId: string, color: string) => void;
 }
@@ -39,6 +40,7 @@ interface MenuItem {
   label: string;
   action?: () => void;
   children?: MenuItem[];
+  separator?: boolean; // Add visual separator before this item
 }
 
 interface MenuBarProps {
@@ -47,11 +49,13 @@ interface MenuBarProps {
 
 function MenuBar({ items }: MenuBarProps) {
   const [openMenuIndex, setOpenMenuIndex] = useState<number | null>(null);
+  const [openSubmenuIndex, setOpenSubmenuIndex] = useState<number | null>(null);
   const menuContainerRefs = useRef<(HTMLDivElement | null)[]>([]);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const closeMenu = useCallback(() => {
     setOpenMenuIndex(null);
+    setOpenSubmenuIndex(null);
   }, []);
 
   const handleMenuMouseEnter = useCallback((index: number) => {
@@ -61,13 +65,16 @@ function MenuBar({ items }: MenuBarProps) {
       timeoutRef.current = null;
     }
     setOpenMenuIndex(index);
+    // Don't reset submenu index when switching between top-level menu items
+    // setOpenSubmenuIndex(null);
   }, []);
 
   const handleMenuMouseLeave = useCallback(() => {
-    // Delay closing to allow moving to dropdown
+    // Delay closing to allow moving to dropdown or submenu
     timeoutRef.current = setTimeout(() => {
       setOpenMenuIndex(null);
-    }, 100);
+      setOpenSubmenuIndex(null);
+    }, 300);
   }, []);
 
   const handleDropdownMouseEnter = useCallback(() => {
@@ -76,6 +83,15 @@ function MenuBar({ items }: MenuBarProps) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
+  }, []);
+
+  const handleSubmenuMouseEnter = useCallback((submenuIndex: number) => {
+    console.log("[MenuBar] Submenu mouse enter:", submenuIndex);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    setOpenSubmenuIndex(submenuIndex);
   }, []);
 
   useEffect(() => {
@@ -128,20 +144,75 @@ function MenuBar({ items }: MenuBarProps) {
           </button>
           {openMenuIndex === index && item.children && (
             <div className="title-bar-dropdown" onMouseEnter={handleDropdownMouseEnter}>
-              {item.children.map((child, childIndex) => (
-                <button
-                  key={childIndex}
-                  type="button"
-                  className="title-bar-dropdown-item"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    child.action?.();
-                    closeMenu();
-                  }}
-                >
-                  {child.label}
-                </button>
-              ))}
+              {item.children.map((child, childIndex) => {
+                // Render separator
+                if (child.separator) {
+                  return <div key={childIndex} className="title-bar-dropdown-separator" />;
+                }
+                // Skip empty items (separators with no label)
+                if (!child.label) {
+                  return null;
+                }
+
+                const hasSubmenu = child.children && child.children.length > 0;
+                const isOpen = openSubmenuIndex === childIndex;
+
+                console.log(
+                  "[MenuBar] Rendering child:",
+                  childIndex,
+                  child.label,
+                  "hasSubmenu:",
+                  hasSubmenu,
+                  "isOpen:",
+                  isOpen
+                );
+
+                return (
+                  <div
+                    key={childIndex}
+                    className="title-bar-dropdown-item-wrapper"
+                    onMouseEnter={() =>
+                      hasSubmenu ? handleSubmenuMouseEnter(childIndex) : undefined
+                    }
+                  >
+                    <button
+                      type="button"
+                      className={`title-bar-dropdown-item ${hasSubmenu ? "title-bar-dropdown-item--has-submenu" : ""}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!hasSubmenu) {
+                          child.action?.();
+                          closeMenu();
+                        }
+                      }}
+                    >
+                      <span className="title-bar-dropdown-item-label">{child.label}</span>
+                      {hasSubmenu && <span className="title-bar-dropdown-item-arrow">▶</span>}
+                    </button>
+                    {hasSubmenu && isOpen && (
+                      <div
+                        className="title-bar-submenu"
+                        onMouseEnter={() => setOpenSubmenuIndex(childIndex)}
+                      >
+                        {child.children!.map((subChild, subChildIndex) => (
+                          <button
+                            key={subChildIndex}
+                            type="button"
+                            className="title-bar-dropdown-item"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              subChild.action?.();
+                              closeMenu();
+                            }}
+                          >
+                            {subChild.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -162,7 +233,7 @@ export function TitleBar({
   onCreateAgent,
   onNewTerminal,
   onAddServerTab,
-  onAddTunnelTab,
+  onAddRemoteAccessTab,
   onDeleteWorkspace,
   onUpdateWorkspaceColor,
 }: TitleBarProps) {
@@ -175,12 +246,31 @@ export function TitleBar({
   const workspaceDropdownRef = useRef<HTMLDivElement>(null);
   const dropdownTriggerRef = useRef<HTMLButtonElement>(null);
 
+  // Shell selection state
+  const [shells, setShells] = useState<ShellInfo[]>([]);
+  const [defaultShellId, setDefaultShellId] = useState<string>("");
+
   // Workspace context menu state
   const [contextMenuWorkspace, setContextMenuWorkspace] = useState<Workspace | null>(null);
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(
     null
   );
   const [showColorPicker, setShowColorPicker] = useState(false);
+
+  // Load available shells on mount
+  useEffect(() => {
+    console.log("[TitleBar] Loading shells...");
+    getAvailableShells()
+      .then((data) => {
+        console.log("[TitleBar] Shells loaded:", data);
+        setShells(data.shells);
+        setDefaultShellId(data.defaultShell);
+      })
+      .catch((error) => {
+        console.error("[TitleBar] Failed to load shells:", error);
+        // Silently fail - shells will be empty
+      });
+  }, []);
 
   useEffect(() => {
     // Check if running in Tauri environment
@@ -316,33 +406,126 @@ export function TitleBar({
   };
 
   // VSCode-style menu structure
-  const menuItems: MenuItem[] = [
-    {
-      label: "File",
-      children: [
-        { label: "New Workspace", action: onOpenWorkspaceModal },
-        { label: "New Deck", action: onCreateDeck },
-        { label: "New Terminal", action: onNewTerminal },
-      ],
-    },
-    {
-      label: "View",
-      children: [
-        { label: "Local Servers", action: onAddServerTab },
-        { label: "Remote Access", action: onAddTunnelTab },
-        { label: "Server Settings", action: onOpenServerModal },
-        { label: "Settings", action: onOpenSettings },
-      ],
-    },
-    {
-      label: "Agent",
-      children: [{ label: "Create Agent", action: onCreateAgent }],
-    },
-    {
-      label: "Help",
-      children: [{ label: "Context Status", action: onToggleContextStatus }],
-    },
-  ];
+  const menuItems: MenuItem[] = useMemo(() => {
+    console.log(
+      "[TitleBar] Building menuItems, shells.length:",
+      shells.length,
+      "defaultShellId:",
+      defaultShellId
+    );
+
+    // Build terminal menu items with shell selection
+    const terminalMenuItems: MenuItem[] = [];
+
+    // Get the default shell for "New Terminal" action
+    const defaultShell = shells.find((s) => s.id === defaultShellId);
+
+    // Build shell selection submenu
+    const shellSubmenuItems: MenuItem[] = [];
+
+    if (shells.length > 0) {
+      // Group shells by category
+      const defaultShells = shells.filter((s) => s.category === "default");
+      const wslShells = shells.filter((s) => s.category === "wsl");
+      const gitShells = shells.filter((s) => s.category === "git");
+      const otherShells = shells.filter((s) => s.category === "other");
+
+      // Add default shells
+      defaultShells.forEach((shell) => {
+        shellSubmenuItems.push({
+          label: shell.name,
+          action: () => onNewTerminal?.(shell.id),
+        });
+      });
+
+      // Add WSL shells
+      if (wslShells.length > 0) {
+        wslShells.forEach((shell) => {
+          shellSubmenuItems.push({
+            label: shell.name,
+            action: () => onNewTerminal?.(shell.id),
+          });
+        });
+      }
+
+      // Add Git shells
+      if (gitShells.length > 0) {
+        gitShells.forEach((shell) => {
+          shellSubmenuItems.push({
+            label: shell.name,
+            action: () => onNewTerminal?.(shell.id),
+          });
+        });
+      }
+
+      // Add other shells
+      if (otherShells.length > 0) {
+        otherShells.forEach((shell) => {
+          shellSubmenuItems.push({
+            label: shell.name,
+            action: () => onNewTerminal?.(shell.id),
+          });
+        });
+      }
+    }
+
+    // Build terminal menu items
+    terminalMenuItems.push({
+      label: "New Terminal",
+      action: () => onNewTerminal?.(defaultShellId),
+    });
+
+    // Add submenu for shell selection if shells are available
+    if (shellSubmenuItems.length > 0) {
+      terminalMenuItems.push({
+        label: ">",
+        children: shellSubmenuItems,
+      });
+    }
+
+    return [
+      {
+        label: "File",
+        children: [
+          { label: "New Workspace", action: onOpenWorkspaceModal },
+          { label: "New Deck", action: onCreateDeck },
+        ],
+      },
+      {
+        label: "Terminal",
+        children: terminalMenuItems,
+      },
+      {
+        label: "View",
+        children: [
+          { label: "Local Servers", action: onAddServerTab },
+          { label: "Remote Access", action: onAddRemoteAccessTab },
+          { label: "Server Settings", action: onOpenServerModal },
+          { label: "Settings", action: onOpenSettings },
+        ],
+      },
+      {
+        label: "Agent",
+        children: [{ label: "Create Agent", action: onCreateAgent }],
+      },
+      {
+        label: "Help",
+        children: [{ label: "Context Status", action: onToggleContextStatus }],
+      },
+    ];
+  }, [
+    shells,
+    defaultShellId,
+    onOpenWorkspaceModal,
+    onCreateDeck,
+    onNewTerminal,
+    onAddServerTab,
+    onAddRemoteAccessTab,
+    onOpenServerModal,
+    onOpenSettings,
+    onCreateAgent,
+    onToggleContextStatus,
+  ]);
 
   // Calculate visible and hidden workspaces
   const visibleWorkspaces: Workspace[] = workspaces.slice(0, MAX_VISIBLE_WORKSPACES);

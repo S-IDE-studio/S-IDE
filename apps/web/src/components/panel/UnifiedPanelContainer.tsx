@@ -3,8 +3,9 @@
  */
 
 import { useDroppable } from "@dnd-kit/core";
-import { memo, useCallback } from "react";
-import type { PanelGroup, SplitDirection, TabContextMenuAction } from "../../types";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
+import type { GridLocation, PanelGroup, SplitDirection, TabContextMenuAction } from "../../types";
+import { MemoizedDropOverlay } from "./DropOverlay";
 import { PanelContent } from "./PanelContent";
 import { MemoizedPanelResizeHandle } from "./PanelResizeHandle";
 import { MemoizedPanelSplitButton } from "./PanelSplitButton";
@@ -23,12 +24,18 @@ interface UnifiedPanelContainerProps {
   onFocus: () => void;
   onTabsReorder: (oldIndex: number, newIndex: number) => void;
   onTabMove: (tabId: string, targetGroupId: string) => void;
-  onSplitPanel: (direction: SplitDirection) => void;
+  onSplitPanel: (direction: SplitDirection) => string; // Returns new panel ID
   onClosePanel: () => void;
   onResize: (delta: number) => void;
   onContextMenuAction: (action: TabContextMenuAction, tabId: string) => void;
   onTabDoubleClick?: (tab: import("../../types").UnifiedTab) => void;
   isDraggingOver?: boolean;
+  // Split preview state
+  splitDirection?: SplitDirection | null;
+  isSplitTarget?: boolean;
+  splitTargetLocation?: GridLocation | null;
+  // Drag state
+  activeDragId?: string | null;
   // Active deck IDs (from title bar selection)
   activeDeckIds?: string[];
   // Deck data for displaying without tabs
@@ -105,6 +112,10 @@ export function UnifiedPanelContainer({
   onContextMenuAction,
   onTabDoubleClick,
   isDraggingOver,
+  splitDirection,
+  isSplitTarget,
+  splitTargetLocation,
+  activeDragId,
   activeDeckIds,
   decks,
   workspaceStates,
@@ -133,14 +144,26 @@ export function UnifiedPanelContainer({
   onSelectFile,
   onCloseFile,
 }: UnifiedPanelContainerProps) {
-  const activeTab = group.tabs.find((t) => t.id === group.activeTabId);
+  // Find active tab, fallback to first tab if activeTabId is invalid but tabs exist
+  const activeTab =
+    group.tabs.find((t) => t.id === group.activeTabId) ??
+    (group.tabs.length > 0 ? group.tabs[0] : undefined);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Make this panel a droppable target for tabs
+  // Note: We don't store rect in data to avoid re-renders
+  // Instead, we'll get the element dynamically in handleDragOver
   const { setNodeRef: setDroppableRef } = useDroppable({
     id: `group-${group.id}`,
-    data: {
-      groupId: group.id,
-    },
+    data: useMemo(
+      () => ({
+        type: "panel",
+        groupId: group.id,
+        // Store the element ref so we can get rect dynamically
+        element: () => containerRef.current,
+      }),
+      [group.id]
+    ),
   });
 
   const handleContainerClick = useCallback(() => {
@@ -204,15 +227,43 @@ export function UnifiedPanelContainer({
   const showResizeHandle = layoutDirection !== "single" && !isLastPanel;
   const resizeDirection = layoutDirection === "horizontal" ? "horizontal" : "vertical";
 
+  // Get container rect and tab height for drop overlay positioning
+  const containerRect = useRef<DOMRect | null>(null);
+  const tabHeightRef = useRef<number>(0);
+  const tabBarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (containerRef.current && (isSplitTarget || isDraggingOver)) {
+      containerRect.current = containerRef.current.getBoundingClientRect();
+    }
+    // Get tab bar height
+    if (tabBarRef.current) {
+      tabHeightRef.current = tabBarRef.current.offsetHeight;
+    }
+  }, [isSplitTarget, isDraggingOver]);
+
   return (
     <div
-      ref={setDroppableRef}
-      className={`panel-group ${isFocused ? "focused" : ""}`}
+      ref={(node) => {
+        (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+        setDroppableRef(node);
+      }}
+      data-group-id={group.id}
+      className={`panel-group ${isFocused ? "focused" : ""} ${isDraggingOver ? "drag-over" : ""} ${isSplitTarget && splitDirection ? "split-target" : ""}`}
       onClick={handleContainerClick}
-      style={{ flex: `${group.percentage}%` }}
+      style={{ width: "100%", height: "100%" }}
     >
+      {/* Split Preview Overlay */}
+      {isSplitTarget && splitDirection && containerRect.current && (
+        <MemoizedDropOverlay
+          containerRect={containerRect.current}
+          splitDirection={splitDirection}
+          tabHeight={tabHeightRef.current}
+        />
+      )}
+
       {/* Tab Bar */}
-      <div className="panel-tab-bar">
+      <div ref={tabBarRef} className="panel-tab-bar">
         <MemoizedPanelTabList
           groupId={group.id}
           tabs={group.tabs}
@@ -224,6 +275,7 @@ export function UnifiedPanelContainer({
           onContextMenuAction={(action, tab) => handleContextMenuAction(action, tab.id)}
           onTabDoubleClick={onTabDoubleClick}
           isDraggingOver={isDraggingOver}
+          activeDragId={activeDragId}
         />
 
         {/* Panel Controls */}

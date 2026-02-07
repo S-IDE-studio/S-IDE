@@ -72,9 +72,11 @@ export function GridBranchNodeView({
   const splitViewRef = useRef<SplitViewHandle | null>(null);
 
   // Update sizes when node.sizes changes
+  // Convert percentage sizes to pixel sizes
   useEffect(() => {
-    setCurrentViewSizes(node.sizes);
-  }, [node.sizes]);
+    const pixelSizes = node.sizes.map((size) => (size / 100) * layoutContext.orthogonalSize);
+    setCurrentViewSizes(pixelSizes);
+  }, [node.sizes, layoutContext.orthogonalSize]);
 
   /**
    * Calculate minimum size for a child based on its constraints
@@ -145,14 +147,16 @@ export function GridBranchNodeView({
 
   /**
    * Handle layout change from SplitView
-   * Now uses current view sizes from SplitView state instead of closure
+   * Convert pixel sizes back to percentages when reporting to parent
    */
   const handleDidChange = useCallback(() => {
     // Get actual current sizes from SplitView
     const actualSizes = splitViewRef.current?.getViewSizes() ?? currentViewSizes;
     setCurrentViewSizes(actualSizes);
-    onLayoutChange(actualSizes);
-  }, [onLayoutChange]); // Remove currentViewSizes from dependencies to avoid closure
+    // Convert pixel sizes to percentages for parent
+    const percentageSizes = actualSizes.map((size) => (size / layoutContext.orthogonalSize) * 100);
+    onLayoutChange(percentageSizes);
+  }, [onLayoutChange, layoutContext.orthogonalSize, currentViewSizes]);
 
   /**
    * Distribute view sizes equally

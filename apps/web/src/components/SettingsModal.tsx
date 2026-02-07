@@ -6,6 +6,7 @@ interface Settings {
   basicAuthEnabled: boolean;
   basicAuthUser: string;
   basicAuthPassword: string;
+  remoteAccessAutoStart?: boolean;
 }
 
 interface WsStats {
@@ -35,6 +36,8 @@ const LABEL_WS_LIMIT = "接続数上限 (IP毎)";
 const LABEL_WS_CONNECTIONS = "現在の接続数";
 const LABEL_WS_CLEAR = "全接続をクリア";
 const LABEL_WS_APPLY = "適用";
+const LABEL_REMOTE_ACCESS = "Remote Access";
+const LABEL_REMOTE_ACCESS_AUTO_START = "Remote Accessを自動起動する (Desktopのみ)";
 
 export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
   const [port, setPort] = useState(DEFAULT_SERVER_PORT);
@@ -42,6 +45,8 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
   const [basicAuthUser, setBasicAuthUser] = useState("");
   const [basicAuthPassword, setBasicAuthPassword] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [remoteAccessAutoStart, setRemoteAccessAutoStart] = useState(false);
+  const [isTauri, setIsTauri] = useState(false);
 
   // Track initial values to detect unsaved changes
   const [initialValues, setInitialValues] = useState<Settings>({
@@ -49,6 +54,7 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
     basicAuthEnabled: false,
     basicAuthUser: "",
     basicAuthPassword: "",
+    remoteAccessAutoStart: false,
   });
 
   // WebSocket settings
@@ -70,6 +76,8 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
 
   useEffect(() => {
     if (isOpen) {
+      setIsTauri(typeof window !== "undefined" && "__TAURI__" in window);
+
       // Load current settings from server
       fetch("/api/settings")
         .then((res) => res.json())
@@ -79,11 +87,26 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
           setBasicAuthUser(data.basicAuthUser);
           setBasicAuthPassword(data.basicAuthPassword);
           // Store initial values to detect unsaved changes
-          setInitialValues(data);
+          setInitialValues({
+            ...data,
+            remoteAccessAutoStart: Boolean(data.remoteAccessAutoStart ?? false),
+          });
         })
         .catch((err) => {
           console.error("Failed to load settings:", err);
         });
+
+      // Load Remote Access settings from Desktop (best-effort)
+      if (typeof window !== "undefined" && "__TAURI__" in window) {
+        import("@tauri-apps/api/core")
+          .then((tauri) => tauri.invoke("get_remote_access_settings") as Promise<{ auto_start?: boolean }>)
+          .then((s) => {
+            const autoStart = Boolean(s?.auto_start);
+            setRemoteAccessAutoStart(autoStart);
+            setInitialValues((prev) => ({ ...prev, remoteAccessAutoStart: autoStart }));
+          })
+          .catch(() => {});
+      }
 
       // Load WebSocket stats
       loadWsStats();
@@ -99,9 +122,10 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
       port !== initialValues.port ||
       basicAuthEnabled !== initialValues.basicAuthEnabled ||
       basicAuthUser !== initialValues.basicAuthUser ||
-      basicAuthPassword !== initialValues.basicAuthPassword
+      basicAuthPassword !== initialValues.basicAuthPassword ||
+      remoteAccessAutoStart !== Boolean(initialValues.remoteAccessAutoStart)
     );
-  }, [port, basicAuthEnabled, basicAuthUser, basicAuthPassword, initialValues]);
+  }, [port, basicAuthEnabled, basicAuthUser, basicAuthPassword, remoteAccessAutoStart, initialValues]);
 
   // Handle close with confirmation for unsaved changes
   const handleClose = useCallback(() => {
@@ -150,9 +174,10 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
         basicAuthEnabled,
         basicAuthUser,
         basicAuthPassword,
+        remoteAccessAutoStart,
       });
       // Update initial values after successful save
-      setInitialValues({ port, basicAuthEnabled, basicAuthUser, basicAuthPassword });
+      setInitialValues({ port, basicAuthEnabled, basicAuthUser, basicAuthPassword, remoteAccessAutoStart });
       onClose();
     } catch (err) {
       console.error("Failed to save settings:", err);
@@ -298,6 +323,22 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
                 </button>
               </div>
             </section>
+
+            {isTauri && (
+              <section className="settings-section">
+                <h3 className="settings-section-title">{LABEL_REMOTE_ACCESS}</h3>
+                <div className="form-group">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={remoteAccessAutoStart}
+                      onChange={(e) => setRemoteAccessAutoStart(e.target.checked)}
+                    />
+                    <span>{LABEL_REMOTE_ACCESS_AUTO_START}</span>
+                  </label>
+                </div>
+              </section>
+            )}
 
             <p className="settings-restart-note">{LABEL_RESTART_NOTE}</p>
           </div>

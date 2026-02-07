@@ -3,7 +3,7 @@ import { type ReactNode, useMemo } from "react";
 
 interface GlobalStatusBarProps {
   serverStatus?: ReactNode;
-  tunnelControl?: ReactNode;
+  remoteAccessControl?: ReactNode;
   activeTerminalsCount?: number;
   contextHealthScore?: number;
   onToggleContextStatus?: () => void;
@@ -23,7 +23,7 @@ interface PerformanceWithMemory extends Performance {
 
 export function GlobalStatusBar({
   serverStatus,
-  tunnelControl,
+  remoteAccessControl,
   activeTerminalsCount = 0,
   contextHealthScore = 100,
   onToggleContextStatus,
@@ -60,7 +60,7 @@ export function GlobalStatusBar({
             Server: Connected
           </span>
         )}
-        {tunnelControl}
+        {remoteAccessControl}
         {onToggleContextStatus && (
           <button
             className="statusbar-item statusbar-clickable"
