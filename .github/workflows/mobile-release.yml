@@ -32,7 +32,8 @@ jobs:
   build-android-debug-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: github.event_name == 'push' || github.event.inputs.build_mode == 'debug-apk'
+    # Debug APK is useful for quick installs, but we don't ship it on tag releases.
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.build_mode == 'debug-apk'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -110,7 +111,8 @@ jobs:
   eas-android:
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.build_mode == 'eas-android'
+    # Run on tag pushes (production), or on manual dispatch for eas-android mode.
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.build_mode == 'eas-android')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -129,18 +131,76 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: EAS Build (Android)
+        id: build
         working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_PROFILE: ${{ github.event.inputs.eas_profile }}
         run: |
-          if [ -z "$EXPO_TOKEN" ]; then
+          set -euo pipefail
+          if [ -z "${EXPO_TOKEN:-}" ]; then
             echo "EXPO_TOKEN is not configured in GitHub Secrets."
             echo "Add it at: Settings -> Secrets and variables -> Actions -> New repository secret (EXPO_TOKEN)"
             exit 1
           fi
+
+          PROFILE="${EAS_PROFILE:-preview}"
+          if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
+            PROFILE="production"
+          fi
+
           npm install -g eas-cli
           eas --version
-          eas build --platform android --profile "${{ github.event.inputs.eas_profile }}" --non-interactive --wait
+
+          echo "Starting EAS Android build (profile=$PROFILE)..."
+          eas build --platform android --profile "$PROFILE" --non-interactive --wait
+
+          echo "Finding finished build for this commit..."
+          eas build:list --platform android --status finished --limit 1 --git-commit-hash "$GITHUB_SHA" --json --non-interactive > builds.json
+          BUILD_ID="$(node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('builds.json','utf8')); const b=Array.isArray(j)?j[0]:(j.builds?j.builds[0]:j); process.stdout.write(String((b&&b.id)||''));")"
+          if [ -z "$BUILD_ID" ]; then
+            echo "Failed to resolve Android build id from builds.json"
+            cat builds.json
+            exit 1
+          fi
+          echo "build_id=$BUILD_ID" >> "$GITHUB_OUTPUT"
+
+          echo "Fetching build details..."
+          eas build:view "$BUILD_ID" --json > build.json
+          URL="$(node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('build.json','utf8')); const a=j.artifacts||j.build?.artifacts||{}; const c=[a.buildUrl,a.applicationArchiveUrl,a.applicationArchiveBuildUrl,a.aabUrl,a.apkUrl,j.buildUrl].filter(x=>typeof x==='string'&&x.length>0); process.stdout.write(c[0]||'');")"
+          if [ -z "$URL" ]; then
+            echo "Could not find an artifact URL in build.json"
+            cat build.json
+            exit 1
+          fi
+
+          VERSION="${GITHUB_REF_NAME:-dev}"
+          FILE="${URL##*/}"
+          FILE="${FILE%%\?*}"
+          EXT="aab"
+          if [[ "$FILE" == *.apk ]]; then EXT="apk"; fi
+          if [[ "$FILE" == *.aab ]]; then EXT="aab"; fi
+
+          mkdir -p "$GITHUB_WORKSPACE/dist/mobile"
+          OUT="$GITHUB_WORKSPACE/dist/mobile/s-ide-${VERSION}-android.${EXT}"
+          echo "Downloading $URL -> $OUT"
+          curl -L "$URL" -o "$OUT"
+          echo "artifact_path=dist/mobile/s-ide-${VERSION}-android.${EXT}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build
+          path: ${{ steps.build.outputs.artifact_path }}
+          if-no-files-found: error
+
+      - name: Upload Android artifact to GitHub Release (tag only)
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.build.outputs.artifact_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   eas-ios:
     runs-on: ubuntu-latest
