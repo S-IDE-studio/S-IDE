@@ -211,11 +211,11 @@ jobs:
           EXT="ipa"
           if [[ "$FILE" == *.tar.gz ]]; then EXT="tar.gz"; fi
 
-          mkdir -p ../../dist/mobile
-          OUT="../../dist/mobile/s-ide-${VERSION}-ios.${EXT}"
+          mkdir -p "$GITHUB_WORKSPACE/dist/mobile"
+          OUT="$GITHUB_WORKSPACE/dist/mobile/s-ide-${VERSION}-ios.${EXT}"
           echo "Downloading $URL -> $OUT"
           curl -L "$URL" -o "$OUT"
-          echo "artifact_path=$OUT" >> "$GITHUB_OUTPUT"
+          echo "artifact_path=dist/mobile/s-ide-${VERSION}-ios.${EXT}" >> "$GITHUB_OUTPUT"
 
       - name: Upload iOS artifact
         uses: actions/upload-artifact@v4
