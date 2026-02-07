@@ -185,6 +185,9 @@ jobs:
           OUT="$GITHUB_WORKSPACE/dist/mobile/s-ide-${VERSION}-android.${EXT}"
           echo "Downloading $URL -> $OUT"
           curl -L "$URL" -o "$OUT"
+
+          # Stable filename for "latest download" links on the website.
+          cp "$OUT" "$GITHUB_WORKSPACE/dist/mobile/s-ide-android.${EXT}"
           echo "artifact_path=dist/mobile/s-ide-${VERSION}-android.${EXT}" >> "$GITHUB_OUTPUT"
 
       - name: Upload Android artifact
@@ -198,7 +201,9 @@ jobs:
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: ${{ steps.build.outputs.artifact_path }}
+          files: |
+            ${{ steps.build.outputs.artifact_path }}
+            dist/mobile/s-ide-android.*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -240,6 +245,9 @@ jobs:
           fi
 
           PROFILE="${EAS_PROFILE:-preview}"
+          if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
+            PROFILE="production"
+          fi
           npm install -g eas-cli
           eas --version
 
@@ -275,6 +283,9 @@ jobs:
           OUT="$GITHUB_WORKSPACE/dist/mobile/s-ide-${VERSION}-ios.${EXT}"
           echo "Downloading $URL -> $OUT"
           curl -L "$URL" -o "$OUT"
+
+          # Stable filename for "latest download" links on the website.
+          cp "$OUT" "$GITHUB_WORKSPACE/dist/mobile/s-ide-ios.${EXT}"
           echo "artifact_path=dist/mobile/s-ide-${VERSION}-ios.${EXT}" >> "$GITHUB_OUTPUT"
 
       - name: Upload iOS artifact
@@ -288,7 +299,9 @@ jobs:
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: ${{ steps.build.outputs.artifact_path }}
+          files: |
+            ${{ steps.build.outputs.artifact_path }}
+            dist/mobile/s-ide-ios.*
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
