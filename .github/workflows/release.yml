@@ -14,8 +14,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest'
-            args: '--target aarch64-apple-darwin,x86_64-apple-darwin'
+          - platform: 'macos-14'
+            args: '--target aarch64-apple-darwin'
+            stable_macos: 's-ide-macos-arm64.dmg'
+          - platform: 'macos-13'
+            args: '--target x86_64-apple-darwin'
+            stable_macos: 's-ide-macos-x64.dmg'
           - platform: 'windows-latest'
             args: ''
           - platform: 'ubuntu-latest'
@@ -109,11 +113,15 @@ jobs:
             cp "$EXE" "dist/release/s-ide-windows-setup.exe"
           fi
 
-          if [[ "${{ matrix.platform }}" == "macos-latest" ]]; then
+          if [[ "${{ matrix.platform }}" == macos-* ]]; then
             DMG="$(find_bundle "*.dmg")"
             APP_TGZ="$(find_bundle "*.app.tar.gz")"
             if [[ -n "$DMG" ]]; then
-              cp "$DMG" "dist/release/s-ide-macos.dmg"
+              OUT="${{ matrix.stable_macos }}"
+              if [[ -z "$OUT" ]]; then
+                OUT="s-ide-macos.dmg"
+              fi
+              cp "$DMG" "dist/release/$OUT"
             elif [[ -n "$APP_TGZ" ]]; then
               cp "$APP_TGZ" "dist/release/s-ide-macos.app.tar.gz"
             else
@@ -128,9 +136,11 @@ jobs:
             DEB="$(find_bundle "*.deb")"
             if [[ -n "$APPIMAGE" ]]; then
               cp "$APPIMAGE" "dist/release/s-ide-linux.AppImage"
-            elif [[ -n "$DEB" ]]; then
+            fi
+            if [[ -n "$DEB" ]]; then
               cp "$DEB" "dist/release/s-ide-linux.deb"
-            else
+            fi
+            if [[ -z "$APPIMAGE" && -z "$DEB" ]]; then
               echo "No Linux AppImage or deb found"
               for b in "${BASES[@]}"; do ls -R "$b" || true; done
               exit 1
