@@ -8,7 +8,9 @@
     "splash": {
       "backgroundColor": "#1a1a1a"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.sideide.app"
@@ -16,7 +18,16 @@
     "android": {
       "package": "com.sideide.app"
     },
-    "plugins": [],
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "1.9.25"
+          }
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "8a058eb0-867d-4b9a-8a60-c2ff9c2494df"

@@ -18,6 +18,7 @@
     "@react-navigation/native": "^7.0.0",
     "@react-navigation/native-stack": "^7.0.0",
     "expo": "~52.0.0",
+    "expo-build-properties": "~0.13.3",
     "expo-clipboard": "~6.0.0",
     "js-base64": "^3.7.7",
     "react": "18.3.1",
