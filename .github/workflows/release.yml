@@ -80,42 +80,59 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist/release
-          BASE="apps/desktop/src-tauri/target"
+          BASES=()
+          if [[ -d "apps/desktop/src-tauri/target" ]]; then
+            BASES+=("apps/desktop/src-tauri/target")
+          fi
+          if [[ -d "target" ]]; then
+            BASES+=("target")
+          fi
+          if [[ ${#BASES[@]} -eq 0 ]]; then
+            echo "No cargo target directory found (expected apps/desktop/src-tauri/target or ./target)"
+            ls -R apps/desktop/src-tauri || true
+            ls -R target || true
+            exit 1
+          fi
+
+          find_bundle() {
+            # $1 = filename glob
+            find "${BASES[@]}" -type f -path "*/release/bundle/*" -name "$1" | head -n 1 || true
+          }
 
           if [[ "${{ matrix.platform }}" == "windows-latest" ]]; then
-            EXE="$(find "$BASE" -type f -path "*/release/bundle/*" -name "*.exe" | head -n 1 || true)"
+            EXE="$(find_bundle "*.exe")"
             if [[ -z "$EXE" ]]; then
               echo "No Windows .exe bundle found"
-              ls -R "$BASE" || true
+              for b in "${BASES[@]}"; do ls -R "$b" || true; done
               exit 1
             fi
             cp "$EXE" "dist/release/s-ide-windows-setup.exe"
           fi
 
           if [[ "${{ matrix.platform }}" == "macos-latest" ]]; then
-            DMG="$(find "$BASE" -type f -path "*/release/bundle/*" -name "*.dmg" | head -n 1 || true)"
-            APP_TGZ="$(find "$BASE" -type f -path "*/release/bundle/*" -name "*.app.tar.gz" | head -n 1 || true)"
+            DMG="$(find_bundle "*.dmg")"
+            APP_TGZ="$(find_bundle "*.app.tar.gz")"
             if [[ -n "$DMG" ]]; then
               cp "$DMG" "dist/release/s-ide-macos.dmg"
             elif [[ -n "$APP_TGZ" ]]; then
               cp "$APP_TGZ" "dist/release/s-ide-macos.app.tar.gz"
             else
               echo "No macOS dmg or app.tar.gz found"
-              ls -R "$BASE" || true
+              for b in "${BASES[@]}"; do ls -R "$b" || true; done
               exit 1
             fi
           fi
 
           if [[ "${{ matrix.platform }}" == "ubuntu-latest" ]]; then
-            APPIMAGE="$(find "$BASE" -type f -path "*/release/bundle/*" -name "*.AppImage" | head -n 1 || true)"
-            DEB="$(find "$BASE" -type f -path "*/release/bundle/*" -name "*.deb" | head -n 1 || true)"
+            APPIMAGE="$(find_bundle "*.AppImage")"
+            DEB="$(find_bundle "*.deb")"
             if [[ -n "$APPIMAGE" ]]; then
               cp "$APPIMAGE" "dist/release/s-ide-linux.AppImage"
             elif [[ -n "$DEB" ]]; then
               cp "$DEB" "dist/release/s-ide-linux.deb"
             else
               echo "No Linux AppImage or deb found"
-              ls -R "$BASE" || true
+              for b in "${BASES[@]}"; do ls -R "$b" || true; done
               exit 1
             fi
           fi
@@ -130,6 +147,12 @@ jobs:
             apps/desktop/src-tauri/target/**/release/bundle/**/*.exe
             apps/desktop/src-tauri/target/**/release/bundle/**/*.deb
             apps/desktop/src-tauri/target/**/release/bundle/**/*.AppImage
+            target/**/release/bundle/**/*.dmg
+            target/**/release/bundle/**/*.app.tar.gz
+            target/**/release/bundle/**/*.msi
+            target/**/release/bundle/**/*.exe
+            target/**/release/bundle/**/*.deb
+            target/**/release/bundle/**/*.AppImage
             dist/release/*
           generate_release_notes: true
         env:
