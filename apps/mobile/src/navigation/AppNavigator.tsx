@@ -1,36 +1,72 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import type React from "react";
-import { HomeScreen } from "../screens/HomeScreen";
+import { ConnectScreen } from "../screens/ConnectScreen";
+import { DecksScreen } from "../screens/DecksScreen";
+import { EditorScreen } from "../screens/EditorScreen";
+import { FilesScreen } from "../screens/FilesScreen";
 import { TerminalScreen } from "../screens/TerminalScreen";
-import { VibesScreen } from "../screens/VibesScreen";
+import { TerminalsScreen } from "../screens/TerminalsScreen";
+import { WorkspaceScreen } from "../screens/WorkspaceScreen";
+import { WorkspacesScreen } from "../screens/WorkspacesScreen";
 
 export type RootStackParamList = {
-  Home: undefined;
+  Connect: undefined;
+  Workspaces: undefined;
+  Workspace: { workspaceId: string; workspaceName?: string };
+  Files: { workspaceId: string; path?: string };
+  Editor: { workspaceId: string; path: string };
+  Decks: { workspaceId: string };
+  Terminals: { deckId: string; deckName?: string };
   Terminal: { terminalId: string; title: string };
-  Vibes: { terminalId: string };
 };
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+// Keep stack typing loose for now: screens are implemented with pragmatic `any` props.
+const Stack = createNativeStackNavigator();
 
 export const AppNavigator: React.FC = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Home"
+        initialRouteName="Connect"
         screenOptions={{
           headerStyle: { backgroundColor: "#1a1a1a" },
           headerTintColor: "#ffffff",
           headerTitleStyle: { color: "#ffffff" },
         }}
       >
-        <Stack.Screen name="Home" component={HomeScreen} options={{ title: "Deck IDE" }} />
+        <Stack.Screen
+          name="Connect"
+          component={ConnectScreen as any}
+          options={{ title: "Connect" }}
+        />
+        <Stack.Screen
+          name="Workspaces"
+          component={WorkspacesScreen as any}
+          options={{ title: "Workspaces" }}
+        />
+        <Stack.Screen
+          name="Workspace"
+          component={WorkspaceScreen as any}
+          options={({ route }: { route: any }) => ({ title: route.params.workspaceName || "Workspace" })}
+        />
+        <Stack.Screen name="Files" component={FilesScreen as any} options={{ title: "Files" }} />
+        <Stack.Screen
+          name="Editor"
+          component={EditorScreen as any}
+          options={({ route }: { route: any }) => ({ title: route.params.path.split("/").pop() || "Editor" })}
+        />
+        <Stack.Screen name="Decks" component={DecksScreen as any} options={{ title: "Decks" }} />
+        <Stack.Screen
+          name="Terminals"
+          component={TerminalsScreen as any}
+          options={({ route }: { route: any }) => ({ title: route.params.deckName || "Terminals" })}
+        />
         <Stack.Screen
           name="Terminal"
-          component={TerminalScreen}
-          options={({ route }) => ({ title: route.params.title })}
+          component={TerminalScreen as any}
+          options={({ route }: { route: any }) => ({ title: route.params.title })}
         />
-        <Stack.Screen name="Vibes" component={VibesScreen} options={{ title: "Vibe Coding" }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

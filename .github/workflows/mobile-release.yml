@@ -3,13 +3,22 @@ name: Mobile Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
     inputs:
-      profile:
-        description: 'Build profile'
+      build_mode:
+        description: "What to build"
         required: true
-        default: 'production'
+        default: "debug-apk"
+        type: choice
+        options:
+          - debug-apk
+          - eas-android
+          - eas-ios
+      eas_profile:
+        description: "EAS build profile (only for EAS builds)"
+        required: true
+        default: "preview"
         type: choice
         options:
           - production
@@ -20,41 +29,10 @@ permissions:
   contents: write
 
 jobs:
-  # iOS builds are disabled due to Expo SDK 52 compatibility issues
-  # Use Expo Go for testing instead
-  # build-ios:
-  #   runs-on: ubuntu-latest
-  #   continue-on-error: true
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #     - name: Setup Node.js
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version: '20'
-  #     - name: Setup pnpm
-  #       uses: pnpm/action-setup@v4
-  #       with:
-  #         version: 9
-  #     - name: Install Expo CLI
-  #       run: npm install -g expo-cli eas-cli
-  #     - name: Install dependencies
-  #       working-directory: apps/mobile
-  #       run: pnpm install --frozen-lockfile
-  #     - name: Setup EAS
-  #       working-directory: apps/mobile
-  #       run: eas --version
-  #     - name: Build iOS with EAS
-  #       working-directory: apps/mobile
-  #       env:
-  #         EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-  #       run: |
-  #         # Use preview profile for iOS simulator build (no credentials required)
-  #         eas build --platform ios --profile preview --non-interactive
-
-  build-android:
+  build-android-debug-apk:
     runs-on: ubuntu-latest
-    continue-on-error: true
+    timeout-minutes: 60
+    if: github.event_name == 'push' || github.event.inputs.build_mode == 'debug-apk'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -62,48 +40,77 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
-
-      - name: Install Expo CLI
-        run: npm install -g expo-cli eas-cli
+          version: 10
 
       - name: Install dependencies
-        working-directory: apps/mobile
         run: pnpm install --frozen-lockfile
 
-      - name: Setup EAS
-        working-directory: apps/mobile
-        run: eas --version
-
-      - name: Build Android with EAS
+      - name: Prebuild Android (Expo)
         working-directory: apps/mobile
         env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          EXPO_ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          EXPO_ANDROID_KEYSTORE_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          EXPO_ANDROID_KEYSTORE_PRIVATE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          EXPO_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        run: |
-          # Check if keystore secrets are available
-          if [ -z "$EXPO_ANDROID_KEYSTORE_BASE64" ]; then
-            echo "⚠️ Android keystore secrets not configured"
-            echo "Run 'bash scripts/setup-android-secrets.sh' to set them up"
-            echo "Skipping Android build..."
-            exit 0
-          fi
-          # Use development profile for internal distribution
-          eas build --platform android --profile development --non-interactive
+          CI: "1"
+        run: pnpm -F side-mobile exec expo prebuild -p android --no-install
 
-  # Job to wait for builds and download artifacts
-  download-artifacts:
-    needs: [build-android]
+      - name: Gradle Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('apps/mobile/android/**/*.gradle*', 'apps/mobile/android/**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Build Debug APK
+        working-directory: apps/mobile/android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Prepare APK artifact
+        id: prep
+        run: |
+          VERSION="${GITHUB_REF_NAME:-dev}"
+          mkdir -p dist/mobile
+          APK_PATH=$(ls apps/mobile/android/app/build/outputs/apk/debug/*.apk | head -n 1)
+          OUT="dist/mobile/s-ide-${VERSION}-android-debug.apk"
+          cp "$APK_PATH" "$OUT"
+          echo "apk_path=$OUT" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-debug-apk
+          path: ${{ steps.prep.outputs.apk_path }}
+          if-no-files-found: error
+
+      - name: Upload APK to GitHub Release (tag only)
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.prep.outputs.apk_path }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  eas-android:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    timeout-minutes: 120
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.build_mode == 'eas-android'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -111,62 +118,116 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
 
-      - name: Install Expo CLI
-        run: npm install -g expo-cli eas-cli
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Wait for builds and download artifacts
+      - name: EAS Build (Android)
         working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          echo "Waiting for EAS builds to complete..."
-          sleep 60
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "EXPO_TOKEN is not configured in GitHub Secrets."
+            echo "Add it at: Settings -> Secrets and variables -> Actions -> New repository secret (EXPO_TOKEN)"
+            exit 1
+          fi
+          npm install -g eas-cli
+          eas --version
+          eas build --platform android --profile "${{ github.event.inputs.eas_profile }}" --non-interactive --wait
 
-          # Get the latest Android build ID
-          BUILD_ID=$(eas build:list --limit=1 --platform=android --non-interactive | head -n 1 | awk '{print $1}')
+  eas-ios:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    # Run on tags if EXPO_TOKEN is present, or on manual dispatch for eas-ios mode.
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && secrets.EXPO_TOKEN != '') || (github.event_name == 'workflow_dispatch' && github.event.inputs.build_mode == 'eas-ios')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-          if [ -n "$BUILD_ID" ]; then
-            echo "Viewing Android build $BUILD_ID..."
-            eas build:view $BUILD_ID --platform=android --non-interactive || true
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: EAS Build (iOS)
+        id: build
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_PROFILE: ${{ github.event.inputs.eas_profile }}
+        run: |
+          set -euo pipefail
+          if [ -z "${EXPO_TOKEN:-}" ]; then
+            echo "EXPO_TOKEN is not configured in GitHub Secrets."
+            echo "Add it at: Settings -> Secrets and variables -> Actions -> New repository secret (EXPO_TOKEN)"
+            exit 1
           fi
 
-          echo ""
-          echo "Note: iOS builds are disabled due to Expo SDK 52 compatibility."
-          echo "Use Expo Go for testing: cd apps/mobile && pnpm start"
+          PROFILE="${EAS_PROFILE:-preview}"
+          npm install -g eas-cli
+          eas --version
 
-      - name: Create Release Info
-        id: release-info
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "### S-IDE Mobile $VERSION" > release_notes.md
-          echo "" >> release_notes.md
-          echo "## Downloads" >> release_notes.md
-          echo "" >> release_notes.md
-          echo "Android builds are available via Expo EAS." >> release_notes.md
-          echo "" >> release_notes.md
-          echo "Note: iOS builds are currently disabled. Use Expo Go for testing:" >> release_notes.md
-          echo "```bash" >> release_notes.md
-          echo "cd apps/mobile" >> release_notes.md
-          echo "pnpm start" >> release_notes.md
-          echo "```" >> release_notes.md
-          echo "" >> release_notes.md
-          echo "To install Android:" >> release_notes.md
-          echo "- Download APK from EAS Build page" >> release_notes.md
+          echo "Starting EAS iOS build (profile=$PROFILE)..."
+          eas build --platform ios --profile "$PROFILE" --non-interactive --wait
 
-      - name: Upload to Release
+          echo "Finding finished build for this commit..."
+          eas build:list --platform ios --status finished --limit 1 --git-commit-hash "$GITHUB_SHA" --json --non-interactive > builds.json
+          BUILD_ID="$(node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('builds.json','utf8')); const b=Array.isArray(j)?j[0]:(j.builds?j.builds[0]:j); process.stdout.write(String((b&&b.id)||''));")"
+          if [ -z "$BUILD_ID" ]; then
+            echo "Failed to resolve iOS build id from builds.json"
+            cat builds.json
+            exit 1
+          fi
+          echo "build_id=$BUILD_ID" >> "$GITHUB_OUTPUT"
+
+          echo "Fetching build details..."
+          eas build:view "$BUILD_ID" --json > build.json
+          URL="$(node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('build.json','utf8')); const a=j.artifacts||j.build?.artifacts||{}; const c=[a.buildUrl,a.applicationArchiveUrl,a.applicationArchiveBuildUrl,a.ipaUrl,j.buildUrl].filter(x=>typeof x==='string'&&x.length>0); process.stdout.write(c[0]||'');")"
+          if [ -z "$URL" ]; then
+            echo "Could not find an artifact URL in build.json"
+            cat build.json
+            exit 1
+          fi
+
+          VERSION="${GITHUB_REF_NAME:-dev}"
+          FILE="${URL##*/}"
+          FILE="${FILE%%\?*}"
+          EXT="ipa"
+          if [[ "$FILE" == *.tar.gz ]]; then EXT="tar.gz"; fi
+
+          mkdir -p ../../dist/mobile
+          OUT="../../dist/mobile/s-ide-${VERSION}-ios.${EXT}"
+          echo "Downloading $URL -> $OUT"
+          curl -L "$URL" -o "$OUT"
+          echo "artifact_path=$OUT" >> "$GITHUB_OUTPUT"
+
+      - name: Upload iOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build
+          path: ${{ steps.build.outputs.artifact_path }}
+          if-no-files-found: error
+
+      - name: Upload iOS artifact to GitHub Release (tag only)
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            release_notes.md
-          body_path: apps/mobile/release_notes.md
-          generate_release_notes: false
+          files: ${{ steps.build.outputs.artifact_path }}
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
