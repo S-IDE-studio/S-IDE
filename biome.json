@@ -145,7 +145,7 @@
       }
     },
     {
-      "includes": ["packages/shared/*.d.ts", "packages/shared/*.js", "packages/shared/*.js.map"],
+      "includes": ["packages/shared/**"],
       "formatter": {
         "enabled": false
       },
