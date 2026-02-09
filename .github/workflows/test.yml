@@ -107,9 +107,7 @@ jobs:
 
       - name: Run Rust tests
         working-directory: apps/desktop/src-tauri
-        env:
-          TAURI_FRONTEND_DIST: ""
-        run: cargo test --verbose --all-features
+        run: cargo test --verbose --all-features --lib
 
       - name: Run Rust tests with coverage
         if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
