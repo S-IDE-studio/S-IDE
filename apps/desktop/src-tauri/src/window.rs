@@ -22,29 +22,39 @@ const SERVER_READY_DELAY_SECS: u64 = 3;
 const MAX_SERVER_SEARCH_DEPTH: usize = 10;
 
 /// Server download URL (GitHub Releases)
-const SERVER_DOWNLOAD_URL: &str = "https://github.com/S-IDE-studio/S-IDE/releases/download/v2.0.1/server-bundle.zip";
+const SERVER_DOWNLOAD_URL: &str = "https://github.com/S-IDE-studio/S-IDE/releases/download/v2.0.6/server-bundle.zip";
 
 /// Setup the main window
 ///
-/// # Errors
-///
-/// Returns an error if the main window cannot be found
+/// This function is called during app startup. It sets up window behavior
+/// and spawns the server startup task. Errors here will NOT prevent the app
+/// from starting - they will only log an error message.
 pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    // Get the main window
-    let window = app.get_webview_window(WINDOW_LABEL)
-        .ok_or("Main window not found")?;
+    // Get the main window - if it fails, just log and continue
+    let window = match app.get_webview_window(WINDOW_LABEL) {
+        Some(w) => w,
+        None => {
+            eprintln!("[Desktop] WARNING: Main window '{}' not found during setup", WINDOW_LABEL);
+            // Don't return error - let app continue
+            return Ok(());
+        }
+    };
 
     // Setup window behavior
     let _app_handle_for_cleanup = app.handle().clone();
     window.on_window_event(move |event| {
         if let tauri::WindowEvent::CloseRequested { .. } = event {
             // Stop server when window is closing
-            tauri::async_runtime::block_on(async move {
+            if let Err(e) = tauri::async_runtime::block_on(async move {
                 let mut handle = SERVER_HANDLE.lock().await;
                 if let Some(mut child) = handle.take() {
-                    let _ = child.kill().await;
+                    child.kill().await.map_err(|e| format!("Failed to kill server: {e}"))
+                } else {
+                    Ok(())
                 }
-            });
+            }) {
+                eprintln!("[Desktop] Error stopping server on close: {}", e);
+            }
         }
     });
 

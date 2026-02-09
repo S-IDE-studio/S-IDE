@@ -20,8 +20,8 @@
         "minHeight": 300,
         "resizable": true,
         "fullscreen": false,
-        "decorations": false,
-        "hiddenTitle": true,
+        "decorations": true,
+        "hiddenTitle": false,
         "dragDropEnabled": true,
         "skipTaskbar": false
       }
@@ -29,8 +29,7 @@
     "security": {
       "csp": "createObjectURL 'self' blob: 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:* ws://localhost:*",
       "capabilities": ["default"]
-    },
-    "withGlobalTauri": true
+    }
   },
   "bundle": {
     "active": true,

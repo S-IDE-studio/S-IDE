@@ -44,9 +44,14 @@ pub fn run() {
         .manage(TunnelState(TokioMutex::new(None)))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        // Temporarily disable updater to debug startup issues
+        //.plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
-            window::setup(app)?;
+            // Setup window behavior and spawn server task
+            // Errors here will NOT prevent app from starting
+            if let Err(e) = window::setup(app) {
+                eprintln!("[Desktop] Setup error (app will continue): {}", e);
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
