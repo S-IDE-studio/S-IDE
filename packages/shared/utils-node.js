@@ -34,3 +34,4 @@ export function getWorkspaceName(workspacePath, fallbackIndex) {
   const base = path.basename(trimmed);
   return base || `Project ${fallbackIndex}`;
 }
+//# sourceMappingURL=utils-node.js.map
