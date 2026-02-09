@@ -17,6 +17,7 @@
     "build:mobile:ios": "pnpm -F side-mobile run build:ios",
     "build:mobile:android": "pnpm -F side-mobile run build:android",
     "bundle:server": "node scripts/bundle-server.js",
+    "bundle:server:zip": "node scripts/create-server-bundle.js",
     "generate-icons": "node scripts/generate-icons.js",
     "serve": "pnpm run build:web && pnpm run build:server && pnpm -F side-server run serve",
     "type-check": "pnpm run type-check:shared && pnpm run type-check:ui && pnpm run type-check:server && pnpm run type-check:web",
@@ -41,6 +42,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.3.13",
     "@testing-library/jest-dom": "^6.6.0",
+    "archiver": "^7.0.1",
     "@testing-library/react": "^16.0.0",
     "@testing-library/user-event": "^14.5.0",
     "@vitejs/plugin-react": "^4.2.1",

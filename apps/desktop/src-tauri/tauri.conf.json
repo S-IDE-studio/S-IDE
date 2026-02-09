@@ -36,7 +36,6 @@
     "active": true,
     "targets": ["msi", "nsis", "dmg", "app", "deb", "appimage"],
     "icon": ["icons/icon.ico", "icons/icon.icns", "icons/icon.png"],
-    "resources": ["resources/*"],
     "publisher": "S-IDE studio",
     "windows": {
       "nsis": {
@@ -45,6 +44,9 @@
       },
       "wix": {
         "language": "en-US"
+      },
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
       }
     },
     "macOS": {
