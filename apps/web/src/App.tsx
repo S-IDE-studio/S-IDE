@@ -1097,6 +1097,19 @@ export default function App() {
   }, [checkForUpdates]);
   */
 
+  // Check for updates after server is ready (desktop app only)
+  useEffect(() => {
+    if (!serverReady) return;
+    const isDesktop = typeof window !== "undefined" &&
+      "__TAURI__" in window;
+    if (isDesktop) {
+      // Check for updates on startup (desktop app)
+      checkForUpdates().catch(() => {
+        // Silently ignore update check failures
+      });
+    }
+  }, [serverReady, checkForUpdates]);
+
   useEffect(() => {
     if (typeof document === "undefined") return;
     document.documentElement.dataset.theme = "dark";

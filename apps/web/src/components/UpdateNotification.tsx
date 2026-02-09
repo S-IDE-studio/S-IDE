@@ -1,4 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
+import { check } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 import { useEffect, useState } from "react";
 
 interface UpdateInfo {
@@ -90,35 +91,43 @@ export function UpdateNotification({ updateInfo, onDownload, onSkip }: UpdateNot
   );
 }
 
-// Hook for update checking
-// NOTE: Updater functionality is disabled in this build
+// Hook for update checking using Tauri 2.0 updater plugin
 export function useUpdateCheck() {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
+  const [update, setUpdate] = useState<ReturnType<typeof check> extends Promise<infer T> ? T : null>(null);
 
   const checkForUpdates = async () => {
     setIsChecking(true);
     try {
-      const result = await invoke<UpdateInfo | null>("check_update");
-      if (result) {
-        setUpdateInfo(result);
+      const result = await check();
+      if (result?.available) {
+        setUpdate(result);
+        setUpdateInfo({
+          current_version: result.currentVersion,
+          latest_version: result.version,
+          body: result.body || "",
+          date: result.date || "",
+        });
         setShowNotification(true);
       }
     } catch (error) {
-      // Silently ignore - updater commands are not available in this build
-      // This is expected when the updater plugin is disabled
+      console.error("Update check failed:", error);
     } finally {
       setIsChecking(false);
     }
   };
 
   const downloadAndInstall = async () => {
+    if (!update) return;
     setIsDownloading(true);
     try {
-      await invoke("download_and_install");
-      // App will restart automatically
+      // Download and install the update
+      await update.downloadAndInstall();
+      // Relaunch the app
+      await relaunch();
     } catch (error) {
       console.error("Download failed:", error);
       setIsDownloading(false);
@@ -129,6 +138,7 @@ export function useUpdateCheck() {
   const skipUpdate = () => {
     setShowNotification(false);
     setUpdateInfo(null);
+    setUpdate(null);
   };
 
   // Cleanup function to reset state on unmount
