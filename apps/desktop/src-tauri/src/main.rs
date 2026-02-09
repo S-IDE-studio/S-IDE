@@ -44,7 +44,9 @@ pub fn run() {
         .manage(TunnelState(TokioMutex::new(None)))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        // NOTE: updater plugin disabled due to configuration issues
+        // Will re-enable once basic app startup is working
+        //.plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             // Setup window behavior and spawn server task
             // Errors here will NOT prevent app from starting
@@ -79,34 +81,10 @@ pub fn run() {
 }
 
 fn main() {
-    // Set up panic hook to log errors before crashing
-    std::panic::set_hook(Box::new(|panic_info| {
-        eprintln!("\n=== S-IDE PANIC ===");
-        if let Some(location) = panic_info.location() {
-            eprintln!("Location: {}:{}:{}", location.file(), location.line(), location.column());
-        }
-        eprintln!("Message: {}", panic_info);
-        eprintln!("===================\n");
-
-        // Try to write to a log file for debugging
-        if let Ok(log_dir) = std::env::var("LOCALAPPDATA") {
-            if let Ok(mut file) = std::fs::File::create(
-                std::path::PathBuf::from(log_dir).join("S-IDE").join("panic.log")
-            ) {
-                use std::io::Write;
-                let _ = writeln!(file, "PANIC: {}", panic_info);
-            }
-        }
-    }));
-
-    // NOTE: FreeConsole() temporarily disabled to debug startup issues
-    // The console window suppression may be causing the app to not start
-    // #[cfg(all(target_os = "windows", not(debug_assertions)))]
-    // {
-    //     unsafe {
-    //         let _ = windows::Win32::System::Console::FreeConsole();
-    //     }
-    // }
-
-    run();
+    // Run the application with basic error handling
+    if let Err(e) = std::panic::catch_unwind(|| {
+        run();
+    }) {
+        eprintln!("[Desktop] Fatal error: {:?}", e);
+    }
 }

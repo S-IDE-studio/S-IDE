@@ -11,6 +11,7 @@ const serverDir = path.join(rootDir, "apps", "server");
 const serverDistDir = path.join(serverDir, "dist");
 const resourcesDir = path.join(rootDir, "apps", "desktop", "src-tauri", "resources");
 const bundleDir = path.join(resourcesDir, "server");
+const sharedDir = path.join(rootDir, "packages", "shared");
 
 console.log("[Bundle] Starting server file bundling...");
 
@@ -23,6 +24,12 @@ fs.mkdirSync(bundleDir, { recursive: true });
 // Copy server dist files
 console.log(`[Bundle] Copying server files from ${serverDistDir} to ${bundleDir}`);
 copyDirectory(serverDistDir, bundleDir);
+
+// Copy shared package
+console.log(`[Bundle] Copying shared package from ${sharedDir} to ${bundleDir}/node_modules/@side-ide/shared`);
+const sharedDestDir = path.join(bundleDir, "node_modules", "@side-ide");
+fs.mkdirSync(sharedDestDir, { recursive: true });
+copyDirectory(sharedDir, path.join(sharedDestDir, "shared"));
 
 // Copy package.json (production only)
 console.log("[Bundle] Creating production package.json...");

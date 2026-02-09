@@ -443,12 +443,14 @@ fn read_server_port_from_settings() -> Option<u16> {
 
 /// Checks if we're running in development mode
 fn is_development_mode() -> bool {
-    // Check if running from a build output directory (target/debug or target/release)
+    // Check if running from a build output directory
     if let Ok(exe_path) = std::env::current_exe() {
         let path_str = exe_path.to_string_lossy();
-        // If running from target/debug or target/release, it's a dev build
-        if path_str.contains("target") && (path_str.contains("debug") || path_str.contains("release")) {
-            return true;
+
+        // If running from target/debug, it's a dev build
+        // If running from target/release, it's a production build (installed app)
+        if path_str.contains("target") {
+            return path_str.contains("debug");
         }
     }
 
