@@ -3589,7 +3589,7 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
 name = "side-desktop"
-version = "2.0.8"
+version = "2.0.9"
 dependencies = [
  "reqwest 0.12.28",
  "serde",
@@ -3603,6 +3603,7 @@ dependencies = [
  "tokio",
  "url",
  "which",
+ "windows 0.61.3",
  "zip 2.4.2",
 ]
 

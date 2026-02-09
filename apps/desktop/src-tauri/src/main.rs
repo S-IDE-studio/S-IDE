@@ -80,5 +80,13 @@ pub fn run() {
 }
 
 fn main() {
+    // Hide console window in production builds on Windows
+    #[cfg(all(target_os = "windows", not(debug_assertions)))]
+    unsafe {
+        // FreeConsole: Detaches the calling process from its console
+        // This prevents the console window from showing
+        windows::Win32::System::Console::FreeConsole();
+    }
+
     run();
 }
