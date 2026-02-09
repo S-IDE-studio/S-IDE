@@ -148,6 +148,9 @@
       "includes": ["packages/shared/*.d.ts", "packages/shared/*.js", "packages/shared/*.js.map"],
       "formatter": {
         "enabled": false
+      },
+      "linter": {
+        "enabled": false
       }
     }
   ]
