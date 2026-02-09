@@ -122,9 +122,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build shared package
-        run: pnpm -F @side-ide/shared run build
-
       - name: Run Biome linter
         run: pnpm run lint
 
