@@ -1,6 +1,7 @@
 // Node.js-specific utility functions
 // This file should only be imported in Node.js environments (server)
 import path from "node:path";
+
 // Re-export all browser-compatible utilities
 export * from "./utils.js";
 /**
@@ -10,7 +11,7 @@ export * from "./utils.js";
  * @returns Normalized absolute path
  */
 export function normalizeWorkspacePath(inputPath, defaultPath) {
-    return path.resolve(inputPath || defaultPath);
+  return path.resolve(inputPath || defaultPath);
 }
 /**
  * Get a workspace key for indexing (handles case-insensitivity on Windows)
@@ -19,8 +20,8 @@ export function normalizeWorkspacePath(inputPath, defaultPath) {
  * @returns Normalized key for indexing
  */
 export function getWorkspaceKey(workspacePath) {
-    const normalized = workspacePath.replace(/[\\/]+$/, "");
-    return process.platform === "win32" ? normalized.toLowerCase() : normalized;
+  const normalized = workspacePath.replace(/[\\/]+$/, "");
+  return process.platform === "win32" ? normalized.toLowerCase() : normalized;
 }
 /**
  * Extract a workspace name from its path (Node.js version)
@@ -29,8 +30,8 @@ export function getWorkspaceKey(workspacePath) {
  * @returns Workspace name
  */
 export function getWorkspaceName(workspacePath, fallbackIndex) {
-    const trimmed = workspacePath.replace(/[\\/]+$/, "");
-    const base = path.basename(trimmed);
-    return base || `Project ${fallbackIndex}`;
+  const trimmed = workspacePath.replace(/[\\/]+$/, "");
+  const base = path.basename(trimmed);
+  return base || `Project ${fallbackIndex}`;
 }
 //# sourceMappingURL=utils-node.js.map

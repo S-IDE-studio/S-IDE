@@ -7,10 +7,10 @@
  * @returns Normalized key for indexing
  */
 export function getWorkspaceKey(workspacePath) {
-    const normalized = workspacePath.replace(/[\\/]+$/, "");
-    // In browser, we can't reliably detect platform, so we normalize to lowercase as fallback
-    const platform = typeof process !== "undefined" ? process.platform : "unknown";
-    return platform === "win32" ? normalized.toLowerCase() : normalized;
+  const normalized = workspacePath.replace(/[\\/]+$/, "");
+  // In browser, we can't reliably detect platform, so we normalize to lowercase as fallback
+  const platform = typeof process !== "undefined" ? process.platform : "unknown";
+  return platform === "win32" ? normalized.toLowerCase() : normalized;
 }
 /**
  * Extract a workspace name from its path
@@ -19,11 +19,11 @@ export function getWorkspaceKey(workspacePath) {
  * @returns Workspace name
  */
 export function getWorkspaceName(workspacePath, fallbackIndex) {
-    const trimmed = workspacePath.replace(/[\\/]+$/, "");
-    // Browser-compatible basename
-    const parts = trimmed.split(/[\\/]/);
-    const base = parts[parts.length - 1] || "";
-    return base || `Project ${fallbackIndex}`;
+  const trimmed = workspacePath.replace(/[\\/]+$/, "");
+  // Browser-compatible basename
+  const parts = trimmed.split(/[\\/]/);
+  const base = parts[parts.length - 1] || "";
+  return base || `Project ${fallbackIndex}`;
 }
 /**
  * Normalize a workspace path to an absolute path
@@ -33,9 +33,9 @@ export function getWorkspaceName(workspacePath, fallbackIndex) {
  * @returns Normalized absolute path
  */
 export function normalizeWorkspacePath(inputPath, defaultPath) {
-    // This is a simplified version for browsers
-    // Server code should use the Node.js version from utils-node.ts
-    return inputPath || defaultPath;
+  // This is a simplified version for browsers
+  // Server code should use the Node.js version from utils-node.ts
+  return inputPath || defaultPath;
 }
 /**
  * Get file extension from a path
@@ -44,12 +44,11 @@ export function normalizeWorkspacePath(inputPath, defaultPath) {
  * @returns File extension (without dot) or empty string
  */
 export function getFileExtension(filePath) {
-    const cleanPath = filePath.split(/[?#]/)[0];
-    const lastSlash = cleanPath.lastIndexOf("/");
-    const lastDot = cleanPath.lastIndexOf(".");
-    if (lastDot === -1 || lastDot <= lastSlash || lastDot === cleanPath.length - 1)
-        return "";
-    return cleanPath.slice(lastDot + 1).toLowerCase();
+  const cleanPath = filePath.split(/[?#]/)[0];
+  const lastSlash = cleanPath.lastIndexOf("/");
+  const lastDot = cleanPath.lastIndexOf(".");
+  if (lastDot === -1 || lastDot <= lastSlash || lastDot === cleanPath.length - 1) return "";
+  return cleanPath.slice(lastDot + 1).toLowerCase();
 }
 /**
  * Map file extension to Monaco editor language
@@ -57,67 +56,67 @@ export function getFileExtension(filePath) {
  * @returns Monaco language identifier
  */
 export function getLanguageFromPath(filePath) {
-    const ext = getFileExtension(filePath);
-    const languageMap = {
-        js: "javascript",
-        jsx: "javascript",
-        ts: "typescript",
-        tsx: "typescript",
-        json: "json",
-        html: "html",
-        css: "css",
-        scss: "scss",
-        sass: "sass",
-        less: "less",
-        md: "markdown",
-        py: "python",
-        rb: "ruby",
-        go: "go",
-        rs: "rust",
-        java: "java",
-        c: "c",
-        cpp: "cpp",
-        cc: "cpp",
-        cxx: "cpp",
-        h: "c",
-        hpp: "cpp",
-        sh: "shell",
-        bash: "shell",
-        zsh: "shell",
-        fish: "shell",
-        xml: "xml",
-        yaml: "yaml",
-        yml: "yaml",
-        toml: "toml",
-        sql: "sql",
-        graphql: "graphql",
-        vue: "vue",
-        svelte: "svelte",
-        php: "php",
-        r: "r",
-        swift: "swift",
-        kt: "kotlin",
-        dart: "dart",
-        lua: "lua",
-        dockerfile: "dockerfile",
-        // Additional extensions
-        tsv: "plaintext",
-        csv: "plaintext",
-        ini: "ini",
-        cfg: "ini",
-        cmake: "cmake",
-        nim: "nim",
-        ex: "elixir",
-        exs: "elixir",
-        erl: "erlang",
-        hrl: "erlang",
-        fs: "fsharp",
-        fsi: "fsharp",
-        fsx: "fsharp",
-        cs: "csharp",
-        vb: "vb",
-    };
-    return languageMap[ext] || "plaintext";
+  const ext = getFileExtension(filePath);
+  const languageMap = {
+    js: "javascript",
+    jsx: "javascript",
+    ts: "typescript",
+    tsx: "typescript",
+    json: "json",
+    html: "html",
+    css: "css",
+    scss: "scss",
+    sass: "sass",
+    less: "less",
+    md: "markdown",
+    py: "python",
+    rb: "ruby",
+    go: "go",
+    rs: "rust",
+    java: "java",
+    c: "c",
+    cpp: "cpp",
+    cc: "cpp",
+    cxx: "cpp",
+    h: "c",
+    hpp: "cpp",
+    sh: "shell",
+    bash: "shell",
+    zsh: "shell",
+    fish: "shell",
+    xml: "xml",
+    yaml: "yaml",
+    yml: "yaml",
+    toml: "toml",
+    sql: "sql",
+    graphql: "graphql",
+    vue: "vue",
+    svelte: "svelte",
+    php: "php",
+    r: "r",
+    swift: "swift",
+    kt: "kotlin",
+    dart: "dart",
+    lua: "lua",
+    dockerfile: "dockerfile",
+    // Additional extensions
+    tsv: "plaintext",
+    csv: "plaintext",
+    ini: "ini",
+    cfg: "ini",
+    cmake: "cmake",
+    nim: "nim",
+    ex: "elixir",
+    exs: "elixir",
+    erl: "erlang",
+    hrl: "erlang",
+    fs: "fsharp",
+    fsi: "fsharp",
+    fsx: "fsharp",
+    cs: "csharp",
+    vb: "vb",
+  };
+  return languageMap[ext] || "plaintext";
 }
 /**
  * Normalize path separators to forward slashes
@@ -125,7 +124,7 @@ export function getLanguageFromPath(filePath) {
  * @returns Path with forward slashes
  */
 export function normalizePathSeparators(inputPath) {
-    return inputPath.replace(/\\/g, "/");
+  return inputPath.replace(/\\/g, "/");
 }
 /**
  * Check if a file or directory name is hidden (starts with .)
@@ -135,7 +134,7 @@ export function normalizePathSeparators(inputPath) {
  * @returns True if the name indicates a hidden file/directory
  */
 export function isHidden(name) {
-    return name.startsWith(".");
+  return name.startsWith(".");
 }
 /**
  * Get error message from unknown error type
@@ -143,26 +142,26 @@ export function isHidden(name) {
  * @returns Error message string
  */
 export function getErrorMessage(error) {
-    if (error instanceof Error) {
-        return error.message;
-    }
-    return String(error);
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
 }
 /**
  * HTTP Error class with status code
  */
 export class HttpError extends Error {
-    status;
-    /**
-     * Create an HTTP error with status code
-     * @param message - Error message
-     * @param status - HTTP status code
-     */
-    constructor(message, status) {
-        super(message);
-        this.name = "HttpError";
-        this.status = status;
-    }
+  status;
+  /**
+   * Create an HTTP error with status code
+   * @param message - Error message
+   * @param status - HTTP status code
+   */
+  constructor(message, status) {
+    super(message);
+    this.name = "HttpError";
+    this.status = status;
+  }
 }
 /**
  * Create an HTTP error with status code (legacy function for backwards compatibility)
@@ -172,7 +171,7 @@ export class HttpError extends Error {
  * @deprecated Use HttpError class directly
  */
 export function createHttpError(message, status) {
-    return new HttpError(message, status);
+  return new HttpError(message, status);
 }
 /**
  * Truncate string to max length with ellipsis
@@ -181,9 +180,8 @@ export function createHttpError(message, status) {
  * @returns Truncated string
  */
 export function truncate(str, maxLength) {
-    if (str.length <= maxLength)
-        return str;
-    return `${str.slice(0, maxLength - 3)}...`;
+  if (str.length <= maxLength) return str;
+  return `${str.slice(0, maxLength - 3)}...`;
 }
 /**
  * Generate a short ID from a UUID (first 8 characters)
@@ -192,10 +190,10 @@ export function truncate(str, maxLength) {
  * @throws Error if uuid is invalid (less than 8 characters)
  */
 export function shortId(uuid) {
-    if (!uuid || typeof uuid !== "string" || uuid.length < 8) {
-        throw new Error("Invalid UUID: must be at least 8 characters");
-    }
-    return uuid.slice(0, 8);
+  if (!uuid || typeof uuid !== "string" || uuid.length < 8) {
+    throw new Error("Invalid UUID: must be at least 8 characters");
+  }
+  return uuid.slice(0, 8);
 }
 /**
  * Format file size in human-readable format
@@ -203,15 +201,14 @@ export function shortId(uuid) {
  * @returns Formatted file size string
  */
 export function formatFileSize(bytes) {
-    if (!Number.isFinite(bytes) || bytes < 0) {
-        return "Invalid size";
-    }
-    if (bytes === 0)
-        return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
-    return `${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
+  if (!Number.isFinite(bytes) || bytes < 0) {
+    return "Invalid size";
+  }
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
+  return `${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
 }
 /**
  * Sort file system entries (directories first, then alphabetically)
@@ -219,11 +216,11 @@ export function formatFileSize(bytes) {
  * @returns Sorted array (new array, input is not mutated)
  */
 export function sortFileEntries(entries) {
-    return [...entries].sort((a, b) => {
-        if (a.type !== b.type) {
-            return a.type === "dir" ? -1 : 1;
-        }
-        return a.name.localeCompare(b.name);
-    });
+  return [...entries].sort((a, b) => {
+    if (a.type !== b.type) {
+      return a.type === "dir" ? -1 : 1;
+    }
+    return a.name.localeCompare(b.name);
+  });
 }
 //# sourceMappingURL=utils.js.map
