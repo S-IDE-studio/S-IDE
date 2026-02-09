@@ -44,8 +44,7 @@ pub fn run() {
         .manage(TunnelState(TokioMutex::new(None)))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        // Temporarily disable updater to debug startup issues
-        //.plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             // Setup window behavior and spawn server task
             // Errors here will NOT prevent app from starting

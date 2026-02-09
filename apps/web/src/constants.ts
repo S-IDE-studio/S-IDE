@@ -6,8 +6,15 @@
 import { resolveApiBase } from "./utils/apiBase";
 
 const _configuredApiBase = import.meta.env.VITE_API_BASE || "";
-export const API_BASE =
-  typeof window === "undefined"
+
+// Check if running in Tauri desktop app
+const isTauriApp = typeof window !== "undefined" && "__TAURI__" in window;
+
+// For Tauri apps, always use localhost:8787
+// For web apps, use the configured base or resolve from hostname
+export const API_BASE = isTauriApp
+  ? "http://localhost:8787"
+  : typeof window === "undefined"
     ? _configuredApiBase
     : resolveApiBase(_configuredApiBase, window.location.hostname);
 export const DEFAULT_ROOT_FALLBACK = import.meta.env.VITE_DEFAULT_ROOT || "";

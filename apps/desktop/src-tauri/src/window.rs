@@ -134,18 +134,55 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                 let mut handle = SERVER_HANDLE.lock().await;
                 *handle = Some(child);
 
-                // Wait for server to be ready
+                // Wait for server to be ready and verify it's actually responding
                 eprintln!("[Desktop] Waiting for server to be ready...");
-                tokio::time::sleep(tokio::time::Duration::from_secs(SERVER_READY_DELAY_SECS)).await;
+                let port = read_server_port_from_settings().unwrap_or(crate::common::DEFAULT_PORT);
+                let server_url = format!("http://localhost:{}", port);
 
-                // Notify frontend that server is ready
-                eprintln!("[Desktop] Server ready, notifying frontend");
-                let _ = app_handle.emit("server-ready", ());
+                // Poll server health endpoint until it responds
+                let client = reqwest::Client::builder()
+                    .timeout(std::time::Duration::from_secs(2))
+                    .build()
+                    .ok();
+
+                let mut server_ready = false;
+                for attempt in 0..15 {
+                    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+                    if let Some(ref client) = client {
+                        if let Ok(resp) = client.get(&format!("{}/health", server_url)).send().await {
+                            if resp.status().is_success() {
+                                eprintln!("[Desktop] Server is responding!");
+                                server_ready = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Also check if port is in use as fallback
+                    use std::net::TcpListener;
+                    if TcpListener::bind(format!("0.0.0.0:{}", port)).is_err() {
+                        eprintln!("[Desktop] Server port {} is in use (attempt {})", port, attempt + 1);
+                        if attempt >= 5 {
+                            // After a few attempts, consider it ready even if health check fails
+                            server_ready = true;
+                            break;
+                        }
+                    }
+                }
+
+                if server_ready {
+                    eprintln!("[Desktop] Server ready, notifying frontend");
+                    let _ = app_handle.emit("server-ready", ());
+                } else {
+                    eprintln!("[Desktop] WARNING: Server may not be fully ready");
+                    // Still emit server-ready so frontend can proceed
+                    let _ = app_handle.emit("server-ready", ());
+                }
 
                 // Auto-start Remote Access (HTTPS) if enabled in Desktop settings.
                 let ra_settings = remote_access::load_settings().await;
                 if ra_settings.auto_start {
-                    let port = read_server_port_from_settings().unwrap_or(crate::common::DEFAULT_PORT);
                     if let Err(e) = remote_access::start_https(port).await {
                         eprintln!("[Desktop] Failed to auto-start Remote Access: {e}");
                         let _ = app_handle.emit("remote-access-error", json!({
