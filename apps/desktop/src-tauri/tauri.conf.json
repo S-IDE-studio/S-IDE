@@ -38,6 +38,15 @@
     "icon": ["icons/icon.ico", "icons/icon.icns", "icons/icon.png"],
     "resources": ["resources/*"],
     "publisher": "S-IDE studio",
+    "windows": {
+      "nsis": {
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.ico"
+      },
+      "wix": {
+        "language": "en-US"
+      }
+    },
     "macOS": {
       "minimumSystemVersion": "10.13",
       "entitlements": null,
