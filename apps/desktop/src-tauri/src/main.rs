@@ -79,13 +79,34 @@ pub fn run() {
 }
 
 fn main() {
-    // Hide console window in production builds on Windows
-    #[cfg(all(target_os = "windows", not(debug_assertions)))]
-    unsafe {
-        // FreeConsole: Detaches the calling process from its console
-        // This prevents the console window from showing
-        windows::Win32::System::Console::FreeConsole();
-    }
+    // Set up panic hook to log errors before crashing
+    std::panic::set_hook(Box::new(|panic_info| {
+        eprintln!("\n=== S-IDE PANIC ===");
+        if let Some(location) = panic_info.location() {
+            eprintln!("Location: {}:{}:{}", location.file(), location.line(), location.column());
+        }
+        eprintln!("Message: {}", panic_info);
+        eprintln!("===================\n");
+
+        // Try to write to a log file for debugging
+        if let Ok(log_dir) = std::env::var("LOCALAPPDATA") {
+            if let Ok(mut file) = std::fs::File::create(
+                std::path::PathBuf::from(log_dir).join("S-IDE").join("panic.log")
+            ) {
+                use std::io::Write;
+                let _ = writeln!(file, "PANIC: {}", panic_info);
+            }
+        }
+    }));
+
+    // NOTE: FreeConsole() temporarily disabled to debug startup issues
+    // The console window suppression may be causing the app to not start
+    // #[cfg(all(target_os = "windows", not(debug_assertions)))]
+    // {
+    //     unsafe {
+    //         let _ = windows::Win32::System::Console::FreeConsole();
+    //     }
+    // }
 
     run();
 }
