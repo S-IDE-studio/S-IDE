@@ -1,6 +1,6 @@
 [package]
 name = "side-desktop"
-version = "2.0.1"
+version = "2.0.3"
 description = "S-IDE Desktop"
 authors = ["rebuildup"]
 license = "MIT"
