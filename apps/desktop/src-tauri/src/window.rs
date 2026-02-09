@@ -52,16 +52,24 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         // Wait a moment for the window to initialize
         tokio::time::sleep(tokio::time::Duration::from_millis(WINDOW_INIT_DELAY_MS)).await;
 
-        // Find server directory
-        let server_dir = match find_server_directory() {
-            Ok(dir) => dir,
-            Err(e) => {
-                eprintln!("[Desktop] Failed to find server directory: {e}");
-                let _ = app_handle.emit("server-error", serde_json::json!({
-                    "message": format!("Failed to find server directory: {e}")
-                }));
-                return;
+        // Check if we're in development mode
+        let is_dev = is_development_mode();
+        println!("[Desktop] Running in {} mode", if is_dev { "development" } else { "production" });
+
+        let server_dir = if is_dev {
+            match find_server_directory() {
+                Ok(dir) => dir,
+                Err(e) => {
+                    eprintln!("[Desktop] Failed to find server directory: {e}");
+                    let _ = app_handle.emit("server-error", serde_json::json!({
+                        "message": format!("Failed to find server directory: {e}")
+                    }));
+                    return;
+                }
             }
+        } else {
+            // In production, we don't need a server_dir for the bundled server
+            std::path::PathBuf::new()
         };
 
         // Find npm command using common module
@@ -76,26 +84,60 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             }
         };
 
-        println!("[Desktop] Using npm: {npm_cmd}");
+        let spawn_result = if is_dev {
+            // Development mode: use npm to run dev server
+            println!("[Desktop] Using npm: {npm_cmd}");
 
-        // On Windows, always use cmd.exe /c to run npm
-        #[cfg(target_os = "windows")]
-        let spawn_result = tokio::process::Command::new("cmd.exe")
-            .arg("/c")
-            .arg(&npm_cmd)
-            .current_dir(&server_dir)
-            .arg("run")
-            .arg("dev")
-            .kill_on_drop(true)
-            .spawn();
+            #[cfg(target_os = "windows")]
+            let result = tokio::process::Command::new("cmd.exe")
+                .arg("/c")
+                .arg(&npm_cmd)
+                .current_dir(&server_dir)
+                .arg("run")
+                .arg("dev")
+                .kill_on_drop(true)
+                .spawn();
 
-        #[cfg(not(target_os = "windows"))]
-        let spawn_result = tokio::process::Command::new(&npm_cmd)
-            .current_dir(&server_dir)
-            .arg("run")
-            .arg("dev")
-            .kill_on_drop(true)
-            .spawn();
+            #[cfg(not(target_os = "windows"))]
+            let result = tokio::process::Command::new(&npm_cmd)
+                .current_dir(&server_dir)
+                .arg("run")
+                .arg("dev")
+                .kill_on_drop(true)
+                .spawn();
+
+            result
+        } else {
+            // Production mode: use bundled Node.js server
+            let server_path = match get_production_server_path() {
+                Ok(path) => path,
+                Err(e) => {
+                    eprintln!("[Desktop] Failed to find bundled server: {e}");
+                    let _ = app_handle.emit("server-error", serde_json::json!({
+                        "message": format!("Failed to find bundled server: {e}")
+                    }));
+                    return;
+                }
+            };
+
+            let node_exe = match common::find_node_executable() {
+                Ok(exe) => exe,
+                Err(e) => {
+                    eprintln!("[Desktop] Failed to find Node.js: {e}");
+                    let _ = app_handle.emit("server-error", serde_json::json!({
+                        "message": format!("Failed to find Node.js: {e}")
+                    }));
+                    return;
+                }
+            };
+
+            println!("[Desktop] Starting bundled server: {}", server_path.display());
+
+            tokio::process::Command::new(&node_exe)
+                .arg(&server_path)
+                .kill_on_drop(true)
+                .spawn()
+        };
 
         match spawn_result {
             Ok(child) => {
@@ -173,4 +215,33 @@ fn read_server_port_from_settings() -> Option<u16> {
     let raw = std::fs::read_to_string(settings_path).ok()?;
     let v: serde_json::Value = serde_json::from_str(&raw).ok()?;
     v.get("port").and_then(|p| p.as_u64()).and_then(|p| u16::try_from(p).ok())
+}
+
+/// Checks if we're running in development mode
+fn is_development_mode() -> bool {
+    // Check if we're running in development environment
+    std::env::var("TAURI_DEV")
+        .or_else(|_| std::env::var("DEBUG"))
+        .is_ok()
+        || !std::env::current_exe()
+            .map(|p| p.extension().is_some())
+            .unwrap_or(false)
+}
+
+/// Path to the bundled Node.js server executable in production
+fn get_production_server_path() -> Result<std::path::PathBuf, String> {
+    let exe_path = std::env::current_exe()
+        .map_err(|e| format!("Failed to get exe path: {e}"))?;
+
+    let exe_dir = exe_path.parent()
+        .ok_or_else(|| "Failed to get exe directory".to_string())?;
+
+    // In production, the server is bundled at resources/server/index.js
+    let server_path = exe_dir.join("resources").join("server").join("index.js");
+
+    if server_path.exists() {
+        Ok(server_path)
+    } else {
+        Err(format!("Bundled server not found at: {}", server_path.display()))
+    }
 }
