@@ -70,6 +70,23 @@ jobs:
           toolchain: ${{ matrix.rust }}
           targets: x86_64-unknown-linux-gnu, x86_64-pc-windows-msvc
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web app (for desktop tests)
+        run: pnpm -F @side-ide/web run build
+
       - name: Cache Rust cargo registry
         uses: actions/cache@v4
         with:
