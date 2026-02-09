@@ -188,6 +188,8 @@ fn spawn_server(
     // Hide console window on Windows
     #[cfg(target_os = "windows")]
     {
+        use std::os::windows::process::CommandExt;
+        // CREATE_NO_WINDOW: 0x08000000 - Creates console-less process
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
@@ -308,7 +310,7 @@ fn extract_zip(zip_path: &std::path::Path, dest: &std::path::Path) -> Result<(),
     use zip::read::ZipArchive;
     use std::io::Read;
 
-    eprintln!("[Desktop] Extracting zip to: {}", dest.display());
+    eprintln!("[Desktop] Extracting server files...");
 
     let file = std::fs::File::open(zip_path)
         .map_err(|e| format!("Failed to open zip: {e}"))?;
@@ -316,7 +318,8 @@ fn extract_zip(zip_path: &std::path::Path, dest: &std::path::Path) -> Result<(),
     let mut archive = ZipArchive::new(file)
         .map_err(|e| format!("Failed to read zip archive: {e}"))?;
 
-    eprintln!("[Desktop] Zip contains {} files", archive.len());
+    let total_files = archive.len();
+    let mut extracted_count = 0;
 
     for i in 0..archive.len() {
         let mut file = archive.by_index(i)
@@ -324,13 +327,26 @@ fn extract_zip(zip_path: &std::path::Path, dest: &std::path::Path) -> Result<(),
 
         // Use name() instead of mangled_name() for proper filename handling
         let file_name = file.name();
-        let path = dest.join(file_name);
 
-        eprintln!("[Desktop] Extracting: {}", file_name);
+        // Remove "server/" prefix if present (zip bundle contains server/ directory)
+        let relative_path = if file_name.starts_with("server/") {
+            &file_name[7..] // Skip "server/" prefix
+        } else if file_name.starts_with("server\\") {
+            &file_name[8..] // Skip "server\" prefix (Windows paths in zip)
+        } else {
+            file_name
+        };
+
+        // Skip empty paths or the server directory entry itself
+        if relative_path.is_empty() || relative_path == "server" || relative_path == "server/" {
+            continue;
+        }
+
+        let path = dest.join(relative_path);
 
         // Security check: prevent zip slip vulnerability
         if path.starts_with(dest) {
-            if file_name.ends_with('/') {
+            if file_name.ends_with('/') || relative_path.ends_with('/') {
                 // Directory
                 std::fs::create_dir_all(&path)
                     .map_err(|e| format!("Failed to create directory {:?}: {e}", path))?;
@@ -351,12 +367,11 @@ fn extract_zip(zip_path: &std::path::Path, dest: &std::path::Path) -> Result<(),
                 std::io::Write::write_all(&mut output, &buffer)
                     .map_err(|e| format!("Failed to write file: {e}"))?;
             }
-        } else {
-            eprintln!("[Desktop] WARNING: Skipping file outside destination: {}", file_name);
+            extracted_count += 1;
         }
     }
 
-    eprintln!("[Desktop] Extraction complete");
+    eprintln!("[Desktop] Extracted {} / {} files", extracted_count, total_files);
     Ok(())
 }
 
