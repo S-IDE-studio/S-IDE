@@ -3,25 +3,27 @@
   "version": "1.0.0",
   "description": "Shared types and utilities for S-IDE",
   "type": "module",
-  "main": "./dist/utils.js",
-  "types": "./dist/utils.d.ts",
+  "main": "./utils.js",
+  "types": "./utils.d.ts",
   "exports": {
     "./types": {
-      "types": "./dist/types.d.ts",
-      "default": "./dist/types.js"
+      "types": "./types.d.ts",
+      "default": "./types.js"
     },
     "./utils": {
-      "types": "./dist/utils.d.ts",
-      "default": "./dist/utils.js"
+      "types": "./utils.d.ts",
+      "default": "./utils.js"
     },
     "./utils-node": {
-      "types": "./dist/utils-node.d.ts",
-      "default": "./dist/utils-node.js"
+      "types": "./utils-node.d.ts",
+      "default": "./utils-node.js"
     }
   },
   "files": [
-    "dist",
-    "*.ts"
+    "*.ts",
+    "*.js",
+    "*.d.ts",
+    "*.d.ts.map"
   ],
   "scripts": {
     "build": "tsc",
