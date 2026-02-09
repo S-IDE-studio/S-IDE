@@ -16,4 +16,3 @@ describe("mobile api client helpers", () => {
     expect(buildBasicAuthHeader("u", "p")).toBe("Basic dTpw");
   });
 });
-

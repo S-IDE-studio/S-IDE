@@ -82,4 +82,3 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: { color: "#e5e7eb", fontWeight: "700" },
 });
-

@@ -32,7 +32,10 @@ export const DecksScreen: React.FC<Props> = ({ navigation, route }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const filtered = useMemo(() => items.filter((d) => d.workspaceId === workspaceId), [items, workspaceId]);
+  const filtered = useMemo(
+    () => items.filter((d) => d.workspaceId === workspaceId),
+    [items, workspaceId]
+  );
 
   const load = useCallback(async () => {
     setError(null);
@@ -145,4 +148,3 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: { color: "#fff", fontWeight: "800" },
 });
-

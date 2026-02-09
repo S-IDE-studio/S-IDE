@@ -25,4 +25,3 @@ export function resolveApiBase(configuredBase: string, currentHostname: string):
 
   return base;
 }
-

@@ -42,9 +42,9 @@ import { createLocalServerRouter } from "./routes/local-server.js";
 import { createSettingsRouter } from "./routes/settings.js";
 import { createSharedResourcesRouter } from "./routes/shared-resources.js";
 import { createShellsRouter } from "./routes/shells.js";
+import { createTabsRouter } from "./routes/tabs.js";
 import { createTerminalRouter } from "./routes/terminals.js";
 import { createTunnelRouter } from "./routes/tunnel.js";
-import { createTabsRouter } from "./routes/tabs.js";
 import { createWorkspaceRouter, getConfigHandler } from "./routes/workspaces.js";
 import type { Deck, TerminalSession, Workspace } from "./types.js";
 import {

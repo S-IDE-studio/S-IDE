@@ -22,4 +22,3 @@ export async function loadServerConfig(): Promise<ServerConfig | null> {
 export async function clearServerConfig(): Promise<void> {
   await AsyncStorage.removeItem(KEY);
 }
-

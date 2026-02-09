@@ -7,11 +7,11 @@ import { AgentStatusPanelContent } from "./AgentStatusPanelContent";
 import { DeckPanel } from "./DeckPanel";
 import { EditorPanelContent } from "./EditorPanelContent";
 import { McpPanelContent } from "./McpPanelContent";
+import { RemoteAccessPanelContent } from "./RemoteAccessPanelContent";
 import { ServerPanelContent } from "./ServerPanelContent";
 import { ServerSettingsPanelContent } from "./ServerSettingsPanelContent";
 import { SetupPanelContent } from "./SetupPanelContent";
 import { TerminalPanelContent } from "./TerminalPanelContent";
-import { RemoteAccessPanelContent } from "./RemoteAccessPanelContent";
 import { WorkspacePanel } from "./WorkspacePanel";
 
 interface PanelContentProps {

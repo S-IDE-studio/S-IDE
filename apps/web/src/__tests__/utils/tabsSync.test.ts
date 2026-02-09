@@ -41,4 +41,3 @@ describe("tabsSync", () => {
     expect(tab?.id).toBe(syncTabIdFromKey("terminal:abc"));
   });
 });
-

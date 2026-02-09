@@ -47,7 +47,9 @@ export function RemoteAccessPanelContent() {
   const url = remote.serveEnabled ? remote.serveUrl : null;
   const ipHost = remote.ips.find((ip) => ip.includes(".")) ?? remote.ips[0] ?? null;
   const httpIpUrl =
-    ipHost && serverPort ? buildRemoteAccessUrl({ host: ipHost, port: serverPort, scheme: "http" }) : null;
+    ipHost && serverPort
+      ? buildRemoteAccessUrl({ host: ipHost, port: serverPort, scheme: "http" })
+      : null;
   const connected =
     remote.isTauri &&
     remote.installed &&
@@ -129,7 +131,11 @@ export function RemoteAccessPanelContent() {
                     className="btn-primary"
                     onClick={() => void handleStart()}
                     disabled={!canStart || starting}
-                    title={server.status !== "running" ? "Start the server first" : "Enable HTTPS Remote Access"}
+                    title={
+                      server.status !== "running"
+                        ? "Start the server first"
+                        : "Enable HTTPS Remote Access"
+                    }
                   >
                     {starting ? "Starting..." : "Start HTTPS Remote Access"}
                   </button>
@@ -146,7 +152,11 @@ export function RemoteAccessPanelContent() {
                 )}
               </div>
             )}
-            {actionError && <p className="tunnel-warning"><strong>Remote Access error:</strong> {actionError}</p>}
+            {actionError && (
+              <p className="tunnel-warning">
+                <strong>Remote Access error:</strong> {actionError}
+              </p>
+            )}
           </div>
         )}
 
@@ -167,49 +177,64 @@ export function RemoteAccessPanelContent() {
                   {copied ? <Check size={16} /> : <Copy size={16} />}
                   <span>{copied ? "Copied!" : "Copy"}</span>
                 </button>
-                <button type="button" className="qr-btn" onClick={() => setShowQR(true)} title="Show QR Code">
+                <button
+                  type="button"
+                  className="qr-btn"
+                  onClick={() => setShowQR(true)}
+                  title="Show QR Code"
+                >
                   <QrCode size={16} />
                   <span>QR</span>
                 </button>
               </>
             ) : (
               <span className="url-placeholder">
-                {remote.isTauri && remote.installed && remote.backendState === "Running" && !remote.serveEnabled
+                {remote.isTauri &&
+                remote.installed &&
+                remote.backendState === "Running" &&
+                !remote.serveEnabled
                   ? "Press Start to enable HTTPS"
                   : "Not ready"}
               </span>
             )}
           </div>
 
-          {remote.isTauri && remote.installed && remote.backendState === "Running" && remote.serveEnabled && (
-            <div className="tunnel-note" style={{ marginTop: 10 }}>
-              <strong>DNS troubleshooting (phone):</strong> If you see “DNS address not found”, open the
-              Tailscale app on your phone and enable “Use Tailscale DNS”, then reconnect the VPN.
-              {httpIpUrl ? (
-                <div style={{ marginTop: 8 }}>
-                  <div style={{ fontSize: 12, opacity: 0.9 }}>
-                    Fallback (HTTP via Tailscale IP):
+          {remote.isTauri &&
+            remote.installed &&
+            remote.backendState === "Running" &&
+            remote.serveEnabled && (
+              <div className="tunnel-note" style={{ marginTop: 10 }}>
+                <strong>DNS troubleshooting (phone):</strong> If you see “DNS address not found”,
+                open the Tailscale app on your phone and enable “Use Tailscale DNS”, then reconnect
+                the VPN.
+                {httpIpUrl ? (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ fontSize: 12, opacity: 0.9 }}>
+                      Fallback (HTTP via Tailscale IP):
+                    </div>
+                    <div className="url-display" style={{ marginTop: 4 }}>
+                      <span
+                        className="url-text"
+                        title="Click to copy"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(httpIpUrl);
+                            setCopied(true);
+                            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+                            timeoutRef.current = setTimeout(
+                              () => setCopied(false),
+                              COPY_FEEDBACK_TIMEOUT
+                            );
+                          } catch {}
+                        }}
+                      >
+                        {httpIpUrl}
+                      </span>
+                    </div>
                   </div>
-                  <div className="url-display" style={{ marginTop: 4 }}>
-                    <span
-                      className="url-text"
-                      title="Click to copy"
-                      onClick={async () => {
-                        try {
-                          await navigator.clipboard.writeText(httpIpUrl);
-                          setCopied(true);
-                          if (timeoutRef.current) clearTimeout(timeoutRef.current);
-                          timeoutRef.current = setTimeout(() => setCopied(false), COPY_FEEDBACK_TIMEOUT);
-                        } catch {}
-                      }}
-                    >
-                      {httpIpUrl}
-                    </span>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          )}
+                ) : null}
+              </div>
+            )}
 
           {remote.isTauri && server.status !== "running" && (
             <p className="tunnel-warning">
@@ -237,19 +262,22 @@ export function RemoteAccessPanelContent() {
             </>
           )}
 
-          {remote.isTauri && remote.installed && remote.backendState === "NeedsLogin" && remote.authUrl && (
-            <>
-              <p className="tunnel-note">Tailscale needs login on this PC.</p>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => void openExternalUrl(remote.authUrl!)}
-              >
-                <Link2 size={16} />
-                Open Login
-              </button>
-            </>
-          )}
+          {remote.isTauri &&
+            remote.installed &&
+            remote.backendState === "NeedsLogin" &&
+            remote.authUrl && (
+              <>
+                <p className="tunnel-note">Tailscale needs login on this PC.</p>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => void openExternalUrl(remote.authUrl!)}
+                >
+                  <Link2 size={16} />
+                  Open Login
+                </button>
+              </>
+            )}
         </div>
 
         {connected && url && (

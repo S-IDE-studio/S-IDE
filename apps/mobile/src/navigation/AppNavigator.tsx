@@ -48,13 +48,17 @@ export const AppNavigator: React.FC = () => {
         <Stack.Screen
           name="Workspace"
           component={WorkspaceScreen as any}
-          options={({ route }: { route: any }) => ({ title: route.params.workspaceName || "Workspace" })}
+          options={({ route }: { route: any }) => ({
+            title: route.params.workspaceName || "Workspace",
+          })}
         />
         <Stack.Screen name="Files" component={FilesScreen as any} options={{ title: "Files" }} />
         <Stack.Screen
           name="Editor"
           component={EditorScreen as any}
-          options={({ route }: { route: any }) => ({ title: route.params.path.split("/").pop() || "Editor" })}
+          options={({ route }: { route: any }) => ({
+            title: route.params.path.split("/").pop() || "Editor",
+          })}
         />
         <Stack.Screen name="Decks" component={DecksScreen as any} options={{ title: "Decks" }} />
         <Stack.Screen

@@ -161,4 +161,3 @@ export function listAllTabs(panelGroupsMap: Record<string, PanelGroup>): Unified
   }
   return tabs;
 }
-

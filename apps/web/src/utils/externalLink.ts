@@ -11,4 +11,3 @@ export async function openExternalUrl(url: string): Promise<void> {
   // Web fallback.
   window.open(url, "_blank");
 }
-

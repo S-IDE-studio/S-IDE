@@ -1,3 +1,4 @@
+import * as Clipboard from "expo-clipboard";
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -11,8 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import * as Clipboard from "expo-clipboard";
-import { getClient, setClient, type ServerConfig } from "../api/client";
+import { getClient, type ServerConfig, setClient } from "../api/client";
 import { loadServerConfig, saveServerConfig } from "../storage/session";
 
 type Props = {
@@ -123,7 +123,8 @@ export const ConnectScreen: React.FC<Props> = ({ navigation }) => {
 
         <Text style={[styles.sectionTitle, { marginTop: 14 }]}>3. Basic Auth</Text>
         <Text style={styles.hint}>
-          Remote AccessはBasic Authで保護されています。Desktop側の設定と同じユーザー名/パスワードを入力してください。
+          Remote AccessはBasic
+          Authで保護されています。Desktop側の設定と同じユーザー名/パスワードを入力してください。
         </Text>
         <TextInput
           style={styles.input}
@@ -163,8 +164,9 @@ export const ConnectScreen: React.FC<Props> = ({ navigation }) => {
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          つながらない場合: 1) スマホのTailscaleがConnectedか 2) URLが末尾に「.」付きになっていないか 3)
-          Tailscale DNS有効化 4) Desktop側でRemote AccessがStart中か を確認してください。
+          つながらない場合: 1) スマホのTailscaleがConnectedか 2)
+          URLが末尾に「.」付きになっていないか 3) Tailscale DNS有効化 4) Desktop側でRemote
+          AccessがStart中か を確認してください。
         </Text>
       </View>
     </ScrollView>
@@ -253,4 +255,3 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 });
-

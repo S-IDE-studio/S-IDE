@@ -218,4 +218,3 @@ const styles = StyleSheet.create({
   errorTitle: { color: "#fff", fontWeight: "800" },
   errorBody: { color: "#fca5a5", fontSize: 12 },
 });
-

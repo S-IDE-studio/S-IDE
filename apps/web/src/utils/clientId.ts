@@ -20,4 +20,3 @@ export function getOrCreateTabsSyncClientId(): string {
     return fallbackId();
   }
 }
-

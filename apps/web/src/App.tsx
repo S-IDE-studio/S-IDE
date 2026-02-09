@@ -7,13 +7,13 @@ import { DiffViewer } from "./components/DiffViewer";
 import { EnvironmentModal } from "./components/EnvironmentModal";
 import { GlobalStatusBar } from "./components/GlobalStatusBar";
 import { MemoizedGridView } from "./components/grid/GridView";
+import { RemoteAccessControl } from "./components/RemoteAccessControl";
 import { ServerModal } from "./components/ServerModal";
 import { ServerStartupScreen } from "./components/ServerStartupScreen";
 import { ServerStatus } from "./components/ServerStatus";
 import { SettingsModal } from "./components/SettingsModal";
 import { StatusMessage } from "./components/StatusMessage";
 import { TitleBar } from "./components/TitleBar";
-import { RemoteAccessControl } from "./components/RemoteAccessControl";
 import { UpdateNotification, useUpdateCheck } from "./components/UpdateNotification";
 import { UpdateProgress } from "./components/UpdateProgress";
 import {
@@ -60,9 +60,9 @@ import {
   agentToTab,
   deckToTab,
   editorToTab,
+  remoteAccessToTab,
   serverToTab,
   terminalToTab,
-  remoteAccessToTab,
 } from "./utils/unifiedTabUtils";
 import { loadTabState, parseUrlState, saveTabState } from "./utils/urlUtils";
 

@@ -99,7 +99,10 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
       // Load Remote Access settings from Desktop (best-effort)
       if (typeof window !== "undefined" && "__TAURI__" in window) {
         import("@tauri-apps/api/core")
-          .then((tauri) => tauri.invoke("get_remote_access_settings") as Promise<{ auto_start?: boolean }>)
+          .then(
+            (tauri) =>
+              tauri.invoke("get_remote_access_settings") as Promise<{ auto_start?: boolean }>
+          )
           .then((s) => {
             const autoStart = Boolean(s?.auto_start);
             setRemoteAccessAutoStart(autoStart);
@@ -125,7 +128,14 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
       basicAuthPassword !== initialValues.basicAuthPassword ||
       remoteAccessAutoStart !== Boolean(initialValues.remoteAccessAutoStart)
     );
-  }, [port, basicAuthEnabled, basicAuthUser, basicAuthPassword, remoteAccessAutoStart, initialValues]);
+  }, [
+    port,
+    basicAuthEnabled,
+    basicAuthUser,
+    basicAuthPassword,
+    remoteAccessAutoStart,
+    initialValues,
+  ]);
 
   // Handle close with confirmation for unsaved changes
   const handleClose = useCallback(() => {
@@ -177,7 +187,13 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
         remoteAccessAutoStart,
       });
       // Update initial values after successful save
-      setInitialValues({ port, basicAuthEnabled, basicAuthUser, basicAuthPassword, remoteAccessAutoStart });
+      setInitialValues({
+        port,
+        basicAuthEnabled,
+        basicAuthUser,
+        basicAuthPassword,
+        remoteAccessAutoStart,
+      });
       onClose();
     } catch (err) {
       console.error("Failed to save settings:", err);

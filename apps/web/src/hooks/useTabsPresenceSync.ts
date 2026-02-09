@@ -123,7 +123,8 @@ export function useTabsPresenceSync(opts: {
 
           const filteredTabs = group.tabs.filter((t) => {
             if (!t.synced) return true;
-            const key = t.syncKey || getTabSyncKey(t, { workspaceStates: workspaceStatesRef.current });
+            const key =
+              t.syncKey || getTabSyncKey(t, { workspaceStates: workspaceStatesRef.current });
             const keep = key ? unionKeys.has(key) : false;
             if (!keep) groupChanged = true;
             return keep;
@@ -131,7 +132,8 @@ export function useTabsPresenceSync(opts: {
 
           const updatedTabs = filteredTabs.map((t) => {
             if (!t.synced) return t;
-            const key = t.syncKey || getTabSyncKey(t, { workspaceStates: workspaceStatesRef.current });
+            const key =
+              t.syncKey || getTabSyncKey(t, { workspaceStates: workspaceStatesRef.current });
             if (!key) return t;
             const u = unionByKey.get(key);
             if (!u) return t;

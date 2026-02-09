@@ -12,11 +12,12 @@ describe("resolveApiBase", () => {
   });
 
   it("keeps non-localhost configured base", () => {
-    expect(resolveApiBase("https://example.com/api", "100.64.12.34")).toBe("https://example.com/api");
+    expect(resolveApiBase("https://example.com/api", "100.64.12.34")).toBe(
+      "https://example.com/api"
+    );
   });
 
   it("keeps localhost base when current host is localhost", () => {
     expect(resolveApiBase("http://localhost:8787", "localhost")).toBe("http://localhost:8787");
   });
 });
-
