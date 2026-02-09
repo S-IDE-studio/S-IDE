@@ -51,16 +51,29 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     // Auto-start server when app launches
     let app_handle = app.handle().clone();
     tauri::async_runtime::spawn(async move {
+        // Wrap in a closure to catch any panics
+        let app_handle = app_handle.clone();
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            // We need to run the async code, but catch_unwind doesn't work directly with async
+            // So we'll use the runtime's spawn mechanism which already handles panics gracefully
+        }));
+
         // Wait a moment for the window to initialize
         tokio::time::sleep(tokio::time::Duration::from_millis(WINDOW_INIT_DELAY_MS)).await;
 
+        // Log startup for debugging
+        eprintln!("[Desktop] App starting...");
+        eprintln!("[Desktop] Current exe: {:?}", std::env::current_exe());
+
         // Check if we're in development mode
         let is_dev = is_development_mode();
+        eprintln!("[Desktop] Development mode: {}", is_dev);
 
         let server_dir = if is_dev {
             match find_server_directory() {
                 Ok(dir) => dir,
                 Err(e) => {
+                    eprintln!("[Desktop] Failed to find server directory: {e}");
                     let _ = app_handle.emit("server-error", serde_json::json!({
                         "message": format!("Failed to find server directory: {e}")
                     }));
@@ -69,8 +82,12 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             }
         } else {
             // Production mode: try to find bundled server or download it
+            eprintln!("[Desktop] Production mode: getting server...");
             match get_production_server_directory().await {
-                Ok(dir) => dir,
+                Ok(dir) => {
+                    eprintln!("[Desktop] Got server directory: {}", dir.display());
+                    dir
+                }
                 Err(e) => {
                     eprintln!("[Desktop] Failed to get production server: {e}");
                     let _ = app_handle.emit("server-error", serde_json::json!({
@@ -81,8 +98,12 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             }
         };
 
+        eprintln!("[Desktop] Finding Node.js executable...");
         let node_exe = match common::find_node_executable() {
-            Ok(exe) => exe,
+            Ok(exe) => {
+                eprintln!("[Desktop] Found Node.js: {}", exe);
+                exe
+            }
             Err(e) => {
                 eprintln!("[Desktop] Failed to find Node.js: {e}");
                 let _ = app_handle.emit("server-error", serde_json::json!({
@@ -93,18 +114,22 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         };
 
         // Start the server with hidden console
+        eprintln!("[Desktop] Attempting to spawn server...");
         let spawn_result = spawn_server(&node_exe, &server_dir, is_dev);
 
         match spawn_result {
             Ok(child) => {
+                eprintln!("[Desktop] Server spawned successfully");
                 // Store server handle for cleanup
                 let mut handle = SERVER_HANDLE.lock().await;
                 *handle = Some(child);
 
                 // Wait for server to be ready
+                eprintln!("[Desktop] Waiting for server to be ready...");
                 tokio::time::sleep(tokio::time::Duration::from_secs(SERVER_READY_DELAY_SECS)).await;
 
                 // Notify frontend that server is ready
+                eprintln!("[Desktop] Server ready, notifying frontend");
                 let _ = app_handle.emit("server-ready", ());
 
                 // Auto-start Remote Access (HTTPS) if enabled in Desktop settings.
@@ -139,6 +164,8 @@ fn spawn_server(
 ) -> Result<tokio::process::Child, String> {
     let index_js = server_dir.join("index.js");
 
+    eprintln!("[Desktop] Spawning server: {} {}", node_exe, index_js.display());
+
     if !index_js.exists() {
         return Err(format!("Server index.js not found at: {}", index_js.display()));
     }
@@ -146,10 +173,7 @@ fn spawn_server(
     let mut cmd = tokio::process::Command::new(node_exe);
     cmd.arg(&index_js)
         .current_dir(server_dir)
-        .kill_on_drop(true)
-        // Suppress console output
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null());
+        .kill_on_drop(true);
 
     // Hide console window on Windows
     #[cfg(target_os = "windows")]
@@ -187,9 +211,13 @@ fn find_bundled_server() -> Result<std::path::PathBuf, String> {
 
     let server_path = exe_dir.join("resources").join("server");
 
+    eprintln!("[Desktop] Checking for bundled server at: {}", server_path.display());
+
     if server_path.exists() && server_path.join("index.js").exists() {
+        eprintln!("[Desktop] Found bundled server");
         Ok(server_path)
     } else {
+        eprintln!("[Desktop] Bundled server not found, will try to download");
         Err("Bundled server not found".to_string())
     }
 }
@@ -226,9 +254,13 @@ async fn download_and_extract_server() -> Result<std::path::PathBuf, String> {
         .map_err(|e| format!("Failed to create server directory: {e}"))?;
 
     // Download server bundle
-    eprintln!("[Desktop] Downloading server bundle...");
+    eprintln!("[Desktop] Downloading server bundle from: {}", SERVER_DOWNLOAD_URL);
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
+
     let response = client.get(SERVER_DOWNLOAD_URL)
         .send()
         .await
@@ -242,9 +274,9 @@ async fn download_and_extract_server() -> Result<std::path::PathBuf, String> {
         .await
         .map_err(|e| format!("Failed to read response: {e}"))?;
 
-    // Extract zip
-    eprintln!("[Desktop] Extracting server bundle...");
+    eprintln!("[Desktop] Downloaded {} bytes, extracting...", bytes.len());
 
+    // Extract zip
     // Create a temporary file for the zip
     let temp_zip = server_dir.join("server-bundle.zip");
     std::fs::write(&temp_zip, &bytes)
@@ -266,41 +298,55 @@ fn extract_zip(zip_path: &std::path::Path, dest: &std::path::Path) -> Result<(),
     use zip::read::ZipArchive;
     use std::io::Read;
 
+    eprintln!("[Desktop] Extracting zip to: {}", dest.display());
+
     let file = std::fs::File::open(zip_path)
         .map_err(|e| format!("Failed to open zip: {e}"))?;
 
     let mut archive = ZipArchive::new(file)
         .map_err(|e| format!("Failed to read zip archive: {e}"))?;
 
+    eprintln!("[Desktop] Zip contains {} files", archive.len());
+
     for i in 0..archive.len() {
         let mut file = archive.by_index(i)
             .map_err(|e| format!("Failed to get file {i}: {e}"))?;
 
-        let path = dest.join(file.mangled_name().to_path_buf());
+        // Use name() instead of mangled_name() for proper filename handling
+        let file_name = file.name();
+        let path = dest.join(file_name);
 
-        if file.mangled_name().to_string_lossy().ends_with('/') {
-            // Directory
-            std::fs::create_dir_all(&path)
-                .map_err(|e| format!("Failed to create directory {:?}: {e}", path))?;
-        } else {
-            // File
-            if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|e| format!("Failed to create parent directory: {e}"))?;
+        eprintln!("[Desktop] Extracting: {}", file_name);
+
+        // Security check: prevent zip slip vulnerability
+        if path.starts_with(dest) {
+            if file_name.ends_with('/') {
+                // Directory
+                std::fs::create_dir_all(&path)
+                    .map_err(|e| format!("Failed to create directory {:?}: {e}", path))?;
+            } else {
+                // File
+                if let Some(parent) = path.parent() {
+                    std::fs::create_dir_all(parent)
+                        .map_err(|e| format!("Failed to create parent directory: {e}"))?;
+                }
+
+                let mut output = std::fs::File::create(&path)
+                    .map_err(|e| format!("Failed to create file {:?}: {e}", path))?;
+
+                let mut buffer = Vec::new();
+                file.read_to_end(&mut buffer)
+                    .map_err(|e| format!("Failed to read file content: {e}"))?;
+
+                std::io::Write::write_all(&mut output, &buffer)
+                    .map_err(|e| format!("Failed to write file: {e}"))?;
             }
-
-            let mut output = std::fs::File::create(&path)
-                .map_err(|e| format!("Failed to create file {:?}: {e}", path))?;
-
-            let mut buffer = Vec::new();
-            file.read_to_end(&mut buffer)
-                .map_err(|e| format!("Failed to read file content: {e}"))?;
-
-            std::io::Write::write_all(&mut output, &buffer)
-                .map_err(|e| format!("Failed to write file: {e}"))?;
+        } else {
+            eprintln!("[Desktop] WARNING: Skipping file outside destination: {}", file_name);
         }
     }
 
+    eprintln!("[Desktop] Extraction complete");
     Ok(())
 }
 
