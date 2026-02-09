@@ -143,6 +143,12 @@
           }
         }
       }
+    },
+    {
+      "includes": ["packages/shared/*.d.ts"],
+      "formatter": {
+        "enabled": false
+      }
     }
   ]
 }
