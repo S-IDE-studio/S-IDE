@@ -335,10 +335,17 @@ fn read_server_port_from_settings() -> Option<u16> {
 
 /// Checks if we're running in development mode
 fn is_development_mode() -> bool {
+    // Check if running from a build output directory (target/debug or target/release)
+    if let Ok(exe_path) = std::env::current_exe() {
+        let path_str = exe_path.to_string_lossy();
+        // If running from target/debug or target/release, it's a dev build
+        if path_str.contains("target") && (path_str.contains("debug") || path_str.contains("release")) {
+            return true;
+        }
+    }
+
+    // Check for development environment variables
     std::env::var("TAURI_DEV")
         .or_else(|_| std::env::var("DEBUG"))
         .is_ok()
-        || !std::env::current_exe()
-            .map(|p| p.extension().is_some())
-            .unwrap_or(false)
 }
