@@ -210,9 +210,11 @@ jobs:
   eas-ios:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    # Temporarily disabled - EAS Free plan limit reached (1 build/month)
+    # Re-enable when subscription is active or monthly limit resets
     # Run on tag pushes, or on manual dispatch for eas-ios mode.
     # Note: we intentionally do not reference `secrets.*` in `if:` because it can make the workflow invalid.
-    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.build_mode == 'eas-ios')
+    if: false && ((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.build_mode == 'eas-ios'))
     steps:
       - name: Checkout
         uses: actions/checkout@v4
