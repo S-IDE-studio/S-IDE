@@ -5,6 +5,9 @@ import type { ShellInfo, Workspace } from "../types";
 
 const MAX_VISIBLE_WORKSPACES = 5;
 
+// Check if running in Tauri at module level (once)
+const isTauriApp = typeof window !== "undefined" && "__TAURI__" in window;
+
 // Accent color options for workspaces
 const ACCENT_COLORS = [
   "#3b82f6", // blue
@@ -237,7 +240,6 @@ export function TitleBar({
   onDeleteWorkspace,
   onUpdateWorkspaceColor,
 }: TitleBarProps) {
-  const [isTauri, setIsTauri] = useState(false);
   const [isMobileMode, setIsMobileMode] = useState(false);
   const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(
@@ -273,9 +275,6 @@ export function TitleBar({
   }, []);
 
   useEffect(() => {
-    // Check if running in Tauri environment
-    setIsTauri(typeof window !== "undefined" && "__TAURI__" in window);
-
     // Check initial mobile mode based on screen width
     const checkMobileMode = () => {
       setIsMobileMode(window.innerWidth < 768);
@@ -381,21 +380,21 @@ export function TitleBar({
   }, [contextMenuWorkspace, onDeleteWorkspace]);
 
   const handleClose = async () => {
-    if (!isTauri) return;
+    if (!isTauriApp) return;
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
     const win = await getCurrentWindow();
     await win.close();
   };
 
   const handleMinimize = async () => {
-    if (!isTauri) return;
+    if (!isTauriApp) return;
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
     const win = await getCurrentWindow();
     await win.minimize();
   };
 
   const handleMaximize = async () => {
-    if (!isTauri) return;
+    if (!isTauriApp) return;
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
     const win = await getCurrentWindow();
     await win.toggleMaximize();
@@ -534,12 +533,12 @@ export function TitleBar({
 
   return (
     <div
-      className={`title-bar ${isTauri ? "title-bar--tauri" : ""} ${isMobileMode ? "title-bar--mobile" : ""}`}
-      data-tauri-drag-region={isTauri}
+      className={`title-bar ${isTauriApp ? "title-bar--tauri" : ""} ${isMobileMode ? "title-bar--mobile" : ""}`}
+      data-tauri-drag-region={isTauriApp}
     >
       {/* Left side - app icon and menu bar */}
       <div className="title-bar-left-section">
-        {isTauri && (
+        {isTauriApp && (
           <div className="title-bar-app-icon" data-tauri-drag-region>
             <img src="/icon-transparent.svg" alt="S-IDE" className="app-icon-img" />
           </div>
@@ -548,7 +547,7 @@ export function TitleBar({
       </div>
 
       {/* Mobile mode toggle for web */}
-      {!isTauri && (
+      {!isTauriApp && (
         <button
           type="button"
           className="title-bar-mobile-toggle"
@@ -562,7 +561,7 @@ export function TitleBar({
       )}
 
       {/* Workspace tabs - centered */}
-      <div className="title-bar-center-section" data-tauri-drag-region={isTauri}>
+      <div className="title-bar-center-section" data-tauri-drag-region={isTauriApp}>
         <div className="workspace-tabs">
           {visibleWorkspaces.map((workspace) => (
             <button
@@ -638,7 +637,7 @@ export function TitleBar({
       </div>
 
       {/* Window controls - always show on right side */}
-      {isTauri && (
+      {isTauriApp && (
         <div className="title-bar-controls">
           <button
             type="button"

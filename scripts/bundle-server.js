@@ -2,6 +2,7 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import archiver from "archiver";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,6 +13,11 @@ const serverDistDir = path.join(serverDir, "dist");
 const resourcesDir = path.join(rootDir, "apps", "desktop", "src-tauri", "resources");
 const bundleDir = path.join(resourcesDir, "server");
 const sharedDir = path.join(rootDir, "packages", "shared");
+
+// Parse command line arguments
+const args = process.argv.slice(2);
+const outputArg = args.find((arg) => arg.startsWith("--output="));
+const outputZip = outputArg ? outputArg.split("=")[1] : null;
 
 console.log("[Bundle] Starting server file bundling...");
 
@@ -56,6 +62,13 @@ try {
   throw new Error(`npm install failed: ${error.message}`);
 }
 
+// Create zip file if --output is specified
+if (outputZip) {
+  console.log(`[Bundle] Creating zip file: ${outputZip}`);
+  await createZip(bundleDir, path.join(rootDir, outputZip));
+  console.log(`[Bundle] Zip file created: ${outputZip}`);
+}
+
 console.log("[Bundle] Complete!");
 
 function copyDirectory(src, dest) {
@@ -81,3 +94,34 @@ function copyDirectory(src, dest) {
     }
   }
 }
+
+/**
+ * Creates a zip file from the source directory
+ * @param {string} sourceDir - Directory to zip
+ * @param {string} outputPath - Output zip file path
+ */
+async function createZip(sourceDir, outputPath) {
+  return new Promise((resolve, reject) => {
+    const output = fs.createWriteStream(outputPath);
+    const archive = archiver("zip", {
+      zlib: { level: 9 }, // Maximum compression
+    });
+
+    output.on("close", () => {
+      console.log(`[Bundle] Zip created: ${archive.pointer()} total bytes`);
+      resolve();
+    });
+
+    archive.on("error", (err) => {
+      reject(err);
+    });
+
+    archive.pipe(output);
+    
+    // Add the entire directory contents under "server/" prefix
+    archive.directory(sourceDir, "server");
+    
+    archive.finalize();
+  });
+}
+

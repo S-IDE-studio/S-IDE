@@ -22,7 +22,7 @@ const SERVER_READY_DELAY_SECS: u64 = 3;
 const MAX_SERVER_SEARCH_DEPTH: usize = 10;
 
 /// Server download URL (GitHub Releases)
-const SERVER_DOWNLOAD_URL: &str = "https://github.com/S-IDE-studio/S-IDE/releases/download/v2.1.2/server-bundle.zip";
+const SERVER_DOWNLOAD_URL: &str = "https://github.com/S-IDE-studio/S-IDE/releases/download/v2.1.5/server-bundle.zip";
 
 /// Setup the main window
 ///
@@ -220,6 +220,9 @@ fn spawn_server(
     let mut cmd = tokio::process::Command::new(node_exe);
     cmd.arg(&index_js)
         .current_dir(server_dir)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .stdin(std::process::Stdio::null())
         .kill_on_drop(true);
 
     // Hide console window on Windows

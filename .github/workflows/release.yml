@@ -76,6 +76,10 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
+      - name: Create server bundle (Windows only)
+        if: matrix.platform == 'windows-latest'
+        run: node scripts/bundle-server.js --output=server-bundle.zip
+
       - name: Prepare stable download assets
         shell: bash
         run: |
@@ -161,6 +165,7 @@ jobs:
             target/**/release/bundle/**/*.deb
             target/**/release/bundle/**/*.AppImage
             dist/release/*
+            server-bundle.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
