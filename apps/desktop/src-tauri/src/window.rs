@@ -22,7 +22,7 @@ const SERVER_READY_DELAY_SECS: u64 = 3;
 const MAX_SERVER_SEARCH_DEPTH: usize = 10;
 
 /// Server download URL (GitHub Releases)
-const SERVER_DOWNLOAD_URL: &str = "https://github.com/S-IDE-studio/S-IDE/releases/download/v2.0.8/server-bundle.zip";
+const SERVER_DOWNLOAD_URL: &str = "https://github.com/S-IDE-studio/S-IDE/releases/download/v2.1.2/server-bundle.zip";
 
 /// Setup the main window
 ///
