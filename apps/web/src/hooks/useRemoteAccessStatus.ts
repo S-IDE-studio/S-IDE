@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { STATUS_CHECK_INTERVAL } from "../constants";
+
+// Check if running in Tauri (Tauri v2 uses __TAURI_INTERNALS__)
+function isTauriApp(): boolean {
+  return typeof window !== "undefined" && (
+    "__TAURI_INTERNALS__" in window || 
+    "__TAURI__" in window
+  );
+}import { STATUS_CHECK_INTERVAL } from "../constants";
 
 export interface RemoteAccessStatus {
   isTauri: boolean;
@@ -33,7 +40,7 @@ export function useRemoteAccessStatus(): RemoteAccessStatus {
   });
 
   useEffect(() => {
-    const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
+    const isTauri = typeof window !== "undefined" && isTauriApp();
     setState((s) => ({ ...s, isTauri }));
     if (!isTauri) return;
 

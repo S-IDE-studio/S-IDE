@@ -54,10 +54,17 @@ pub fn find_npm_command() -> Result<String, String> {
         }
 
         // Try using where command on Windows (more reliable than which on Windows)
-        if let Ok(output) = std::process::Command::new("where")
-            .arg("npm.cmd")
-            .output()
+        let mut cmd1 = std::process::Command::new("where");
+        cmd1.arg("npm.cmd");
+        
+        #[cfg(target_os = "windows")]
         {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            cmd1.creation_flags(CREATE_NO_WINDOW);
+        }
+        
+        if let Ok(output) = cmd1.output() {
             if output.status.success() {
                 if let Some(path) = String::from_utf8_lossy(&output.stdout).lines().next() {
                     let path = path.trim();
@@ -69,10 +76,17 @@ pub fn find_npm_command() -> Result<String, String> {
         }
 
         // Fallback to regular npm which will use cmd.exe /c
-        if let Ok(output) = std::process::Command::new("where")
-            .arg("npm")
-            .output()
+        let mut cmd2 = std::process::Command::new("where");
+        cmd2.arg("npm");
+        
+        #[cfg(target_os = "windows")]
         {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            cmd2.creation_flags(CREATE_NO_WINDOW);
+        }
+        
+        if let Ok(output) = cmd2.output() {
             if output.status.success() {
                 if let Some(path) = String::from_utf8_lossy(&output.stdout).lines().next() {
                     let path = path.trim();
@@ -124,10 +138,17 @@ pub fn find_npx_command() -> Result<String, String> {
         }
 
         // Try using where command
-        if let Ok(output) = std::process::Command::new("where")
-            .arg("npx.cmd")
-            .output()
+        let mut cmd = std::process::Command::new("where");
+        cmd.arg("npx.cmd");
+        
+        #[cfg(target_os = "windows")]
         {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+        
+        if let Ok(output) = cmd.output() {
             if output.status.success() {
                 if let Some(path) = String::from_utf8_lossy(&output.stdout).lines().next() {
                     let path = path.trim();

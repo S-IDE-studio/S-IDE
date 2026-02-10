@@ -75,6 +75,8 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
       - name: Create server bundle (Windows only)
         if: matrix.platform == 'windows-latest'
@@ -155,13 +157,21 @@ jobs:
             apps/desktop/src-tauri/target/**/release/bundle/**/*.dmg
             apps/desktop/src-tauri/target/**/release/bundle/**/*.app.tar.gz
             apps/desktop/src-tauri/target/**/release/bundle/**/*.msi
+            apps/desktop/src-tauri/target/**/release/bundle/**/*.msi.zip
+            apps/desktop/src-tauri/target/**/release/bundle/**/*.msi.zip.sig
             apps/desktop/src-tauri/target/**/release/bundle/**/*.exe
+            apps/desktop/src-tauri/target/**/release/bundle/**/*.nsis.zip
+            apps/desktop/src-tauri/target/**/release/bundle/**/*.nsis.zip.sig
             apps/desktop/src-tauri/target/**/release/bundle/**/*.deb
             apps/desktop/src-tauri/target/**/release/bundle/**/*.AppImage
             target/**/release/bundle/**/*.dmg
             target/**/release/bundle/**/*.app.tar.gz
             target/**/release/bundle/**/*.msi
+            target/**/release/bundle/**/*.msi.zip
+            target/**/release/bundle/**/*.msi.zip.sig
             target/**/release/bundle/**/*.exe
+            target/**/release/bundle/**/*.nsis.zip
+            target/**/release/bundle/**/*.nsis.zip.sig
             target/**/release/bundle/**/*.deb
             target/**/release/bundle/**/*.AppImage
             dist/release/*

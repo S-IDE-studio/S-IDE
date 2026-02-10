@@ -123,17 +123,25 @@ fn start_dev_server(port: u16) -> Result<ServerHandle, String> {
 
     println!("[Server] Using npm: {npm_cmd}");
 
-    // On Windows, always use cmd.exe /c to run npm
+    // On Windows, always use cmd.exe /c to run npm with hidden console
     #[cfg(target_os = "windows")]
-    let spawn_result = Command::new("cmd.exe")
-        .arg("/c")
-        .arg(&npm_cmd)
-        .current_dir(&server_dir)
-        .arg("run")
-        .arg("dev")
-        .env("DB_PATH", server_dir.join("data").join("deck-ide.db").to_string_lossy().to_string())
-        .kill_on_drop(true)
-        .spawn();
+    let spawn_result = {
+        let mut cmd = Command::new("cmd.exe");
+        cmd.arg("/c")
+            .arg(&npm_cmd)
+            .current_dir(&server_dir)
+            .arg("run")
+            .arg("dev")
+            .env("DB_PATH", server_dir.join("data").join("deck-ide.db").to_string_lossy().to_string())
+            .kill_on_drop(true);
+        
+        // Hide console window
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+        
+        cmd.spawn()
+    };
 
     #[cfg(not(target_os = "windows"))]
     let spawn_result = Command::new(&npm_cmd)
@@ -179,12 +187,22 @@ fn start_production_server(port: u16) -> Result<ServerHandle, String> {
         .unwrap_or_else(|| PathBuf::from("resources/data"));
     let db_path = data_dir.join("deck-ide.db");
 
-    let child = Command::new(&node_exe)
-        .arg(&server_script)
+    let mut cmd = Command::new(&node_exe);
+    cmd.arg(&server_script)
         .env("PORT", port.to_string())
         .env("DB_PATH", db_path.to_string_lossy().to_string())
-        .kill_on_drop(true)
-        .spawn()
+        .kill_on_drop(true);
+    
+    // Hide console window on Windows in production
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        const DETACHED_PROCESS: u32 = 0x00000008;
+        cmd.creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS);
+    }
+    
+    let child = cmd.spawn()
         .map_err(|e| format!("Failed to start server: {e} (node: '{node_exe}', script: '{server_script}')"))?;
 
     Ok(ServerHandle { child, port })

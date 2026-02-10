@@ -4,7 +4,14 @@
  */
 
 import { CheckCircle2, Loader2, Network, RefreshCw, Server, Terminal, XCircle } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+
+// Check if running in Tauri (Tauri v2 uses __TAURI_INTERNALS__)
+function isTauriApp(): boolean {
+  return typeof window !== "undefined" && (
+    "__TAURI_INTERNALS__" in window || 
+    "__TAURI__" in window
+  );
+}import { useCallback, useEffect, useState } from "react";
 import { COMMON_PORTS_TO_CHECK } from "../../constants";
 
 interface EnvironmentInfo {
@@ -34,7 +41,7 @@ export function SetupPanelContent() {
   const portsToCheck = COMMON_PORTS_TO_CHECK;
 
   useEffect(() => {
-    setIsTauri(typeof window !== "undefined" && "__TAURI__" in window);
+    setIsTauri(typeof window !== "undefined" && isTauriApp());
   }, []);
 
   const loadEnvironmentInfo = useCallback(async () => {

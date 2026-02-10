@@ -7,16 +7,27 @@ import { resolveApiBase } from "./utils/apiBase";
 
 const _configuredApiBase = import.meta.env.VITE_API_BASE || "";
 
-// Check if running in Tauri desktop app
-const isTauriApp = typeof window !== "undefined" && "__TAURI__" in window;
+// Check if running in Tauri desktop app (Tauri v2 uses __TAURI_INTERNALS__)
+export function isTauriApp(): boolean {
+  return typeof window !== "undefined" && (
+    "__TAURI_INTERNALS__" in window || 
+    "__TAURI__" in window
+  );
+}
 
 // For Tauri apps, always use localhost:8787
 // For web apps, use the configured base or resolve from hostname
-export const API_BASE = isTauriApp
-  ? "http://localhost:8787"
-  : typeof window === "undefined"
-    ? _configuredApiBase
-    : resolveApiBase(_configuredApiBase, window.location.hostname);
+export function getApiBase(): string {
+  if (isTauriApp()) {
+    return "http://localhost:8787";
+  }
+  if (typeof window === "undefined") {
+    return _configuredApiBase;
+  }
+  return resolveApiBase(_configuredApiBase, window.location.hostname);
+}
+
+export const API_BASE = getApiBase();
 export const DEFAULT_ROOT_FALLBACK = import.meta.env.VITE_DEFAULT_ROOT || "";
 
 // UI messages

@@ -1,5 +1,12 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+// Check if running in Tauri (Tauri v2 uses __TAURI_INTERNALS__)
+function isTauriApp(): boolean {
+  return typeof window !== "undefined" && (
+    "__TAURI_INTERNALS__" in window || 
+    "__TAURI__" in window
+  );
+}import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getConfig, getWsBase, listFiles, readFile } from "./api";
 import { CommonSettings } from "./components/AgentSettings";
 import { ContextStatus } from "./components/ContextStatus";
@@ -1090,7 +1097,7 @@ export default function App() {
   /*
   useEffect(() => {
     const isDesktop = typeof window !== "undefined" &&
-      "__TAURI__" in window;
+      isTauriApp();
     if (isDesktop) {
       checkForUpdates();
     }
@@ -1101,7 +1108,7 @@ export default function App() {
   useEffect(() => {
     if (!serverReady) return;
     const isDesktop = typeof window !== "undefined" &&
-      "__TAURI__" in window;
+      isTauriApp();
     if (isDesktop) {
       // Check for updates on startup (desktop app)
       checkForUpdates().catch(() => {
@@ -1352,7 +1359,7 @@ export default function App() {
       const abortController = new AbortController();
       try {
         // Persist Desktop-only settings (best-effort).
-        const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
+        const isTauri = typeof window !== "undefined" && isTauriApp();
         if (isTauri && typeof settings.remoteAccessAutoStart === "boolean") {
           try {
             const tauri = await import("@tauri-apps/api/core");
@@ -1406,7 +1413,7 @@ export default function App() {
   }, []);
 
   const handleOpenWorkspaceModal = useCallback(async () => {
-    const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
+    const isTauri = typeof window !== "undefined" && isTauriApp();
 
     if (isTauri) {
       try {

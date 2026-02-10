@@ -2,6 +2,8 @@
 //!
 //! A Tauri-based desktop application for the Deck IDE
 
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod common;
 mod commands;
 mod scanner;
@@ -44,9 +46,7 @@ pub fn run() {
         .manage(TunnelState(TokioMutex::new(None)))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        // NOTE: updater plugin disabled due to configuration issues
-        // Will re-enable once basic app startup is working
-        //.plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             // Setup window behavior and spawn server task
             // Errors here will NOT prevent app from starting

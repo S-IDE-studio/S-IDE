@@ -15,14 +15,11 @@ const WINDOW_LABEL: &str = "main";
 /// Delay before window initialization (milliseconds)
 const WINDOW_INIT_DELAY_MS: u64 = 500;
 
-/// Delay before server is ready (seconds)
-const SERVER_READY_DELAY_SECS: u64 = 3;
-
 /// Maximum number of parent directories to search for server
 const MAX_SERVER_SEARCH_DEPTH: usize = 10;
 
 /// Server download URL (GitHub Releases)
-const SERVER_DOWNLOAD_URL: &str = "https://github.com/S-IDE-studio/S-IDE/releases/download/v2.1.6/server-bundle.zip";
+const SERVER_DOWNLOAD_URL: &str = "https://github.com/S-IDE-studio/S-IDE/releases/download/v2.1.7/server-bundle.zip";
 
 /// Setup the main window
 ///
@@ -224,6 +221,7 @@ fn spawn_server(
     let index_js = server_dir.join("index.js");
 
     eprintln!("[Desktop] Spawning server: {} {}", node_exe, index_js.display());
+    eprintln!("[Desktop] is_dev = {}", is_dev);
 
     if !index_js.exists() {
         return Err(format!("Server index.js not found at: {}", index_js.display()));
@@ -234,79 +232,36 @@ fn spawn_server(
         .current_dir(server_dir)
         .kill_on_drop(true);
 
-    // In development mode, keep stdio visible for debugging
-    // In production mode, capture output to a log file
-    if !is_dev {
-        // Create logs directory
-        let log_dir = std::env::var("LOCALAPPDATA")
-            .or_else(|_| std::env::var("HOME"))
-            .ok()
-            .map(|p| std::path::PathBuf::from(p).join("S-IDE").join("logs"));
-        
-        if let Some(log_dir) = log_dir {
-            let _ = std::fs::create_dir_all(&log_dir);
-            
-            let log_file = log_dir.join("server.log");
-            if let Ok(file) = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(&log_file)
-            {
-                eprintln!("[Desktop] Server logs: {}", log_file.display());
-                
-                #[cfg(target_os = "windows")]
-                {
-                    use std::os::windows::io::{AsRawHandle, FromRawHandle};
-                    use std::process::Stdio;
-                    
-                    // Convert File to Stdio on Windows
-                    unsafe {
-                        let handle = file.as_raw_handle();
-                        cmd.stdout(Stdio::from_raw_handle(handle));
-                        let handle2 = file.as_raw_handle();
-                        cmd.stderr(Stdio::from_raw_handle(handle2));
-                    }
-                    // Keep the file handle alive by leaking it
-                    std::mem::forget(file);
-                }
-                
-                #[cfg(not(target_os = "windows"))]
-                {
-                    use std::os::unix::io::{AsRawFd, FromRawFd};
-                    use std::process::Stdio;
-                    
-                    // Convert File to Stdio on Unix
-                    unsafe {
-                        let fd = file.as_raw_fd();
-                        cmd.stdout(Stdio::from_raw_fd(fd));
-                        let fd2 = file.as_raw_fd();
-                        cmd.stderr(Stdio::from_raw_fd(fd2));
-                    }
-                    // Keep the file handle alive by leaking it
-                    std::mem::forget(file);
-                }
-            } else {
-                cmd.stdout(std::process::Stdio::null());
-                cmd.stderr(std::process::Stdio::null());
-            }
-        } else {
-            cmd.stdout(std::process::Stdio::null());
-            cmd.stderr(std::process::Stdio::null());
-        }
-        cmd.stdin(std::process::Stdio::null());
+    // Configure stdio
+    if is_dev {
+        // Development: show output for debugging
+        cmd.stdout(std::process::Stdio::inherit());
+        cmd.stderr(std::process::Stdio::inherit());
+    } else {
+        // Production: suppress all output
+        cmd.stdout(std::process::Stdio::null());
+        cmd.stderr(std::process::Stdio::null());
+    }
+    cmd.stdin(std::process::Stdio::null());
 
-        // Hide console window on Windows
-        #[cfg(target_os = "windows")]
-        {
-            use std::os::windows::process::CommandExt;
-            // CREATE_NO_WINDOW: 0x08000000 - Creates console-less process
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
-            cmd.creation_flags(CREATE_NO_WINDOW);
-        }
+    // Windows: Hide console window completely
+    #[cfg(target_os = "windows")]
+    if !is_dev {
+        use std::os::windows::process::CommandExt;
+        // CREATE_NO_WINDOW: 0x08000000 - Prevents console window creation
+        // DETACHED_PROCESS: 0x00000008 - Detaches from parent console
+        // CREATE_NEW_PROCESS_GROUP: 0x00000200 - Creates new process group
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        const DETACHED_PROCESS: u32 = 0x00000008;
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+        
+        cmd.creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+        eprintln!("[Desktop] Applied Windows console hiding flags");
     }
 
     cmd.spawn().map_err(|e| format!("Failed to spawn server: {e}"))
 }
+
 
 /// Gets or downloads the production server directory
 async fn get_production_server_directory() -> Result<std::path::PathBuf, String> {

@@ -3,7 +3,14 @@
  */
 
 import { Check, Copy, Globe, Link2, QrCode, X } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
+
+// Check if running in Tauri (Tauri v2 uses __TAURI_INTERNALS__)
+function isTauriApp(): boolean {
+  return typeof window !== "undefined" && (
+    "__TAURI_INTERNALS__" in window || 
+    "__TAURI__" in window
+  );
+}import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useRef, useState } from "react";
 import { COPY_FEEDBACK_TIMEOUT } from "../../constants";
 import { useRemoteAccessStatus } from "../../hooks/useRemoteAccessStatus";
@@ -23,7 +30,7 @@ export function RemoteAccessPanelContent() {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
+    const isTauri = typeof window !== "undefined" && isTauriApp();
     if (!isTauri) return;
 
     // Pull server port from settings (best-effort).

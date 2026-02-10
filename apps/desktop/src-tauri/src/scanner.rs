@@ -358,9 +358,18 @@ fn parse_version_from_banner(banner: &str) -> Option<String> {
 /// Check if nmap is available on the system
 pub fn is_nmap_available() -> bool {
     use std::process::Command;
-    Command::new("nmap")
-        .arg("--version")
-        .output()
+    let mut cmd = Command::new("nmap");
+    cmd.arg("--version");
+    
+    // Hide console window on Windows
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    
+    cmd.output()
         .map(|output| output.status.success())
         .unwrap_or(false)
 }
@@ -400,6 +409,14 @@ pub async fn scan_with_nmap(
 
     // Fast scan
     cmd.arg("-T4");
+    
+    // Hide console window on Windows
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
 
     let output = cmd
         .output()

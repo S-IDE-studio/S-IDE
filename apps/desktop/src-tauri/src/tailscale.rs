@@ -87,10 +87,15 @@ pub fn find_tailscale_command() -> Option<String> {
             }
         }
 
-        if let Ok(output) = std::process::Command::new("where")
-            .arg("tailscale.exe")
-            .output()
-        {
+        let mut cmd = std::process::Command::new("where");
+        cmd.arg("tailscale.exe");
+        
+        // Hide console window
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+        
+        if let Ok(output) = cmd.output() {
             if output.status.success() {
                 if let Some(path) = String::from_utf8_lossy(&output.stdout).lines().next() {
                     let path = path.trim();
@@ -128,11 +133,18 @@ pub async fn get_status_summary() -> TailscaleStatusSummary {
         }
     };
 
-    let output = match tokio::process::Command::new(cmd)
-        .args(["status", "--json"])
-        .output()
-        .await
+    let mut cmd = tokio::process::Command::new(cmd);
+    cmd.args(["status", "--json"]);
+    
+    // Hide console window on Windows
+    #[cfg(target_os = "windows")]
     {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    
+    let output = match cmd.output().await {
         Ok(o) => o,
         Err(_) => {
             return TailscaleStatusSummary {

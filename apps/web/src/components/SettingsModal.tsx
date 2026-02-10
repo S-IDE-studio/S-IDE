@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { DEFAULT_SERVER_PORT, DEFAULT_WS_LIMIT, MAX_WS_LIMIT, MIN_WS_LIMIT } from "../constants";
+
+// Check if running in Tauri (Tauri v2 uses __TAURI_INTERNALS__)
+function isTauriApp(): boolean {
+  return typeof window !== "undefined" && (
+    "__TAURI_INTERNALS__" in window || 
+    "__TAURI__" in window
+  );
+}import { DEFAULT_SERVER_PORT, DEFAULT_WS_LIMIT, MAX_WS_LIMIT, MIN_WS_LIMIT } from "../constants";
 
 interface Settings {
   port: number;
@@ -76,7 +83,7 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
 
   useEffect(() => {
     if (isOpen) {
-      setIsTauri(typeof window !== "undefined" && "__TAURI__" in window);
+      setIsTauri(typeof window !== "undefined" && isTauriApp());
 
       // Load current settings from server
       fetch("/api/settings")
@@ -97,7 +104,7 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
         });
 
       // Load Remote Access settings from Desktop (best-effort)
-      if (typeof window !== "undefined" && "__TAURI__" in window) {
+      if (typeof window !== "undefined" && isTauriApp()) {
         import("@tauri-apps/api/core")
           .then(
             (tauri) =>

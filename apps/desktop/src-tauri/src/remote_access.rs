@@ -81,9 +81,18 @@ pub async fn save_settings(settings: &RemoteAccessSettings) -> Result<(), String
 
 async fn run_tailscale(args: &[&str]) -> Result<std::process::Output, String> {
     let cmd = tailscale::find_tailscale_command().ok_or_else(|| "Tailscale not installed".to_string())?;
-    tokio::process::Command::new(cmd)
-        .args(args)
-        .output()
+    let mut command = tokio::process::Command::new(cmd);
+    command.args(args);
+    
+    // Hide console window on Windows
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    
+    command.output()
         .await
         .map_err(|e| format!("Failed to run tailscale: {e}"))
 }

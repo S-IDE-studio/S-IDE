@@ -86,7 +86,12 @@ async function discoverWSL(): Promise<ShellInfo[]> {
 
   try {
     // Get list of WSL distributions
-    const output = execSync("wsl.exe -l -q", { encoding: "utf8" });
+    console.log("[shells] Checking for WSL distributions...");
+    const output = execSync("wsl.exe -l -q", { 
+      encoding: "utf8",
+      windowsHide: true  // Hide console window on Windows
+    });
+    console.log("[shells] WSL check complete");
     const distros = output
       .split("\n")
       .map((line) => line.trim())

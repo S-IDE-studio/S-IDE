@@ -1,7 +1,13 @@
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
-// Check if running in Tauri at module level (once)
-const isTauriApp = typeof window !== "undefined" && "__TAURI__" in window;
+// Check if running in Tauri (Tauri v2 uses __TAURI_INTERNALS__)
+// This must be evaluated at runtime, not at module load time
+function isTauriApp(): boolean {
+  return typeof window !== "undefined" && (
+    "__TAURI_INTERNALS__" in window || 
+    "__TAURI__" in window
+  );
+}
 
 interface WorkspaceModalProps {
   isOpen: boolean;
@@ -11,6 +17,9 @@ interface WorkspaceModalProps {
 }
 
 export const WorkspaceModal = ({ isOpen, defaultRoot, onSubmit, onClose }: WorkspaceModalProps) => {
+  // Check if running in Tauri (evaluated once per component mount)
+  const isInTauriApp = useMemo(() => isTauriApp(), []);
+  
   const [workspacePath, setWorkspacePath] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -21,7 +30,7 @@ export const WorkspaceModal = ({ isOpen, defaultRoot, onSubmit, onClose }: Works
   }, [isOpen]);
 
   const handleSelectFolder = async () => {
-    if (isTauriApp) {
+    if (isInTauriApp) {
       // Tauri: Use native dialog
       try {
         const { open } = await import("@tauri-apps/plugin-dialog");
