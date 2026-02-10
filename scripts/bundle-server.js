@@ -31,13 +31,7 @@ fs.mkdirSync(bundleDir, { recursive: true });
 console.log(`[Bundle] Copying server files from ${serverDistDir} to ${bundleDir}`);
 copyDirectory(serverDistDir, bundleDir);
 
-// Copy shared package
-console.log(`[Bundle] Copying shared package from ${sharedDir} to ${bundleDir}/node_modules/@side-ide/shared`);
-const sharedDestDir = path.join(bundleDir, "node_modules", "@side-ide");
-fs.mkdirSync(sharedDestDir, { recursive: true });
-copyDirectory(sharedDir, path.join(sharedDestDir, "shared"));
-
-// Copy package.json (production only)
+// Create package.json FIRST (before copying shared package)
 console.log("[Bundle] Creating production package.json...");
 const serverPackageJson = JSON.parse(fs.readFileSync(path.join(serverDir, "package.json"), "utf8"));
 const prodPackageJson = {
@@ -48,8 +42,7 @@ const prodPackageJson = {
 };
 fs.writeFileSync(path.join(bundleDir, "package.json"), JSON.stringify(prodPackageJson, null, 2));
 
-// Use npm to install production dependencies in the bundle directory
-// Note: We use npm here because pnpm's symlink-based node_modules are hard to copy
+// Use npm to install production dependencies FIRST
 console.log("[Bundle] Installing production dependencies...");
 try {
   execSync("npm install --production --no-package-lock --omit=dev", {
@@ -57,10 +50,52 @@ try {
     stdio: "inherit",
     shell: true,
   });
-  console.log("[Bundle] Server files bundled successfully!");
+  console.log("[Bundle] Production dependencies installed!");
 } catch (error) {
   throw new Error(`npm install failed: ${error.message}`);
 }
+
+// NOW copy shared package AFTER npm install (to override any symlink)
+console.log(`[Bundle] Copying shared package from ${sharedDir} to ${bundleDir}/node_modules/@side-ide/shared`);
+const sharedDestDir = path.join(bundleDir, "node_modules", "@side-ide");
+
+// Ensure @side-ide directory exists
+if (!fs.existsSync(sharedDestDir)) {
+  console.log("[Bundle] Creating @side-ide directory...");
+  fs.mkdirSync(sharedDestDir, { recursive: true });
+}
+
+// Remove symlink or directory if it exists
+const sharedDest = path.join(sharedDestDir, "shared");
+console.log(`[Bundle] Checking if ${sharedDest} exists...`);
+
+// Use lstatSync to detect symlinks/junctions
+try {
+  const stats = fs.lstatSync(sharedDest);
+  console.log(`[Bundle] Found existing shared: isSymLink=${stats.isSymbolicLink()}, isDir=${stats.isDirectory()}`);
+  console.log("[Bundle] Removing existing shared (symlink or directory)...");
+  
+  // On Windows, use unlinkSync for junctions/symlinks
+  if (stats.isSymbolicLink()) {
+    fs.unlinkSync(sharedDest);
+  } else {
+    fs.rmSync(sharedDest, { recursive: true, force: true });
+  }
+  console.log("[Bundle] Removed!");
+} catch (err) {
+  if (err.code !== 'ENOENT') {
+    console.log(`[Bundle] Error checking/removing shared: ${err.message}`);
+  } else {
+    console.log("[Bundle] shared does not exist, will create new");
+  }
+}
+
+console.log(`[Bundle] Checking if @side-ide still exists after removal: ${fs.existsSync(sharedDestDir)}`);
+
+console.log("[Bundle] Copying shared package files...");
+copyDirectory(sharedDir, sharedDest);
+
+console.log("[Bundle] Server files bundled successfully!");
 
 // Create zip file if --output is specified
 if (outputZip) {
@@ -76,7 +111,18 @@ function copyDirectory(src, dest) {
     throw new Error(`Source directory does not exist: ${src}`);
   }
 
-  fs.mkdirSync(dest, { recursive: true });
+  // Ensure destination parent directory exists first
+  const destParent = path.dirname(dest);
+  if (!fs.existsSync(destParent)) {
+    console.log(`[Bundle] Creating parent directory: ${destParent}`);
+    fs.mkdirSync(destParent, { recursive: true });
+  }
+
+  // Ensure destination directory exists
+  if (!fs.existsSync(dest)) {
+    console.log(`[Bundle] Creating directory: ${dest}`);
+    fs.mkdirSync(dest, { recursive: true });
+  }
 
   const entries = fs.readdirSync(src, { withFileTypes: true });
 
