@@ -1,0 +1,84 @@
+/**
+ * dockview-theme-side
+ *
+ * Custom dockview theme for S-IDE (Side Studio IDE)
+ * Matches the Monochrome Black theme color scheme
+ *
+ * Theme class: dockview-theme-side
+ * Base theme: Similar to dockview-theme-dark with monochrome palette
+ */
+
+@import "dockview/dist/styles/dockview.css";
+
+/* ========================================
+   S-IDE Custom dockview Theme
+   ======================================== */
+
+.dockview-theme-side {
+  /* Base colors from S-IDE Monochrome Black theme */
+  --dv-group-view-background-color: var(--bg, #000000);
+  --dv-tabs-and-actions-container-background-color: var(--bg-soft, #0a0a0a);
+
+  /* Active group - visible panel */
+  --dv-activegroup-visiblepanel-tab-background-color: var(--bg, #000000);
+  --dv-activegroup-visiblepanel-tab-color: var(--fg, #ffffff);
+
+  /* Active group - hidden panel */
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--bg-tertiary, #141414);
+  --dv-activegroup-hiddenpanel-tab-color: var(--fg-dim, #888888);
+
+  /* Inactive group - visible panel */
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--bg, #000000);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--fg-dim, #888888);
+
+  /* Inactive group - hidden panel */
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--bg-soft, #0a0a0a);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--muted, #666666);
+
+  /* Dividers and borders */
+  --dv-tab-divider-color: var(--border, transparent);
+  --dv-separator-border: var(--border-active, #ffffff);
+  --dv-paneview-header-border-color: rgba(255, 255, 255, 0.1);
+
+  /* Interactive elements */
+  --dv-icon-hover-background-color: var(--hover, rgba(255, 255, 255, 0.1));
+  --dv-drag-over-background-color: rgba(255, 255, 255, 0.08);
+  --dv-drag-over-border-color: var(--accent-dim, #666666);
+
+  /* Sash (resize handle) */
+  --dv-sash-color: transparent;
+  --dv-active-sash-color: var(--accent, #ffffff);
+  --dv-active-sash-transition-duration: 0.1s;
+  --dv-active-sash-transition-delay: 0.5s;
+
+  /* Scrollbar */
+  --dv-tabs-container-scrollbar-color: var(--muted, #666666);
+  --dv-scrollbar-background-color: rgba(255, 255, 255, 0.25);
+
+  /* Focus and active states */
+  --dv-paneview-active-outline-color: var(--accent-dim, #666666);
+
+  /* Layout */
+  --dv-tabs-and-actions-container-font-size: 13px;
+  --dv-tabs-and-actions-container-height: 35px;
+  --dv-tab-font-size: inherit;
+  --dv-tab-margin: 0;
+  --dv-border-radius: 0px;
+
+  /* Floating panels */
+  --dv-floating-box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+
+  /* Overlay z-index */
+  --dv-overlay-z-index: 999;
+}
+
+/* Hide drop target animation for cleaner look */
+.dockview-theme-side .dv-drop-target-container .dv-drop-target-anchor.dv-drop-target-anchor-container-changed {
+  opacity: 0;
+  transition: none;
+}
+
+/* Optional: Add subtle border to separator for better visibility */
+.dockview-theme-side.dv-separator-border .dv-view:not(:first-child)::before {
+  background-color: rgba(255, 255, 255, 0.08);
+}

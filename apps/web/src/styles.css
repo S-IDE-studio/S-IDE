@@ -6587,3 +6587,9 @@ input:focus-visible {
   pointer-events: none;
   font-weight: bold;
 }
+
+/* ========================================
+   dockview Theme Import
+   ======================================== */
+
+@import "./components/dockview/dockview-theme.css";

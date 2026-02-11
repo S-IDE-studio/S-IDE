@@ -6,6 +6,7 @@
  * - DockviewContextProvider: Context provider for panel data
  * - useDockviewContext: Hook to access dockview context
  * - getDockviewApiRef: Function to access the dockview API singleton
+ * - Panel Adapters: Components that adapt panel content to dockview
  */
 
 export { DockviewLayout, getDockviewApiRef } from "./DockviewLayout";
@@ -16,3 +17,22 @@ export {
   useDockviewContext,
 } from "./DockviewContext";
 export type { DockviewContextValue } from "./DockviewContext";
+
+// Panel adapters
+export {
+  AgentPanelAdapter,
+  WorkspacePanelAdapter,
+  DeckPanelAdapter,
+  TerminalPanelAdapter,
+  EditorPanelAdapter,
+  ServerPanelAdapter,
+  McpPanelAdapter,
+  RemoteAccessPanelAdapter,
+  ServerSettingsPanelAdapter,
+  AgentStatusPanelAdapter,
+  AgentConfigPanelAdapter,
+  AgentConfigLocalPanelAdapter,
+  SetupPanelAdapter,
+  PANEL_ADAPTERS,
+  getPanelAdapter,
+} from "./panels";
