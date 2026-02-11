@@ -52,6 +52,23 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Update version from tag
+        shell: bash
+        run: |
+          # Extract version from tag (remove 'v' prefix)
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "Setting version to $VERSION"
+          # Update tauri.conf.json
+          if [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS
+            sed -i '' "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" apps/desktop/src-tauri/tauri.conf.json
+          else
+            # Linux/Windows
+            sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" apps/desktop/src-tauri/tauri.conf.json
+          fi
+          # Verify the change
+          cat apps/desktop/src-tauri/tauri.conf.json | grep "version"
+
       - name: Build shared package
         run: pnpm --filter @side-ide/shared run build
 
