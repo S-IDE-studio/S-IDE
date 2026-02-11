@@ -4,11 +4,11 @@ import {
   DockviewReadyEvent,
   DockviewApi,
   IDockviewPanelProps,
-  IDockviewPanelHeaderProps,
   IDockviewHeaderActionsProps,
   IWatermarkPanelProps,
 } from "dockview";
 import type { TabKind, UnifiedTab } from "../../types";
+import { DockviewTab } from "./DockviewTab";
 
 // Shared ref object for accessing the DockviewApi from outside DockviewLayout
 // This is a module-level singleton that persists across the application lifecycle
@@ -29,43 +29,6 @@ const PlaceholderPanel = (props: IDockviewPanelProps) => {
     <div className="dockview-placeholder-panel">
       <p>Panel: {tab.kind}</p>
       <p>Title: {tab.title}</p>
-    </div>
-  );
-};
-
-/**
- * Custom tab component
- * Displays tab icon, title, dirty indicator, and close button
- * Will be enhanced in Task 4 with full styling and context menu
- */
-const DockviewTab = (props: IDockviewPanelHeaderProps<{ tab: UnifiedTab }>) => {
-  const { api, params } = props;
-  const tab = params.tab;
-
-  const handleClose = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      api.close();
-    },
-    [api]
-  );
-
-  return (
-    <div
-      className={`dockview-tab ${tab.dirty ? "dirty" : ""} ${tab.pinned ? "pinned" : ""}`}
-    >
-      {/* Tab icon - will be enhanced in Task 4 */}
-      {tab.icon && <span className="tab-icon">{tab.icon}</span>}
-      <span className="tab-title">{tab.title}</span>
-      {tab.dirty && <span className="dirty-indicator">●</span>}
-      <button
-        type="button"
-        className="tab-close"
-        onClick={handleClose}
-        aria-label="Close tab"
-      >
-        ×
-      </button>
     </div>
   );
 };
