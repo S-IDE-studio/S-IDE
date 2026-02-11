@@ -101,10 +101,17 @@ export function useUpdateCheck() {
     useState<ReturnType<typeof check> extends Promise<infer T> ? T : null>(null);
 
   const checkForUpdates = async () => {
+    console.log("[UpdateCheck] Starting update check...");
     setIsChecking(true);
     try {
       const result = await check();
+      console.log("[UpdateCheck] Update check result:", result);
+      
       if (result?.available) {
+        console.log("[UpdateCheck] Update available:", {
+          current: result.currentVersion,
+          latest: result.version,
+        });
         setUpdate(result);
         setUpdateInfo({
           current_version: result.currentVersion,
@@ -113,9 +120,11 @@ export function useUpdateCheck() {
           date: result.date || "",
         });
         setShowNotification(true);
+      } else {
+        console.log("[UpdateCheck] No update available. Current version is up to date.");
       }
     } catch (error) {
-      console.error("Update check failed:", error);
+      console.error("[UpdateCheck] Update check failed:", error);
     } finally {
       setIsChecking(false);
     }
@@ -149,6 +158,22 @@ export function useUpdateCheck() {
       setIsChecking(false);
       setIsDownloading(false);
     };
+  }, []);
+
+  // Check for updates on mount (only in Tauri app)
+  useEffect(() => {
+    // Check if running in Tauri
+    const isTauri =
+      typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window);
+
+    if (isTauri) {
+      // Wait a bit before checking to let the app settle
+      const timer = setTimeout(() => {
+        checkForUpdates();
+      }, 3000); // 3 seconds delay
+
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   return {
