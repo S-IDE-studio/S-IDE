@@ -10,8 +10,8 @@ jobs:
       - name: Generate keypair
         run: |
           # Install minisign
-          wget https://github.com/jedisct1/minisign/releases/download/0.11/mini12sig.zip
-          unzip mini12sig.zip -d minisign
+          wget https://github.com/jedisct1/minisign/releases/download/0.11/minisign.zip
+          unzip minisign.zip -d minisign
 
           # Generate keypair with empty password
           echo "" | minisign/minisign -G -s tauri.key -p tauri.pubkey -t "S-IDE Update Key"
