@@ -1,4 +1,13 @@
-import type { PanelGroup, TabKind, UnifiedTab, WorkspaceState } from "../types";
+import type { TabKind, UnifiedTab, WorkspaceState } from "../types";
+
+/** Local type for tabs sync - represents old panel group format */
+interface PanelGroup {
+  id: string;
+  tabs: UnifiedTab[];
+  activeTabId: string | null;
+  focused: boolean;
+  percentage: number;
+}
 
 export interface TabsPresenceTab {
   syncKey: string;

@@ -2,8 +2,41 @@
  * URL and routing utilities
  */
 
-import type { GridState, GroupLayout, PanelGroup } from "../types";
+import type { GroupLayout } from "../types";
 import { migratePanelGroupsMapTabKinds, migratePanelGroupTabKinds } from "./tabMigration";
+import type { UnifiedTab } from "../types";
+
+/** Local type for URL persistence - represents old panel group format */
+interface PanelGroup {
+  id: string;
+  tabs: UnifiedTab[];
+  activeTabId: string | null;
+  focused: boolean;
+  percentage: number;
+}
+
+/** Local type for URL persistence - represents old grid state format */
+interface GridLeafNode {
+  readonly type: "leaf";
+  readonly groupId: string;
+  readonly size: number;
+}
+
+interface GridBranchNode {
+  readonly type: "branch";
+  readonly orientation: "horizontal" | "vertical";
+  readonly children: GridNode[];
+  readonly size: number;
+}
+
+type GridNode = GridBranchNode | GridLeafNode;
+
+interface GridState {
+  readonly root: GridNode;
+  readonly orientation: "horizontal" | "vertical";
+  readonly width: number;
+  readonly height: number;
+}
 
 type AppView = "workspace" | "terminal";
 type WorkspaceMode = "list" | "editor";

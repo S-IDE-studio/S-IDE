@@ -1,8 +1,17 @@
 import { useEffect, useMemo, useRef } from "react";
 import { postTabsPresence, type TabsPresenceTab } from "../api";
-import type { PanelGroup, UnifiedTab, WorkspaceState } from "../types";
+import type { UnifiedTab, WorkspaceState } from "../types";
 import { getOrCreateTabsSyncClientId } from "../utils/clientId";
 import { createSyncedTabFromPresence, getTabSyncKey, toPresenceTab } from "../utils/tabsSync";
+
+/** Local type for tabs presence sync - represents old panel group format */
+interface PanelGroup {
+  id: string;
+  tabs: UnifiedTab[];
+  activeTabId: string | null;
+  focused: boolean;
+  percentage: number;
+}
 
 const HEARTBEAT_MS = 10_000;
 const DEBOUNCE_MS = 300;

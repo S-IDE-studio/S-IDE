@@ -3,16 +3,40 @@
  * Handles conversion between grid state format and dockview JSON format
  */
 
-import type {
-  GridBranchNode,
-  GridLeafNode,
-  GridNode,
-  GridOrientation,
-  GridState,
-  PanelGroup,
-} from "../types";
+import type { UnifiedTab } from "../types";
 import type { DockviewApi, SerializedDockview } from "dockview";
 import { Orientation } from "dockview-core";
+
+/** Local types for legacy grid format migration */
+interface GridLeafNode {
+  readonly type: "leaf";
+  readonly groupId: string;
+  readonly size: number;
+}
+
+interface GridBranchNode {
+  readonly type: "branch";
+  readonly orientation: "horizontal" | "vertical";
+  readonly children: GridNode[];
+  readonly size: number;
+}
+
+type GridNode = GridBranchNode | GridLeafNode;
+
+interface GridState {
+  readonly root: GridNode;
+  readonly orientation: "horizontal" | "vertical";
+  readonly width: number;
+  readonly height: number;
+}
+
+interface PanelGroup {
+  id: string;
+  tabs: UnifiedTab[];
+  activeTabId: string | null;
+  focused: boolean;
+  percentage: number;
+}
 
 /** Storage key for dockview layout */
 const DOCKVIEW_STORAGE_KEY = "side-ide-dockview-layout";
@@ -147,7 +171,7 @@ function processGridNode(
   parentId: string | null,
   panelGroupsMap: Record<string, PanelGroup>,
   layout: SerializedDockview,
-  rootOrientation: GridOrientation
+  rootOrientation: "horizontal" | "vertical"
 ): void {
   if (node.type === "leaf") {
     // Leaf node - create panel entries for each tab

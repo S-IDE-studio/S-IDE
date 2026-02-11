@@ -5538,152 +5538,8 @@ input:focus-visible {
    ======================================== */
 
 /* Panel Groups Container */
-.panel-groups {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  user-select: none;
-}
 
-.panel-groups-horizontal {
-  flex-direction: row;
-}
 
-.panel-groups-vertical {
-  flex-direction: column;
-}
-
-/* Panel Group */
-.panel-group {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  border: none;
-  transition: border-color 0.15s ease;
-}
-
-.panel-group.focused {
-  border: none;
-}
-
-/* Split Preview Overlay - VSCode style */
-.panel-group.split-target {
-  position: relative;
-}
-
-.panel-drop-overlay {
-  position: absolute;
-  pointer-events: none;
-  z-index: 10000;
-  background: var(--list-hover);
-  border: 2px solid var(--accent);
-  opacity: 0.8;
-}
-
-.panel-drop-overlay.overlay-move-transition {
-  transition:
-    top 70ms ease-out,
-    left 70ms ease-out,
-    width 70ms ease-out,
-    height 70ms ease-out,
-    opacity 150ms ease-out;
-}
-
-/* Legacy split preview classes (kept for compatibility) */
-.panel-split-preview {
-  position: absolute;
-  pointer-events: none;
-  z-index: 10000;
-  background: var(--list-hover);
-  border: 2px solid var(--accent);
-  opacity: 0.8;
-  transition:
-    top 70ms ease-out,
-    left 70ms ease-out,
-    width 70ms ease-out,
-    height 70ms ease-out,
-    opacity 150ms ease-out;
-}
-
-.panel-split-preview-left {
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 50%;
-  border-left: none;
-}
-
-.panel-split-preview-right {
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 50%;
-  border-right: none;
-}
-
-.panel-split-preview-up {
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 50%;
-  border-top: none;
-}
-
-.panel-split-preview-down {
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 50%;
-  border-bottom: none;
-}
-
-/* Panel Tabs */
-.panel-tabs-container {
-  user-select: none;
-}
-
-.panel-tabs-container.drag-over {
-  background: rgba(59, 130, 246, 0.1); /* Light blue highlight */
-}
-
-.panel-tabs {
-  display: flex;
-  overflow-x: auto;
-  overflow-y: hidden;
-  background: var(--bg-soft);
-  min-height: 35px;
-  flex-shrink: 0;
-  padding-left: 8px;
-  width: 100%;
-  min-width: 0;
-}
-
-.panel-tabs::-webkit-scrollbar {
-  height: 3px;
-}
-
-.panel-tabs::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.panel-tabs::-webkit-scrollbar-thumb {
-  background: var(--border-dim);
-  border-radius: 2px;
-}
-
-.panel-tabs::-webkit-scrollbar-thumb:hover {
-  background: var(--muted);
-}
-
-.panel-tabs-empty {
-  display: none;
-}
-
-.panel-tabs-empty-text {
-  font-size: 12px;
-  color: var(--ink-muted);
-}
 
 .panel-tab {
   position: relative;
@@ -5714,15 +5570,6 @@ input:focus-visible {
   border-top-width: 2px;
 }
 
-/* Dragging tab style */
-.panel-tab-dragging {
-  position: fixed;
-  pointer-events: none;
-  z-index: 9999;
-  opacity: 0.8;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  background: var(--panel);
-}
 
 .panel-tab:hover {
   background: var(--panel);
@@ -5731,10 +5578,6 @@ input:focus-visible {
   border-top-width: 2px;
 }
 
-.panel-tab:hover {
-  background: var(--panel);
-  color: var(--ink);
-}
 
 /* Pinned tabs */
 .panel-tab.pinned {
@@ -5816,83 +5659,6 @@ input:focus-visible {
 .panel-tab:hover.dirty .panel-tab-close,
 .panel-tab.active.dirty .panel-tab-close {
   opacity: 1;
-}
-
-/* Panel Content */
-.panel-content {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  z-index: 1;
-}
-
-.panel-empty {
-  /* Use panel-view-empty styles */
-}
-
-.panel-view-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  background: var(--bg-soft);
-  color: var(--fg-dim);
-  padding: 40px;
-  gap: 24px;
-}
-
-.panel-empty-icon {
-  opacity: 0.3;
-  color: var(--fg-dim);
-}
-
-.panel-empty-title {
-  font-size: 28px;
-  font-weight: 600;
-  color: var(--fg);
-  margin: 0;
-}
-
-.panel-empty-description {
-  font-size: 14px;
-  color: var(--fg-dim);
-  max-width: 400px;
-  text-align: center;
-  margin: 0;
-}
-
-.panel-empty-shortcuts {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 16px;
-}
-
-.panel-empty-shortcut {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 13px;
-  color: var(--fg-dim);
-}
-
-.panel-empty-shortcut kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 24px;
-  padding: 4px 8px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--fg);
-  box-shadow: 0 1px 0 var(--border-dim);
 }
 
 /* Panel Content Placeholders */
@@ -6003,182 +5769,11 @@ input:focus-visible {
    ======================================== */
 
 /* Tab Bar Container */
-.panel-tab-bar {
-  display: flex;
-  align-items: center;
-  background: var(--bg-soft);
-  border-bottom: none;
-  min-height: 35px;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 10;
-}
 
-.panel-tabs-container {
-  flex: 1;
-  min-width: 200px;
-  overflow: visible;
-}
 
-/* Panel Controls (Split Button) */
-.panel-controls {
-  display: flex;
-  align-items: center;
-  padding: 0 4px;
-  height: 100%;
-  user-select: none;
-}
-
-/* Split Button */
-.panel-split-button-container {
-  position: relative;
-  user-select: none;
-}
-
-.panel-split-button {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  color: var(--fg-dim);
-  cursor: pointer;
-  border-radius: 3px;
-  transition:
-    background 0.15s,
-    color 0.15s;
-  user-select: none;
-}
-
-.panel-split-button:hover {
-  background: var(--list-hover);
-  color: var(--fg);
-}
-
-/* Split Menu */
-.panel-split-menu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  min-width: 140px;
-  background: var(--bg-tertiary);
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  overflow: hidden;
-  z-index: 1000;
-  margin-top: 2px;
-  user-select: none;
-}
-
-.panel-split-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 12px;
-  background: var(--bg-tertiary);
-  border: none;
-  color: var(--fg);
-  font-size: 12px;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.1s;
-  user-select: none;
-}
-
-.panel-split-menu-item:hover {
-  background: var(--list-active);
-}
-
-.panel-split-menu-item-danger:hover {
-  background: rgba(232, 17, 35, 0.2);
-  color: #e81123;
-}
-
-.panel-split-menu-separator {
-  height: 1px;
-  background: var(--border-dim);
-  margin: 4px 0;
-}
 
 /* Resize Handle */
-.panel-resize-handle {
-  position: absolute;
-  background: transparent;
-  z-index: 10;
-  transition: background 0.15s;
-  user-select: none;
-}
 
-.panel-resize-handle-horizontal {
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  cursor: ew-resize;
-}
-
-.panel-resize-handle-vertical {
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  cursor: ns-resize;
-}
-
-.panel-resize-handle:hover,
-.panel-resize-handle.resizing {
-  background: var(--accent);
-}
-
-/* SplitView & Sash */
-.split-view {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-.split-view-view {
-  overflow: hidden;
-}
-
-.sash {
-  position: absolute;
-  z-index: 10;
-  background: transparent;
-  transition: background 0.15s;
-  user-select: none;
-}
-
-.sash:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.sash.dragging {
-  background: var(--accent);
-}
-
-.sash.disabled {
-  cursor: default !important;
-  pointer-events: none;
-}
-
-.sash-vertical {
-  left: 0;
-  right: 0;
-  height: 4px;
-  cursor: ns-resize;
-}
-
-.sash-horizontal {
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  cursor: ew-resize;
-}
 
 /* Tab Context Menu */
 .tab-context-menu {
@@ -6260,44 +5855,8 @@ input:focus-visible {
   transform: scaleY(-1);
 }
 
-/* Panel Group Layout Updates */
-.panel-groups {
-  position: relative;
-}
 
-.panel-group {
-  position: relative;
-  min-width: 100px;
-  min-height: 100px;
-}
 
-/* Scrollbar styling for tabs */
-.panel-tabs::-webkit-scrollbar {
-  height: 3px;
-}
-
-.panel-tabs::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.panel-tabs::-webkit-scrollbar-thumb {
-  background: var(--border-dim);
-  border-radius: 2px;
-}
-
-.panel-tabs::-webkit-scrollbar-thumb:hover {
-  background: var(--muted);
-}
-
-/* Dragging states */
-.panel-tab[aria-pressed="true"] {
-  opacity: 0.5;
-}
-
-/* Middle click close cursor */
-.panel-tab {
-  cursor: pointer;
-}
 
 /* ========================================
    Terminal Create Button with Shell Selection
@@ -6530,63 +6089,6 @@ input:focus-visible {
   font-size: 13px;
 }
 
-/* GridView Component Styles */
-.grid-view {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-.grid-branch-node {
-  width: 100%;
-  height: 100%;
-}
-
-.grid-leaf-node {
-  position: absolute;
-  overflow: hidden;
-}
-
-.grid-leaf-content {
-  width: 100%;
-  height: 100%;
-  overflow: auto;
-}
-
-/* Grid Drop Target Styles */
-.grid-drop-target {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-  z-index: 1000;
-}
-
-.grid-drop-area {
-  position: absolute;
-  background: var(--color-accent, #007acc);
-  opacity: 0.2;
-  pointer-events: none;
-  transition: all 0.15s ease-out;
-}
-
-.grid-drop-border {
-  position: absolute;
-  background: var(--color-accent, #007acc);
-  pointer-events: none;
-  transition: all 0.15s ease-out;
-}
-
-.grid-drop-direction {
-  position: absolute;
-  font-size: 24px;
-  color: var(--color-accent, #007acc);
-  pointer-events: none;
-  font-weight: bold;
-}
 
 /* ========================================
    dockview Theme Import

@@ -9,24 +9,6 @@ export { MESSAGE_SAVED as SAVED_MESSAGE } from "../constants";
 export { createHttpError, getErrorMessage } from "./errorUtils";
 // File utilities
 export { getLanguageFromPath, toTreeNodes, updateTreeNode } from "./fileUtils";
-// Grid utilities
-export {
-  addViewToGrid,
-  createGridState,
-  deserializeGrid,
-  findLeafByGroupId,
-  findNodeAtLocation,
-  generateGridLeafId,
-  getAllLeaves,
-  getParentLocation,
-  moveViewInGrid,
-  normalizeGrid,
-  orthogonal,
-  removeViewFromGrid,
-  resizeLeaf,
-  serializeGrid,
-  validateLocation,
-} from "./gridUtils";
 // Path utilities
 export { getParentPath, getPathSeparator, joinPath, normalizeWorkspacePath } from "./pathUtils";
 // State utilities

@@ -7,18 +7,12 @@ import type {
   Agent,
   Deck,
   EditorFile,
-  PanelGroup,
-  PanelLayout,
   UnifiedTab,
   Workspace,
 } from "../types";
 
 export function generateTabId(): string {
   return `tab-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
-}
-
-export function generatePanelGroupId(): string {
-  return `panel-group-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 }
 
 /**
@@ -232,30 +226,4 @@ function getFileIconString(filename: string): string | undefined {
     txt: "file",
   };
   return typeMap[ext] || "file";
-}
-
-/**
- * Create empty panel group
- */
-export function createEmptyPanelGroup(percentage: number = 100): PanelGroup {
-  return {
-    id: generatePanelGroupId(),
-    tabs: [],
-    activeTabId: null,
-    focused: true,
-    percentage,
-  };
-}
-
-/**
- * Create single panel layout
- */
-export function createSinglePanelLayout(): {
-  groups: PanelGroup[];
-  layout: PanelLayout;
-} {
-  return {
-    groups: [createEmptyPanelGroup(100)],
-    layout: { direction: "single", sizes: [100] },
-  };
 }

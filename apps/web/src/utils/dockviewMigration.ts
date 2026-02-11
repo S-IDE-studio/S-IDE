@@ -5,16 +5,41 @@
  * SerializedDockview format for seamless layout migration.
  */
 
-import type {
-  GridState,
-  GridNode,
-  GridBranchNode,
-  GridLeafNode,
-  PanelGroup,
-  UnifiedTab,
-} from "../types";
+import type { UnifiedTab } from "../types";
 import type { SerializedDockview } from "dockview-core";
 import { Orientation } from "dockview-core";
+
+/** Local types for legacy grid format migration */
+interface GridLeafNode {
+  readonly type: "leaf";
+  readonly groupId: string;
+  readonly size: number;
+  readonly cachedVisibleSize?: number;
+}
+
+interface GridBranchNode {
+  readonly type: "branch";
+  readonly orientation: "horizontal" | "vertical";
+  readonly children: GridNode[];
+  readonly size: number;
+}
+
+type GridNode = GridBranchNode | GridLeafNode;
+
+interface GridState {
+  readonly root: GridNode;
+  readonly orientation: "horizontal" | "vertical";
+  readonly width: number;
+  readonly height: number;
+}
+
+interface PanelGroup {
+  id: string;
+  tabs: UnifiedTab[];
+  activeTabId: string | null;
+  focused: boolean;
+  percentage: number;
+}
 
 /**
  * Mapping from legacy component kind to dockview component name.

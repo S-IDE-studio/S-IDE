@@ -1,4 +1,13 @@
-import type { PanelGroup, UnifiedTab } from "../types";
+import type { UnifiedTab } from "../types";
+
+/** Local type for tab migration - represents old panel group format */
+interface PanelGroup {
+  id: string;
+  tabs: UnifiedTab[];
+  activeTabId: string | null;
+  focused: boolean;
+  percentage: number;
+}
 
 export function migrateTabKind(kind: string): string {
   if (kind === "tunnel") return "remoteAccess";

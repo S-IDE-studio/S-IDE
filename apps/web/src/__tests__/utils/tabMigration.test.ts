@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
-import type { PanelGroup } from "../../types";
+import type { UnifiedTab } from "../../types";
 import { migratePanelGroupTabKinds } from "../../utils/tabMigration";
+
+/** Local type for test - represents old panel group format */
+interface PanelGroup {
+  id: string;
+  tabs: UnifiedTab[];
+  activeTabId: string | null;
+  focused: boolean;
+  percentage: number;
+}
 
 describe("migratePanelGroupTabKinds", () => {
   it('migrates legacy kind "tunnel" to "remoteAccess"', () => {
