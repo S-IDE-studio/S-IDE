@@ -87,6 +87,7 @@ async fn run_tailscale(args: &[&str]) -> Result<std::process::Output, String> {
     // Hide console window on Windows
     #[cfg(target_os = "windows")]
     {
+        #[allow(unused_imports)]
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         command.creation_flags(CREATE_NO_WINDOW);

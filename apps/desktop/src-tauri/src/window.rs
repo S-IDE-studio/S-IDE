@@ -247,6 +247,7 @@ fn spawn_server(
     // Windows: Hide console window completely
     #[cfg(target_os = "windows")]
     if !is_dev {
+        #[allow(unused_imports)]
         use std::os::windows::process::CommandExt;
         // CREATE_NO_WINDOW: 0x08000000 - Prevents console window creation
         // DETACHED_PROCESS: 0x00000008 - Detaches from parent console
