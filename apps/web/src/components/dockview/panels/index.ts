@@ -41,22 +41,23 @@ import { ServerSettingsPanelAdapter } from "./ServerSettingsPanelAdapter";
 import { SetupPanelAdapter } from "./SetupPanelAdapter";
 import { TerminalPanelAdapter } from "./TerminalPanelAdapter";
 import { WorkspacePanelAdapter } from "./WorkspacePanelAdapter";
+import type { IDockviewPanelProps } from "dockview";
 
-export const PANEL_ADAPTERS: Record<TabKind, React.ComponentType<any>> = {
-  agent: AgentPanelAdapter,
-  workspace: WorkspacePanelAdapter,
-  deck: DeckPanelAdapter,
-  terminal: TerminalPanelAdapter,
-  editor: EditorPanelAdapter,
-  server: ServerPanelAdapter,
-  mcp: McpPanelAdapter,
-  remoteAccess: RemoteAccessPanelAdapter,
-  tunnel: RemoteAccessPanelAdapter, // Legacy: mapped to remoteAccess
-  serverSettings: ServerSettingsPanelAdapter,
-  agentStatus: AgentStatusPanelAdapter,
-  agentConfig: AgentConfigPanelAdapter,
-  agentConfigLocal: AgentConfigLocalPanelAdapter,
-  setup: SetupPanelAdapter,
+export const PANEL_ADAPTERS: Record<string, React.FunctionComponent<IDockviewPanelProps>> = {
+  agent: AgentPanelAdapter as React.FunctionComponent<IDockviewPanelProps>,
+  workspace: WorkspacePanelAdapter as React.FunctionComponent<IDockviewPanelProps>,
+  deck: DeckPanelAdapter as React.FunctionComponent<IDockviewPanelProps>,
+  terminal: TerminalPanelAdapter as React.FunctionComponent<IDockviewPanelProps>,
+  editor: EditorPanelAdapter as React.FunctionComponent<IDockviewPanelProps>,
+  server: ServerPanelAdapter as React.FunctionComponent<IDockviewPanelProps>,
+  mcp: McpPanelAdapter as React.FunctionComponent<IDockviewPanelProps>,
+  remoteAccess: RemoteAccessPanelAdapter as React.FunctionComponent<IDockviewPanelProps>,
+  tunnel: RemoteAccessPanelAdapter as React.FunctionComponent<IDockviewPanelProps>, // Legacy: mapped to remoteAccess
+  serverSettings: ServerSettingsPanelAdapter as React.FunctionComponent<IDockviewPanelProps>,
+  agentStatus: AgentStatusPanelAdapter as React.FunctionComponent<IDockviewPanelProps>,
+  agentConfig: AgentConfigPanelAdapter as React.FunctionComponent<IDockviewPanelProps>,
+  agentConfigLocal: AgentConfigLocalPanelAdapter as React.FunctionComponent<IDockviewPanelProps>,
+  setup: SetupPanelAdapter as React.FunctionComponent<IDockviewPanelProps>,
 };
 
 /**

@@ -1,141 +1,259 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import {
   DockviewReact,
   DockviewReadyEvent,
   DockviewApi,
-  IDockviewPanelProps,
   IDockviewHeaderActionsProps,
   IWatermarkPanelProps,
 } from "dockview";
-import type { TabKind, UnifiedTab } from "../../types";
+import type { TabKind } from "../../types";
 import { DockviewTab } from "./DockviewTab";
+import { PANEL_ADAPTERS } from "./panels";
+import { DockviewContextProvider, useDockviewContext } from "./DockviewContext";
 
 // Shared ref object for accessing the DockviewApi from outside DockviewLayout
 // This is a module-level singleton that persists across the application lifecycle
 const dockviewApiRef = { current: null as DockviewApi | null };
 
-// Placeholder panel components - will be replaced by adapters in Task 3
-// These are stub components that will be implemented in Task 3
-const PlaceholderPanel = (props: IDockviewPanelProps) => {
-  const tab = (props.params as { tab?: UnifiedTab })?.tab;
-  if (!tab) {
-    return (
-      <div className="dockview-placeholder-panel">
-        <p>Panel: No tab data</p>
-      </div>
-    );
-  }
-  return (
-    <div className="dockview-placeholder-panel">
-      <p>Panel: {tab.kind}</p>
-      <p>Title: {tab.title}</p>
-    </div>
-  );
-};
-
 /**
- * Watermark component shown in empty groups
+ * Internal dockview wrapper that uses context
  */
-const WatermarkComponent = (
-  _props: IWatermarkPanelProps
-): React.JSX.Element => {
+function DockviewLayoutInner(): React.JSX.Element {
+  const { dockviewApi } = useDockviewContext();
+
+  /**
+   * Handle dockview ready event
+   * Stores API reference in module-level ref
+   */
+  const handleReady = useCallback(
+    (event: DockviewReadyEvent) => {
+      dockviewApiRef.current = event.api;
+    },
+    []
+  );
+
+  /**
+   * Watermark component shown in empty groups
+   */
+  const WatermarkComponent = useCallback(
+    (_props: IWatermarkPanelProps): React.JSX.Element => {
+      return (
+        <div className="dockview-watermark">
+          <p>Drop a tab here or use the menu to open a new panel</p>
+        </div>
+      );
+    },
+    []
+  );
+
+  /**
+   * Right header actions component
+   * Provides split and close actions for group headers
+   */
+  const RightHeaderActionsComponent = useCallback(
+    (props: IDockviewHeaderActionsProps): React.JSX.Element => {
+      const { containerApi, activePanel } = props;
+
+      const handleSplitHorizontal = useCallback(() => {
+        if (activePanel?.params?.tab) {
+          const originalTab = activePanel.params.tab as { kind?: TabKind; title?: string };
+          const tabKind = originalTab.kind || "editor";
+          const newTab = { ...originalTab, id: `split-${Date.now()}` };
+          containerApi.addPanel({
+            id: newTab.id,
+            component: tabKind,
+            title: newTab.title || "New Panel",
+            params: { tab: newTab },
+            position: { referenceGroup: props.group, direction: "right" },
+          });
+        }
+      }, [activePanel, containerApi, props.group]);
+
+      const handleSplitVertical = useCallback(() => {
+        if (activePanel?.params?.tab) {
+          const originalTab = activePanel.params.tab as { kind?: TabKind; title?: string };
+          const tabKind = originalTab.kind || "editor";
+          const newTab = { ...originalTab, id: `split-${Date.now()}` };
+          containerApi.addPanel({
+            id: newTab.id,
+            component: tabKind,
+            title: newTab.title || "New Panel",
+            params: { tab: newTab },
+            position: { referenceGroup: props.group, direction: "below" },
+          });
+        }
+      }, [activePanel, containerApi, props.group]);
+
+      const handleCloseGroup = useCallback(() => {
+        containerApi.removeGroup(props.group);
+      }, [containerApi, props.group]);
+
+      return (
+        <div className="dockview-header-actions">
+          <button
+            type="button"
+            className="icon-button"
+            onClick={handleSplitHorizontal}
+            title="Split horizontally"
+            aria-label="Split horizontally"
+          >
+            ⬌
+          </button>
+          <button
+            type="button"
+            className="icon-button"
+            onClick={handleSplitVertical}
+            title="Split vertically"
+            aria-label="Split vertically"
+          >
+            ⬍
+          </button>
+          <button
+            type="button"
+            className="icon-button"
+            onClick={handleCloseGroup}
+            title="Close group"
+            aria-label="Close group"
+          >
+            ×
+          </button>
+        </div>
+      );
+    },
+    []
+  );
+
+  /**
+   * Components map for all TabKind types
+   * Uses panel adapters that wrap the actual content components
+   */
+  const components = useMemo(
+    () => PANEL_ADAPTERS,
+    []
+  );
+
   return (
-    <div className="dockview-watermark">
-      <p>Drop a tab here or use the menu to open a new panel</p>
+    <div className="dockview-theme-side">
+      <DockviewReact
+        components={components}
+        defaultTabComponent={DockviewTab}
+        watermarkComponent={WatermarkComponent}
+        rightHeaderActionsComponent={RightHeaderActionsComponent}
+        onReady={handleReady}
+        disableAutoResizing={false}
+      />
     </div>
   );
-};
-
-/**
- * Right header actions component
- * Provides split and close actions for group headers
- */
-const RightHeaderActionsComponent = (
-  props: IDockviewHeaderActionsProps
-): React.JSX.Element => {
-  const { containerApi, activePanel } = props;
-
-  const handleSplitHorizontal = useCallback(() => {
-    if (activePanel?.params?.tab) {
-      // Get the tab kind and create a copy with unique ID
-      const originalTab = activePanel.params.tab;
-      const tabKind = originalTab.kind || "editor";
-      // Create a new tab object with unique ID to avoid duplicates
-      const newTab = { ...originalTab, id: `split-${Date.now()}` };
-      // Create a new group by splitting horizontally
-      containerApi.addPanel({
-        id: newTab.id,
-        component: tabKind,
-        title: newTab.title,
-        params: { tab: newTab },
-        position: { referenceGroup: props.group, direction: "right" },
-      });
-    }
-  }, [activePanel, containerApi, props.group]);
-
-  const handleSplitVertical = useCallback(() => {
-    if (activePanel?.params?.tab) {
-      // Get the tab kind and create a copy with unique ID
-      const originalTab = activePanel.params.tab;
-      const tabKind = originalTab.kind || "editor";
-      // Create a new tab object with unique ID to avoid duplicates
-      const newTab = { ...originalTab, id: `split-${Date.now()}` };
-      // Create a new group by splitting vertically
-      containerApi.addPanel({
-        id: newTab.id,
-        component: tabKind,
-        title: newTab.title,
-        params: { tab: newTab },
-        position: { referenceGroup: props.group, direction: "below" },
-      });
-    }
-  }, [activePanel, containerApi, props.group]);
-
-  const handleCloseGroup = useCallback(() => {
-    containerApi.removeGroup(props.group);
-  }, [containerApi, props.group]);
-
-  return (
-    <div className="dockview-header-actions">
-      <button
-        type="button"
-        className="icon-button"
-        onClick={handleSplitHorizontal}
-        title="Split horizontally"
-        aria-label="Split horizontally"
-      >
-        ⬌
-      </button>
-      <button
-        type="button"
-        className="icon-button"
-        onClick={handleSplitVertical}
-        title="Split vertically"
-        aria-label="Split vertically"
-      >
-        ⬍
-      </button>
-      <button
-        type="button"
-        className="icon-button"
-        onClick={handleCloseGroup}
-        title="Close group"
-        aria-label="Close group"
-      >
-        ×
-      </button>
-    </div>
-  );
-};
+}
 
 /**
  * Props for DockviewLayout component
  */
 export interface DockviewLayoutProps {
   /**
-   * Callback when dockview is ready and API is available
+   * Workspace states by ID
    */
-  onReady?: (api: DockviewApi) => void;
+  workspaceStates: Record<string, import("../../types").WorkspaceState>;
+
+  /**
+   * Update workspace state handler
+   */
+  updateWorkspaceState: (id: string, state: Partial<import("../../types").WorkspaceState>) => void;
+
+  /**
+   * Decks array
+   */
+  decks: import("../../types").Deck[];
+
+  /**
+   * Deck states by ID
+   */
+  deckStates: Record<string, import("../../types").DeckState>;
+
+  /**
+   * Active deck IDs
+   */
+  activeDeckIds: string[];
+
+  /**
+   * Git files by workspace ID
+   */
+  gitFiles: Record<string, import("../../types").GitFileStatus[]>;
+
+  /**
+   * Toggle directory handler
+   */
+  onToggleDir: (wsId: string, node: import("../../types").FileTreeNode) => void;
+
+  /**
+   * Open file handler
+   */
+  onOpenFile: (wsId: string, node: import("../../types").FileTreeNode) => void;
+
+  /**
+   * Refresh tree handler
+   */
+  onRefreshTree: (wsId: string) => void;
+
+  /**
+   * Create file handler
+   */
+  onCreateFile: (wsId: string, path: string) => void;
+
+  /**
+   * Create directory handler
+   */
+  onCreateDirectory: (wsId: string, path: string) => void;
+
+  /**
+   * Delete file handler
+   */
+  onDeleteFile: (wsId: string, path: string) => void;
+
+  /**
+   * Delete directory handler
+   */
+  onDeleteDirectory: (wsId: string, path: string) => void;
+
+  /**
+   * Change file content handler
+   */
+  onChangeFile: (fileId: string, content: string) => void;
+
+  /**
+   * Save file handler
+   */
+  onSaveFile: (fileId: string) => void;
+
+  /**
+   * Currently saving file ID
+   */
+  savingFileId: string | null;
+
+  /**
+   * WebSocket base URL
+   */
+  wsBase: string;
+
+  /**
+   * Delete terminal handler
+   */
+  onDeleteTerminal: (termId: string) => void;
+
+  /**
+   * Reorder terminals handler
+   */
+  onReorderTerminals: (deckId: string, newOrder: import("../../types").TerminalSession[]) => void;
+
+  /**
+   * Create terminal handler
+   */
+  onCreateTerminal: (deckId: string, command?: string) => void;
+
+  /**
+   * Open tab handler
+   */
+  openTab: (tab: import("../../types").UnifiedTab) => void;
 
   /**
    * Optional class name for the dockview container
@@ -152,72 +270,114 @@ export interface DockviewLayoutProps {
  * DockviewLayout component
  *
  * This is the main wrapper for dockview that:
- * 1. Initializes DockviewReact with all TabKind components
- * 2. Provides custom tab component, watermark, and header actions
- * 3. Stores DockviewApi in a ref for external access
- * 4. Applies custom theme class "dockview-theme-side"
+ * 1. Provides DockviewContext with all shared state and handlers
+ * 2. Initializes DockviewReact with all TabKind components
+ * 3. Provides custom tab component, watermark, and header actions
+ * 4. Stores DockviewApi in a ref for external access
+ * 5. Applies custom theme class "dockview-theme-side"
  *
- * The components map uses placeholder components that will be replaced
- * by proper adapters in Task 3.
+ * The components map uses panel adapters that wrap the actual content components
+ * and access shared state through DockviewContext.
  */
-export function DockviewLayout({
-  onReady,
-  className = "",
-  style,
-}: DockviewLayoutProps): React.JSX.Element {
-  /**
-   * Handle dockview ready event
-   * Stores API reference in module-level ref and calls onReady callback
-   */
-  const handleReady = useCallback(
-    (event: DockviewReadyEvent) => {
-      dockviewApiRef.current = event.api;
-      onReady?.(event.api);
-    },
-    [onReady]
+export function DockviewLayout(props: DockviewLayoutProps): React.JSX.Element {
+  const {
+    workspaceStates,
+    updateWorkspaceState,
+    decks,
+    deckStates,
+    activeDeckIds,
+    gitFiles,
+    onToggleDir,
+    onOpenFile,
+    onRefreshTree,
+    onCreateFile,
+    onCreateDirectory,
+    onDeleteFile,
+    onDeleteDirectory,
+    onChangeFile,
+    onSaveFile,
+    savingFileId,
+    wsBase,
+    onDeleteTerminal,
+    onReorderTerminals,
+    onCreateTerminal,
+    openTab,
+    className = "",
+    style,
+  } = props;
+
+  // Convert activeDeckIds array to record for deck panels
+  const activeDeckIdsRecord = useMemo(() => {
+    const record: Record<string, string> = {};
+    activeDeckIds.forEach((id, index) => {
+      record[id] = id;
+    });
+    return record;
+  }, [activeDeckIds]);
+
+  const contextValue = useMemo(
+    () => ({
+      workspaceStates,
+      updateWorkspaceState,
+      decks,
+      deckStates,
+      activeDeckIds: activeDeckIdsRecord,
+      gitFiles,
+      onToggleDir,
+      onOpenFile,
+      onRefreshTree,
+      onCreateFile,
+      onCreateDirectory,
+      onDeleteFile,
+      onDeleteDirectory,
+      onChangeFile,
+      onSaveFile,
+      savingFileId,
+      wsBase,
+      onDeleteTerminal,
+      onReorderTerminals,
+      onCreateTerminal,
+      openTab,
+      dockviewApi: dockviewApiRef.current,
+    }),
+    [
+      workspaceStates,
+      updateWorkspaceState,
+      decks,
+      deckStates,
+      activeDeckIdsRecord,
+      gitFiles,
+      onToggleDir,
+      onOpenFile,
+      onRefreshTree,
+      onCreateFile,
+      onCreateDirectory,
+      onDeleteFile,
+      onDeleteDirectory,
+      onChangeFile,
+      onSaveFile,
+      savingFileId,
+      wsBase,
+      onDeleteTerminal,
+      onReorderTerminals,
+      onCreateTerminal,
+      openTab,
+    ]
   );
 
-  /**
-   * Components map for all TabKind types
-   * These map directly from TabKind to panel components
-   * In Task 3, these will be replaced with proper adapter components
-   */
-  const components: Record<string, React.FunctionComponent<IDockviewPanelProps>> = {
-    agent: PlaceholderPanel as React.FunctionComponent<IDockviewPanelProps>,
-    workspace: PlaceholderPanel as React.FunctionComponent<IDockviewPanelProps>,
-    deck: PlaceholderPanel as React.FunctionComponent<IDockviewPanelProps>,
-    terminal: PlaceholderPanel as React.FunctionComponent<IDockviewPanelProps>,
-    editor: PlaceholderPanel as React.FunctionComponent<IDockviewPanelProps>,
-    server: PlaceholderPanel as React.FunctionComponent<IDockviewPanelProps>,
-    mcp: PlaceholderPanel as React.FunctionComponent<IDockviewPanelProps>,
-    remoteAccess: PlaceholderPanel as React.FunctionComponent<IDockviewPanelProps>,
-    tunnel: PlaceholderPanel as React.FunctionComponent<IDockviewPanelProps>,
-    serverSettings: PlaceholderPanel as React.FunctionComponent<IDockviewPanelProps>,
-    agentStatus: PlaceholderPanel as React.FunctionComponent<IDockviewPanelProps>,
-    agentConfig: PlaceholderPanel as React.FunctionComponent<IDockviewPanelProps>,
-    agentConfigLocal: PlaceholderPanel as React.FunctionComponent<IDockviewPanelProps>,
-    setup: PlaceholderPanel as React.FunctionComponent<IDockviewPanelProps>,
-  };
-
   return (
-    <div className={`dockview-theme-side ${className}`.trim()} style={style}>
-      <DockviewReact
-        components={components}
-        defaultTabComponent={DockviewTab}
-        watermarkComponent={WatermarkComponent}
-        rightHeaderActionsComponent={RightHeaderActionsComponent}
-        onReady={handleReady}
-        // Disable auto resizing to handle manually if needed
-        disableAutoResizing={false}
-      />
-    </div>
+    <DockviewContextProvider value={contextValue}>
+      <div className={`dockview-layout-wrapper ${className}`.trim()} style={style}>
+        <DockviewLayoutInner />
+      </div>
+    </DockviewContextProvider>
   );
 }
 
 /**
  * Get the dockview API ref object
  * Returns a ref object with the current API instance
- * The API is available after DockviewLayout's onReady callback has been invoked
+ * The API is available after DockviewLayout has been mounted
  *
  * This is a module-level singleton, not a React Hook
  */
