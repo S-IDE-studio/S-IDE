@@ -6,11 +6,12 @@ import { Check, Copy, Globe, Link2, QrCode, X } from "lucide-react";
 
 // Check if running in Tauri (Tauri v2 uses __TAURI_INTERNALS__)
 function isTauriApp(): boolean {
-  return typeof window !== "undefined" && (
-    "__TAURI_INTERNALS__" in window || 
-    "__TAURI__" in window
+  return (
+    typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window)
   );
-}import { QRCodeSVG } from "qrcode.react";
+}
+
+import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useRef, useState } from "react";
 import { COPY_FEEDBACK_TIMEOUT } from "../../constants";
 import { useRemoteAccessStatus } from "../../hooks/useRemoteAccessStatus";

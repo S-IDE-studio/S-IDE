@@ -56,7 +56,9 @@ try {
 }
 
 // NOW copy shared package AFTER npm install (to override any symlink)
-console.log(`[Bundle] Copying shared package from ${sharedDir} to ${bundleDir}/node_modules/@side-ide/shared`);
+console.log(
+  `[Bundle] Copying shared package from ${sharedDir} to ${bundleDir}/node_modules/@side-ide/shared`
+);
 const sharedDestDir = path.join(bundleDir, "node_modules", "@side-ide");
 
 // Ensure @side-ide directory exists
@@ -72,9 +74,11 @@ console.log(`[Bundle] Checking if ${sharedDest} exists...`);
 // Use lstatSync to detect symlinks/junctions
 try {
   const stats = fs.lstatSync(sharedDest);
-  console.log(`[Bundle] Found existing shared: isSymLink=${stats.isSymbolicLink()}, isDir=${stats.isDirectory()}`);
+  console.log(
+    `[Bundle] Found existing shared: isSymLink=${stats.isSymbolicLink()}, isDir=${stats.isDirectory()}`
+  );
   console.log("[Bundle] Removing existing shared (symlink or directory)...");
-  
+
   // On Windows, use unlinkSync for junctions/symlinks
   if (stats.isSymbolicLink()) {
     fs.unlinkSync(sharedDest);
@@ -83,14 +87,16 @@ try {
   }
   console.log("[Bundle] Removed!");
 } catch (err) {
-  if (err.code !== 'ENOENT') {
+  if (err.code !== "ENOENT") {
     console.log(`[Bundle] Error checking/removing shared: ${err.message}`);
   } else {
     console.log("[Bundle] shared does not exist, will create new");
   }
 }
 
-console.log(`[Bundle] Checking if @side-ide still exists after removal: ${fs.existsSync(sharedDestDir)}`);
+console.log(
+  `[Bundle] Checking if @side-ide still exists after removal: ${fs.existsSync(sharedDestDir)}`
+);
 
 console.log("[Bundle] Copying shared package files...");
 copyDirectory(sharedDir, sharedDest);
@@ -163,11 +169,10 @@ async function createZip(sourceDir, outputPath) {
     });
 
     archive.pipe(output);
-    
+
     // Add the entire directory contents under "server/" prefix
     archive.directory(sourceDir, "server");
-    
+
     archive.finalize();
   });
 }
-

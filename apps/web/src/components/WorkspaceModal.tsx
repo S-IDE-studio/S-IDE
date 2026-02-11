@@ -3,9 +3,8 @@ import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 // Check if running in Tauri (Tauri v2 uses __TAURI_INTERNALS__)
 // This must be evaluated at runtime, not at module load time
 function isTauriApp(): boolean {
-  return typeof window !== "undefined" && (
-    "__TAURI_INTERNALS__" in window || 
-    "__TAURI__" in window
+  return (
+    typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window)
   );
 }
 
@@ -19,7 +18,7 @@ interface WorkspaceModalProps {
 export const WorkspaceModal = ({ isOpen, defaultRoot, onSubmit, onClose }: WorkspaceModalProps) => {
   // Check if running in Tauri (evaluated once per component mount)
   const isInTauriApp = useMemo(() => isTauriApp(), []);
-  
+
   const [workspacePath, setWorkspacePath] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 

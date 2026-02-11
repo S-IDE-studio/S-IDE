@@ -2,9 +2,8 @@ import { useEffect, useState } from "react";
 
 // Check if running in Tauri
 function isTauriApp(): boolean {
-  return typeof window !== "undefined" && (
-    "__TAURI_INTERNALS__" in window || 
-    "__TAURI__" in window
+  return (
+    typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window)
   );
 }
 
@@ -34,9 +33,9 @@ export function useAutoUpdater() {
     try {
       const { check } = await import("@tauri-apps/plugin-updater");
       const { relaunch } = await import("@tauri-apps/plugin-process");
-      
+
       const update = await check();
-      
+
       if (update?.available) {
         setUpdateInfo({
           available: true,
@@ -65,13 +64,13 @@ export function useAutoUpdater() {
     try {
       const { check } = await import("@tauri-apps/plugin-updater");
       const { relaunch } = await import("@tauri-apps/plugin-process");
-      
+
       const update = await check();
-      
+
       if (update?.available) {
         console.log("[AutoUpdater] Downloading and installing update...");
         await update.downloadAndInstall();
-        
+
         console.log("[AutoUpdater] Update installed, relaunching...");
         await relaunch();
       }

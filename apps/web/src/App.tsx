@@ -2,19 +2,19 @@ import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 
 // Check if running in Tauri (Tauri v2 uses __TAURI_INTERNALS__)
 function isTauriApp(): boolean {
-  return typeof window !== "undefined" && (
-    "__TAURI_INTERNALS__" in window ||
-    "__TAURI__" in window
+  return (
+    typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window)
   );
 }
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getConfig, getWsBase, listFiles, readFile } from "./api";
 import { CommonSettings } from "./components/AgentSettings";
 import { ContextStatus } from "./components/ContextStatus";
 import { DiffViewer } from "./components/DiffViewer";
+import { DockviewLayout } from "./components/dockview/DockviewLayout";
 import { EnvironmentModal } from "./components/EnvironmentModal";
 import { GlobalStatusBar } from "./components/GlobalStatusBar";
-import { DockviewLayout } from "./components/dockview/DockviewLayout";
 import { RemoteAccessControl } from "./components/RemoteAccessControl";
 import { ServerModal } from "./components/ServerModal";
 import { ServerStartupScreen } from "./components/ServerStartupScreen";
@@ -31,7 +31,6 @@ import {
   SAVED_MESSAGE_TIMEOUT,
   STORAGE_KEY_THEME,
 } from "./constants";
-import { persistDockviewLayout, restoreDockviewLayout } from "./utils/dockviewLayoutUtils";
 import { useDeckContext } from "./contexts/DeckContext";
 import { useWorkspaceContext } from "./contexts/WorkspaceContext";
 import { useDecks } from "./hooks/useDecks";
@@ -40,12 +39,8 @@ import { useGitState } from "./hooks/useGitState";
 import { useServerStatus } from "./hooks/useServerStatus";
 import { useTabsPresenceSync } from "./hooks/useTabsPresenceSync";
 import { useWorkspaces } from "./hooks/useWorkspaces";
-import type {
-  EditorFile,
-  SidebarPanel,
-  UnifiedTab,
-  WorkspaceMode,
-} from "./types";
+import type { EditorFile, SidebarPanel, UnifiedTab, WorkspaceMode } from "./types";
+import { persistDockviewLayout, restoreDockviewLayout } from "./utils/dockviewLayoutUtils";
 
 /** Local type for tabs presence sync compatibility - represents old panel group format */
 interface PanelGroup {
@@ -55,11 +50,11 @@ interface PanelGroup {
   focused: boolean;
   percentage: number;
 }
+
 import { getLanguageFromPath, toTreeNodes } from "./utils";
 import { createEditorGroup, createSingleGroupLayout } from "./utils/editorGroupUtils";
 import { createEmptyDeckState, createEmptyWorkspaceState } from "./utils/stateUtils";
 import {
-  agentToTab,
   deckToTab,
   editorToTab,
   remoteAccessToTab,
@@ -102,7 +97,7 @@ export default function App() {
   const [sidebarPanel, setSidebarPanel] = useState<SidebarPanel>("files");
   const [selectedServerUrl, setSelectedServerUrl] = useState<string | undefined>();
 
-// Agent state
+  // Agent state
   const [agents, setAgents] = useState<
     Array<{ id: string; name: string; icon: string; description: string; enabled: boolean }>
   >([]);
@@ -192,12 +187,12 @@ export default function App() {
   const { deckStates, setDeckStates, updateDeckState, initializeDeckStates } = useDeckContext();
 
   // Wrapper for updateWorkspaceState to match DockviewLayout's expected type
-  const handleUpdateWorkspaceState = useCallback((
-    id: string,
-    state: Partial<import("./types").WorkspaceState>
-  ) => {
-    updateWorkspaceState(id, (prev) => ({ ...prev, ...state }));
-  }, [updateWorkspaceState]);
+  const handleUpdateWorkspaceState = useCallback(
+    (id: string, state: Partial<import("./types").WorkspaceState>) => {
+      updateWorkspaceState(id, (prev) => ({ ...prev, ...state }));
+    },
+    [updateWorkspaceState]
+  );
 
   const {
     workspaces,
@@ -619,8 +614,7 @@ export default function App() {
   // Check for updates after server is ready (desktop app only)
   useEffect(() => {
     if (!serverReady) return;
-    const isDesktop = typeof window !== "undefined" &&
-      isTauriApp();
+    const isDesktop = typeof window !== "undefined" && isTauriApp();
     if (isDesktop) {
       // Check for updates on startup (desktop app)
       checkForUpdates().catch(() => {
@@ -944,7 +938,9 @@ export default function App() {
       // Determine if this is a shellId or command
       // shellId is typically "claude", "codex", etc.
       // command is typically a shell command string
-      const isShellId = commandOrShellId && ["claude", "codex", "bash", "zsh", "pwsh", "powershell"].includes(commandOrShellId);
+      const isShellId =
+        commandOrShellId &&
+        ["claude", "codex", "bash", "zsh", "pwsh", "powershell"].includes(commandOrShellId);
 
       const terminal = await handleCreateTerminal(
         deckId,
@@ -1125,7 +1121,9 @@ export default function App() {
           decks={decks}
           deckStates={deckStates}
           activeDeckIds={activeDeckIds}
-          gitFiles={gitState.status?.files ? { [editorWorkspaceId || ""]: gitState.status.files } : {}}
+          gitFiles={
+            gitState.status?.files ? { [editorWorkspaceId || ""]: gitState.status.files } : {}
+          }
           onToggleDir={(wsId, node) => {
             if (editorWorkspaceId === wsId) {
               handleToggleDir(node);

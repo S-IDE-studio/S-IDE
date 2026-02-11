@@ -1,15 +1,15 @@
-import { useCallback, useMemo } from "react";
 import {
+  type DockviewApi,
   DockviewReact,
-  DockviewReadyEvent,
-  DockviewApi,
-  IDockviewHeaderActionsProps,
-  IWatermarkPanelProps,
+  type DockviewReadyEvent,
+  type IDockviewHeaderActionsProps,
+  type IWatermarkPanelProps,
 } from "dockview";
+import { useCallback, useMemo } from "react";
 import type { TabKind } from "../../types";
+import { DockviewContextProvider, useDockviewContext } from "./DockviewContext";
 import { DockviewTab } from "./DockviewTab";
 import { PANEL_ADAPTERS } from "./panels";
-import { DockviewContextProvider, useDockviewContext } from "./DockviewContext";
 
 // Shared ref object for accessing the DockviewApi from outside DockviewLayout
 // This is a module-level singleton that persists across the application lifecycle
@@ -25,112 +25,100 @@ function DockviewLayoutInner(): React.JSX.Element {
    * Handle dockview ready event
    * Stores API reference in module-level ref
    */
-  const handleReady = useCallback(
-    (event: DockviewReadyEvent) => {
-      dockviewApiRef.current = event.api;
-    },
-    []
-  );
+  const handleReady = useCallback((event: DockviewReadyEvent) => {
+    dockviewApiRef.current = event.api;
+  }, []);
 
   /**
    * Watermark component shown in empty groups
    */
-  const WatermarkComponent = useCallback(
-    (_props: IWatermarkPanelProps): React.JSX.Element => {
-      return (
-        <div className="dockview-watermark">
-          <p>Drop a tab here or use the menu to open a new panel</p>
-        </div>
-      );
-    },
-    []
-  );
+  const WatermarkComponent = useCallback((_props: IWatermarkPanelProps): React.JSX.Element => {
+    return (
+      <div className="dockview-watermark">
+        <p>Drop a tab here or use the menu to open a new panel</p>
+      </div>
+    );
+  }, []);
 
   /**
    * Right header actions component
    * Provides split and close actions for group headers
    */
-  const RightHeaderActionsComponent = useCallback(
-    (props: IDockviewHeaderActionsProps): React.JSX.Element => {
-      const { containerApi, activePanel } = props;
+  const RightHeaderActionsComponent = (props: IDockviewHeaderActionsProps): React.JSX.Element => {
+    const { containerApi, activePanel } = props;
 
-      const handleSplitHorizontal = useCallback(() => {
-        if (activePanel?.params?.tab) {
-          const originalTab = activePanel.params.tab as { kind?: TabKind; title?: string };
-          const tabKind = originalTab.kind || "editor";
-          const newTab = { ...originalTab, id: `split-${Date.now()}` };
-          containerApi.addPanel({
-            id: newTab.id,
-            component: tabKind,
-            title: newTab.title || "New Panel",
-            params: { tab: newTab },
-            position: { referenceGroup: props.group, direction: "right" },
-          });
-        }
-      }, [activePanel, containerApi, props.group]);
+    const handleSplitHorizontal = () => {
+      if (activePanel?.params?.tab) {
+        const originalTab = activePanel.params.tab as { kind?: TabKind; title?: string };
+        const tabKind = originalTab.kind || "editor";
+        const newTab = { ...originalTab, id: `split-${Date.now()}` };
+        containerApi.addPanel({
+          id: newTab.id,
+          component: tabKind,
+          title: newTab.title || "New Panel",
+          params: { tab: newTab },
+          position: { referenceGroup: props.group, direction: "right" },
+        });
+      }
+    };
 
-      const handleSplitVertical = useCallback(() => {
-        if (activePanel?.params?.tab) {
-          const originalTab = activePanel.params.tab as { kind?: TabKind; title?: string };
-          const tabKind = originalTab.kind || "editor";
-          const newTab = { ...originalTab, id: `split-${Date.now()}` };
-          containerApi.addPanel({
-            id: newTab.id,
-            component: tabKind,
-            title: newTab.title || "New Panel",
-            params: { tab: newTab },
-            position: { referenceGroup: props.group, direction: "below" },
-          });
-        }
-      }, [activePanel, containerApi, props.group]);
+    const handleSplitVertical = () => {
+      if (activePanel?.params?.tab) {
+        const originalTab = activePanel.params.tab as { kind?: TabKind; title?: string };
+        const tabKind = originalTab.kind || "editor";
+        const newTab = { ...originalTab, id: `split-${Date.now()}` };
+        containerApi.addPanel({
+          id: newTab.id,
+          component: tabKind,
+          title: newTab.title || "New Panel",
+          params: { tab: newTab },
+          position: { referenceGroup: props.group, direction: "below" },
+        });
+      }
+    };
 
-      const handleCloseGroup = useCallback(() => {
-        containerApi.removeGroup(props.group);
-      }, [containerApi, props.group]);
+    const handleCloseGroup = () => {
+      containerApi.removeGroup(props.group);
+    };
 
-      return (
-        <div className="dockview-header-actions">
-          <button
-            type="button"
-            className="icon-button"
-            onClick={handleSplitHorizontal}
-            title="Split horizontally"
-            aria-label="Split horizontally"
-          >
-            ⬌
-          </button>
-          <button
-            type="button"
-            className="icon-button"
-            onClick={handleSplitVertical}
-            title="Split vertically"
-            aria-label="Split vertically"
-          >
-            ⬍
-          </button>
-          <button
-            type="button"
-            className="icon-button"
-            onClick={handleCloseGroup}
-            title="Close group"
-            aria-label="Close group"
-          >
-            ×
-          </button>
-        </div>
-      );
-    },
-    []
-  );
+    return (
+      <div className="dockview-header-actions">
+        <button
+          type="button"
+          className="icon-button"
+          onClick={handleSplitHorizontal}
+          title="Split horizontally"
+          aria-label="Split horizontally"
+        >
+          ⬌
+        </button>
+        <button
+          type="button"
+          className="icon-button"
+          onClick={handleSplitVertical}
+          title="Split vertically"
+          aria-label="Split vertically"
+        >
+          ⬍
+        </button>
+        <button
+          type="button"
+          className="icon-button"
+          onClick={handleCloseGroup}
+          title="Close group"
+          aria-label="Close group"
+        >
+          ×
+        </button>
+      </div>
+    );
+  };
 
   /**
    * Components map for all TabKind types
    * Uses panel adapters that wrap the actual content components
    */
-  const components = useMemo(
-    () => PANEL_ADAPTERS,
-    []
-  );
+  const components = useMemo(() => PANEL_ADAPTERS, []);
 
   return (
     <div className="dockview-theme-side">

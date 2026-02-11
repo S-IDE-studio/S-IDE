@@ -8,9 +8,8 @@ const MAX_VISIBLE_WORKSPACES = 5;
 // Check if running in Tauri (Tauri v2 uses __TAURI_INTERNALS__)
 // This must be evaluated at runtime, not at module load time
 function isTauriApp(): boolean {
-  return typeof window !== "undefined" && (
-    "__TAURI_INTERNALS__" in window || 
-    "__TAURI__" in window
+  return (
+    typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window)
   );
 }
 
@@ -248,7 +247,7 @@ export function TitleBar({
 }: TitleBarProps) {
   // Check if running in Tauri (evaluated once per component mount)
   const isInTauriApp = useMemo(() => isTauriApp(), []);
-  
+
   const [isMobileMode, setIsMobileMode] = useState(false);
   const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(

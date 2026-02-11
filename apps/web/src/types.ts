@@ -175,7 +175,6 @@ export interface UnifiedTab {
   };
 }
 
-
 // Tab context menu actions
 export type TabContextMenuAction =
   | "close"

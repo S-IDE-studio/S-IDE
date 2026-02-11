@@ -5,6 +5,7 @@
  * of DraggableTab.tsx but adapted for dockview's IDockviewPanelHeaderProps.
  */
 
+import type { IDockviewPanelHeaderProps } from "dockview";
 import {
   Bot,
   Box,
@@ -27,10 +28,7 @@ import {
   X,
 } from "lucide-react";
 import { memo, useCallback, useState } from "react";
-import {
-  IDockviewPanelHeaderProps,
-} from "dockview";
-import type { TabKind, UnifiedTab } from "../../types";
+import type { UnifiedTab } from "../../types";
 import { TabContextMenu } from "../panel/TabContextMenu";
 
 interface DockviewTabProps extends IDockviewPanelHeaderProps<{ tab: UnifiedTab }> {
@@ -175,16 +173,13 @@ export function DockviewTab(props: DockviewTabProps) {
   }, []);
 
   // Handle context menu action
-  const handleContextMenuAction = useCallback(
-    (action: string, targetTab: UnifiedTab) => {
-      // Dispatch custom event for the app to handle
-      const event = new CustomEvent("dockview-tab-context-action", {
-        detail: { action, tab: targetTab },
-      });
-      window.dispatchEvent(event);
-    },
-    []
-  );
+  const handleContextMenuAction = useCallback((action: string, targetTab: UnifiedTab) => {
+    // Dispatch custom event for the app to handle
+    const event = new CustomEvent("dockview-tab-context-action", {
+      detail: { action, tab: targetTab },
+    });
+    window.dispatchEvent(event);
+  }, []);
 
   const icon = getTabIcon(tab);
 

@@ -1,5 +1,5 @@
-import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { check } from "@tauri-apps/plugin-updater";
 import { useEffect, useState } from "react";
 
 interface UpdateInfo {
@@ -97,7 +97,8 @@ export function useUpdateCheck() {
   const [isChecking, setIsChecking] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
-  const [update, setUpdate] = useState<ReturnType<typeof check> extends Promise<infer T> ? T : null>(null);
+  const [update, setUpdate] =
+    useState<ReturnType<typeof check> extends Promise<infer T> ? T : null>(null);
 
   const checkForUpdates = async () => {
     setIsChecking(true);

@@ -3,9 +3,9 @@
  * Handles conversion between grid state format and dockview JSON format
  */
 
-import type { UnifiedTab } from "../types";
 import type { DockviewApi, SerializedDockview } from "dockview";
 import { Orientation } from "dockview-core";
+import type { UnifiedTab } from "../types";
 
 /** Local types for legacy grid format migration */
 interface GridLeafNode {
@@ -135,9 +135,8 @@ function convertGridStateToDockview(
 
   try {
     // Convert orientation from string to Dockview's Orientation enum
-    const orientation = gridState.orientation === "horizontal"
-      ? Orientation.HORIZONTAL
-      : Orientation.VERTICAL;
+    const orientation =
+      gridState.orientation === "horizontal" ? Orientation.HORIZONTAL : Orientation.VERTICAL;
 
     const layout: SerializedDockview = {
       grid: {
@@ -196,7 +195,15 @@ function processGridNode(
     // Branch node - this is a split container
     // For simplified migration, just process all children
     for (const child of node.children) {
-      processGridNode(child, node.type === "branch" ? `branch-${node.children.map((c) => c.type === "leaf" ? (c as GridLeafNode).groupId : "branch").join("-")}` : null, panelGroupsMap, layout, rootOrientation);
+      processGridNode(
+        child,
+        node.type === "branch"
+          ? `branch-${node.children.map((c) => (c.type === "leaf" ? (c as GridLeafNode).groupId : "branch")).join("-")}`
+          : null,
+        panelGroupsMap,
+        layout,
+        rootOrientation
+      );
     }
   }
 }

@@ -1,4 +1,3 @@
-import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,7 +8,14 @@ const __dirname = path.dirname(__filename);
 
 const rootDir = path.resolve(__dirname, "..");
 const bundleDir = path.join(rootDir, "apps", "desktop", "src-tauri", "resources", "server");
-const zipPath = path.join(rootDir, "apps", "desktop", "src-tauri", "resources", "server-bundle.zip");
+const zipPath = path.join(
+  rootDir,
+  "apps",
+  "desktop",
+  "src-tauri",
+  "resources",
+  "server-bundle.zip"
+);
 
 console.log("[Zip] Creating server-bundle.zip...");
 
@@ -21,7 +27,7 @@ if (fs.existsSync(zipPath)) {
 // Create a write stream for the zip file
 const output = fs.createWriteStream(zipPath);
 const archive = archiver("zip", {
-  zlib: { level: 9 } // Maximum compression
+  zlib: { level: 9 }, // Maximum compression
 });
 
 // Pipe archive data to the file

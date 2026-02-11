@@ -60,9 +60,7 @@
   "plugins": {
     "updater": {
       "active": true,
-      "endpoints": [
-        "https://github.com/S-IDE-studio/S-IDE/releases/latest/download/latest.json"
-      ],
+      "endpoints": ["https://github.com/S-IDE-studio/S-IDE/releases/latest/download/latest.json"],
       "dialog": true,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDIzRkQwNkYzRjZCRjlDMjAKUldRZ25MLzI4d2I5SXg1QUF4ektzZ0oyY0k4S0M4ejZyTXRvcGJkNHB3bWNheWhlY3U2YWJmTmMK"
     }

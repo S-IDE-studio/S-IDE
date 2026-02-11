@@ -9,9 +9,8 @@ const _configuredApiBase = import.meta.env.VITE_API_BASE || "";
 
 // Check if running in Tauri desktop app (Tauri v2 uses __TAURI_INTERNALS__)
 export function isTauriApp(): boolean {
-  return typeof window !== "undefined" && (
-    "__TAURI_INTERNALS__" in window || 
-    "__TAURI__" in window
+  return (
+    typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window)
   );
 }
 

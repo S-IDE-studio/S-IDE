@@ -5,9 +5,9 @@
  * SerializedDockview format for seamless layout migration.
  */
 
-import type { UnifiedTab } from "../types";
 import type { SerializedDockview } from "dockview-core";
 import { Orientation } from "dockview-core";
+import type { UnifiedTab } from "../types";
 
 /** Local types for legacy grid format migration */
 interface GridLeafNode {
@@ -51,9 +51,7 @@ type TabKind = UnifiedTab["kind"];
  * Convert legacy GridOrientation to dockview Orientation enum.
  * Maps "horizontal" to Orientation.HORIZONTAL and "vertical" to Orientation.VERTICAL.
  */
-function toDockviewOrientation(
-  orientation: "horizontal" | "vertical"
-): Orientation {
+function toDockviewOrientation(orientation: "horizontal" | "vertical"): Orientation {
   return orientation === "horizontal" ? Orientation.HORIZONTAL : Orientation.VERTICAL;
 }
 
@@ -159,9 +157,7 @@ function convertGridNode(
     };
   } else {
     // Branch node: contains children
-    const children = node.children.map((child) =>
-      convertGridNode(child, panelGroupsMap)
-    );
+    const children = node.children.map((child) => convertGridNode(child, panelGroupsMap));
     return {
       type: "branch",
       data: children,
@@ -319,9 +315,7 @@ export function getLayoutStats(
     if (node.type === "leaf") {
       return currentDepth;
     }
-    return Math.max(
-      ...node.children.map((child) => getDepth(child, currentDepth + 1))
-    );
+    return Math.max(...node.children.map((child) => getDepth(child, currentDepth + 1)));
   }
 
   return {

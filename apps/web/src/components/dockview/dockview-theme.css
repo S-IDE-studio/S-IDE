@@ -73,7 +73,8 @@
 }
 
 /* Hide drop target animation for cleaner look */
-.dockview-theme-side .dv-drop-target-container .dv-drop-target-anchor.dv-drop-target-anchor-container-changed {
+.dockview-theme-side .dv-drop-target-container
+  .dv-drop-target-anchor.dv-drop-target-anchor-container-changed {
   opacity: 0;
   transition: none;
 }

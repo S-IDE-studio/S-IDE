@@ -2,7 +2,6 @@
 
 @import "./components/dockview/dockview-theme.css";
 
-
 /* ========================================
    Monochrome Black Theme Variables
    ======================================== */
@@ -5542,8 +5541,6 @@ input:focus-visible {
 
 /* Panel Groups Container */
 
-
-
 .panel-tab {
   position: relative;
   display: flex;
@@ -5573,14 +5570,12 @@ input:focus-visible {
   border-top-width: 2px;
 }
 
-
 .panel-tab:hover {
   background: var(--panel);
   color: var(--ink);
   border-top-color: var(--accent);
   border-top-width: 2px;
 }
-
 
 /* Pinned tabs */
 .panel-tab.pinned {
@@ -5773,10 +5768,7 @@ input:focus-visible {
 
 /* Tab Bar Container */
 
-
-
 /* Resize Handle */
-
 
 /* Tab Context Menu */
 .tab-context-menu {
@@ -5857,9 +5849,6 @@ input:focus-visible {
 .flip-vertical {
   transform: scaleY(-1);
 }
-
-
-
 
 /* ========================================
    Terminal Create Button with Shell Selection

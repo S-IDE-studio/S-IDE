@@ -2,9 +2,8 @@
  * URL and routing utilities
  */
 
-import type { GroupLayout } from "../types";
+import type { GroupLayout, UnifiedTab } from "../types";
 import { migratePanelGroupsMapTabKinds, migratePanelGroupTabKinds } from "./tabMigration";
-import type { UnifiedTab } from "../types";
 
 /** Local type for URL persistence - represents old panel group format */
 interface PanelGroup {

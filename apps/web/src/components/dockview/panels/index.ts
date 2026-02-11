@@ -23,6 +23,7 @@ export { SetupPanelAdapter } from "./SetupPanelAdapter";
 export { TerminalPanelAdapter } from "./TerminalPanelAdapter";
 export { WorkspacePanelAdapter } from "./WorkspacePanelAdapter";
 
+import type { IDockviewPanelProps } from "dockview";
 import type { TabKind } from "../../../types";
 import { AgentConfigLocalPanelAdapter } from "./AgentConfigLocalPanelAdapter";
 import { AgentConfigPanelAdapter } from "./AgentConfigPanelAdapter";
@@ -41,7 +42,6 @@ import { ServerSettingsPanelAdapter } from "./ServerSettingsPanelAdapter";
 import { SetupPanelAdapter } from "./SetupPanelAdapter";
 import { TerminalPanelAdapter } from "./TerminalPanelAdapter";
 import { WorkspacePanelAdapter } from "./WorkspacePanelAdapter";
-import type { IDockviewPanelProps } from "dockview";
 
 export const PANEL_ADAPTERS: Record<string, React.FunctionComponent<IDockviewPanelProps>> = {
   agent: AgentPanelAdapter as React.FunctionComponent<IDockviewPanelProps>,

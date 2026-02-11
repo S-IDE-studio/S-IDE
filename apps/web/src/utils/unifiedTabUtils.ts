@@ -3,13 +3,7 @@
  * Converts existing data structures to UnifiedTab format
  */
 
-import type {
-  Agent,
-  Deck,
-  EditorFile,
-  UnifiedTab,
-  Workspace,
-} from "../types";
+import type { Agent, Deck, EditorFile, UnifiedTab, Workspace } from "../types";
 
 export function generateTabId(): string {
   return `tab-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;

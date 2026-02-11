@@ -7,11 +7,12 @@ import { CheckCircle2, Loader2, Network, RefreshCw, Server, Terminal, XCircle } 
 
 // Check if running in Tauri (Tauri v2 uses __TAURI_INTERNALS__)
 function isTauriApp(): boolean {
-  return typeof window !== "undefined" && (
-    "__TAURI_INTERNALS__" in window || 
-    "__TAURI__" in window
+  return (
+    typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window)
   );
-}import { useCallback, useEffect, useState } from "react";
+}
+
+import { useCallback, useEffect, useState } from "react";
 import { COMMON_PORTS_TO_CHECK } from "../../constants";
 
 interface EnvironmentInfo {

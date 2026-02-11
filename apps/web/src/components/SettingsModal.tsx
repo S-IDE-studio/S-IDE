@@ -2,11 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 // Check if running in Tauri (Tauri v2 uses __TAURI_INTERNALS__)
 function isTauriApp(): boolean {
-  return typeof window !== "undefined" && (
-    "__TAURI_INTERNALS__" in window || 
-    "__TAURI__" in window
+  return (
+    typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window)
   );
-}import { DEFAULT_SERVER_PORT, DEFAULT_WS_LIMIT, MAX_WS_LIMIT, MIN_WS_LIMIT } from "../constants";
+}
+
+import { DEFAULT_SERVER_PORT, DEFAULT_WS_LIMIT, MAX_WS_LIMIT, MIN_WS_LIMIT } from "../constants";
 
 interface Settings {
   port: number;

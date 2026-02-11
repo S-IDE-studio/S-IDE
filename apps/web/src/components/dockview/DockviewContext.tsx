@@ -1,5 +1,5 @@
-import { createContext, useContext } from "react";
 import type { DockviewApi } from "dockview";
+import { createContext, useContext } from "react";
 import type {
   Deck,
   DeckState,
@@ -64,9 +64,7 @@ const DockviewContext = createContext<DockviewContextValue | null>(null);
 export function useDockviewContext(): DockviewContextValue {
   const context = useContext(DockviewContext);
   if (!context) {
-    throw new Error(
-      "useDockviewContext must be used within a DockviewContextProvider"
-    );
+    throw new Error("useDockviewContext must be used within a DockviewContextProvider");
   }
   return context;
 }
@@ -84,7 +82,5 @@ export function DockviewContextProvider({
   children,
   value,
 }: DockviewContextProviderProps): React.JSX.Element {
-  return (
-    <DockviewContext.Provider value={value}>{children}</DockviewContext.Provider>
-  );
+  return <DockviewContext.Provider value={value}>{children}</DockviewContext.Provider>;
 }

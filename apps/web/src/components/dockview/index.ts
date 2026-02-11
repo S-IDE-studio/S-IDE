@@ -9,30 +9,29 @@
  * - Panel Adapters: Components that adapt panel content to dockview
  */
 
-export { DockviewLayout, getDockviewApiRef } from "./DockviewLayout";
-export type { DockviewLayoutProps } from "./DockviewLayout";
-
+export type { DockviewContextValue } from "./DockviewContext";
 export {
   DockviewContextProvider,
   useDockviewContext,
 } from "./DockviewContext";
-export type { DockviewContextValue } from "./DockviewContext";
+export type { DockviewLayoutProps } from "./DockviewLayout";
+export { DockviewLayout, getDockviewApiRef } from "./DockviewLayout";
 
 // Panel adapters
 export {
-  AgentPanelAdapter,
-  WorkspacePanelAdapter,
-  DeckPanelAdapter,
-  TerminalPanelAdapter,
-  EditorPanelAdapter,
-  ServerPanelAdapter,
-  McpPanelAdapter,
-  RemoteAccessPanelAdapter,
-  ServerSettingsPanelAdapter,
-  AgentStatusPanelAdapter,
-  AgentConfigPanelAdapter,
   AgentConfigLocalPanelAdapter,
-  SetupPanelAdapter,
-  PANEL_ADAPTERS,
+  AgentConfigPanelAdapter,
+  AgentPanelAdapter,
+  AgentStatusPanelAdapter,
+  DeckPanelAdapter,
+  EditorPanelAdapter,
   getPanelAdapter,
+  McpPanelAdapter,
+  PANEL_ADAPTERS,
+  RemoteAccessPanelAdapter,
+  ServerPanelAdapter,
+  ServerSettingsPanelAdapter,
+  SetupPanelAdapter,
+  TerminalPanelAdapter,
+  WorkspacePanelAdapter,
 } from "./panels";
