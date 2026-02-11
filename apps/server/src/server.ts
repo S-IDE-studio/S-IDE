@@ -400,3 +400,21 @@ export async function createServer(portOverride?: number): Promise<Server> {
 
   return server;
 }
+
+export async function startServer(options?: { port?: number; host?: string }) {
+  const port = options?.port || PORT;
+  const host = options?.host || HOST;
+
+  const server = serve({
+    fetch: app.fetch,
+    port,
+    hostname: host,
+  });
+
+  console.log(`Deck IDE server listening on http://${host}:${port}`);
+  console.log(`UI: http://${host}:${port}`);
+  console.log(`API: http://${host}:${port}/api`);
+  console.log(`Health: http://${host}:${port}/health`);
+
+  return server;
+}
