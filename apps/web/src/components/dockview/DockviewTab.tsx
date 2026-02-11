@@ -29,7 +29,6 @@ import {
 import { memo, useCallback, useState } from "react";
 import {
   IDockviewPanelHeaderProps,
-  IDockviewPanelApi,
 } from "dockview";
 import type { TabKind, UnifiedTab } from "../../types";
 import { TabContextMenu } from "../panel/TabContextMenu";
@@ -189,15 +188,12 @@ export function DockviewTab(props: DockviewTabProps) {
 
   const icon = getTabIcon(tab);
 
-  // Determine if this tab is active (in dockview, the tab is part of the active panel)
-  // We check if this panel is the active one in its group
-  const isActive = (api as IDockviewPanelApi & { isActive: () => boolean })
-    ?.isActive?.();
-
+  // Note: dockview handles active state through CSS classes applied by the library
+  // The parent element will have appropriate classes for active/inactive states
   return (
     <>
       <div
-        className={`panel-tab ${isActive ? "active" : ""} ${tab.dirty ? "dirty" : ""} ${tab.pinned ? "pinned" : ""}`}
+        className={`panel-tab ${tab.dirty ? "dirty" : ""} ${tab.pinned ? "pinned" : ""}`}
         onMouseDown={handleMouseDown}
         onContextMenu={handleContextMenu}
         onDoubleClick={handleDoubleClick}
