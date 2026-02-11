@@ -62,7 +62,7 @@
       "active": true,
       "endpoints": ["https://github.com/S-IDE-studio/S-IDE/releases/latest/download/latest.json"],
       "dialog": true,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXkgMENFMjMyMEFFRkY0NDE4QQpSV1NLUWZUdkNqTGlEQ2F4MDRDRmVqUmZ6blI0VjBxb2Q5Y0tuUmVxYU5nYXlFSDlQSlliMWVYbAo="
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk3QTBDMzZFQjBFQ0IyQzUKUldURnN1eXdic09nbDd3UktDTkI0czJsVVZnbEJ6Z3d0T3I5ODRoaW1jOXJLTTN1N0VKMmpjbHMK"
     }
   }
 }

@@ -169,6 +169,63 @@ jobs:
             fi
           fi
 
+      - name: Generate latest.json for updater
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "Generating latest.json for version $VERSION"
+          
+          # Find signature files
+          BASES=()
+          if [[ -d "apps/desktop/src-tauri/target" ]]; then
+            BASES+=("apps/desktop/src-tauri/target")
+          fi
+          if [[ -d "target" ]]; then
+            BASES+=("target")
+          fi
+          
+          find_sig() {
+            find "${BASES[@]}" -type f -path "*/release/bundle/*" -name "$1" | head -n 1 || true
+          }
+          
+          # Platform-specific signature file patterns
+          if [[ "${{ matrix.platform }}" == "windows-latest" ]]; then
+            SIG_FILE="$(find_sig "*.nsis.zip.sig")"
+            if [[ -z "$SIG_FILE" ]]; then
+              SIG_FILE="$(find_sig "*.msi.zip.sig")"
+            fi
+            DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/S-IDE_${VERSION}_x64-setup.nsis.zip"
+          elif [[ "${{ matrix.platform }}" == macos-* ]]; then
+            SIG_FILE="$(find_sig "*.app.tar.gz.sig")"
+            DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/S-IDE_${VERSION}_aarch64.app.tar.gz"
+          elif [[ "${{ matrix.platform }}" == "ubuntu-latest" ]]; then
+            SIG_FILE="$(find_sig "*.AppImage.tar.gz.sig")"
+            DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/S-IDE_${VERSION}_amd64.AppImage.tar.gz"
+          fi
+          
+          if [[ -n "$SIG_FILE" ]]; then
+            SIGNATURE=$(cat "$SIG_FILE")
+            echo "Found signature file: $SIG_FILE"
+            
+            # Create latest.json with proper JSON formatting
+            cat > latest.json << EOF
+          {
+            "version": "$VERSION",
+            "pub_date": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "url": "$DOWNLOAD_URL",
+            "signature": "$SIGNATURE",
+            "notes": "See release notes at https://github.com/${{ github.repository }}/releases/tag/${GITHUB_REF_NAME}"
+          }
+          EOF
+            
+            echo "Generated latest.json:"
+            cat latest.json
+          else
+            echo "Warning: No signature file found for ${{ matrix.platform }}"
+            echo "Signature files are required for auto-updates"
+          fi
+
       - name: Upload to Release
         uses: softprops/action-gh-release@v1
         continue-on-error: true
@@ -196,6 +253,7 @@ jobs:
             target/**/release/bundle/**/*.AppImage
             dist/release/*
             server-bundle.zip
+            latest.json
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
