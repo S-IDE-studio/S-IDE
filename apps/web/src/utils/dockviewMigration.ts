@@ -14,6 +14,7 @@ import type {
   UnifiedTab,
 } from "../types";
 import type { SerializedDockview } from "dockview-core";
+import { Orientation } from "dockview-core";
 
 /**
  * Mapping from legacy component kind to dockview component name.
@@ -22,13 +23,13 @@ import type { SerializedDockview } from "dockview-core";
 type TabKind = UnifiedTab["kind"];
 
 /**
- * Convert legacy GridOrientation to dockview Orientation.
- * Both use the same values: "horizontal" | "vertical".
+ * Convert legacy GridOrientation to dockview Orientation enum.
+ * Maps "horizontal" to Orientation.HORIZONTAL and "vertical" to Orientation.VERTICAL.
  */
 function toDockviewOrientation(
   orientation: "horizontal" | "vertical"
-): "horizontal" | "vertical" {
-  return orientation;
+): Orientation {
+  return orientation === "horizontal" ? Orientation.HORIZONTAL : Orientation.VERTICAL;
 }
 
 /**

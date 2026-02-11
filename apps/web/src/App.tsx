@@ -130,7 +130,7 @@ export default function App() {
       const existingPanel = api.getPanel(tab.id);
       if (existingPanel) {
         // Activate existing panel
-        api.setActivePanel(existingPanel);
+        existingPanel.api.setActive();
         return;
       }
 
@@ -155,7 +155,8 @@ export default function App() {
     const map: Record<string, PanelGroup> = {};
 
     for (const group of api.groups) {
-      const panels = api.getPanels(group);
+      // Extract panels from group
+      const panels = group.panels;
 
       // Extract tabs from panel params
       const tabs: UnifiedTab[] = [];
@@ -169,8 +170,8 @@ export default function App() {
       map[group.id] = {
         id: group.id,
         tabs,
-        activeTabId: api.activePanel?.id || null,
-        focused: group.id === api.activeGroup?.id,
+        activeTabId: group.activePanel?.id || null,
+        focused: group.api.isActive || false,
         percentage: 100 / api.groups.length,
       };
     }
@@ -181,6 +182,14 @@ export default function App() {
   const { workspaceStates, setWorkspaceStates, updateWorkspaceState, initializeWorkspaceStates } =
     useWorkspaceContext();
   const { deckStates, setDeckStates, updateDeckState, initializeDeckStates } = useDeckContext();
+
+  // Wrapper for updateWorkspaceState to match DockviewLayout's expected type
+  const handleUpdateWorkspaceState = useCallback((
+    id: string,
+    state: Partial<import("./types").WorkspaceState>
+  ) => {
+    updateWorkspaceState(id, (prev) => ({ ...prev, ...state }));
+  }, [updateWorkspaceState]);
 
   const {
     workspaces,
@@ -391,18 +400,6 @@ export default function App() {
     [editorWorkspaceId, updateWorkspaceState]
   );
 
-  // Grid-based panel handlers
-
-  // Get panelGroups array derived from gridState + panelGroupsMap
-  const panelGroups = useMemo(() => {
-    if (!gridState || !panelGroupsMap) return [];
-    const leaves = getAllLeaves(gridState);
-    return leaves.map(([location, leaf]) => ({
-      ...panelGroupsMap[leaf.groupId],
-      percentage: leaf.size,
-    }));
-  }, [gridState, panelGroupsMap]);
-
   // Multi-device sync: union open tabs across clients.
   // Note: With dockview, this will need to be updated to sync via dockview API
   // For now, disable presence sync as it conflicts with dockview
@@ -421,7 +418,7 @@ export default function App() {
       if (!api) return null;
 
       for (const group of api.groups) {
-        const panels = api.getPanels(group);
+        const panels = group.panels;
         for (const panel of panels) {
           const tab = panel.params?.tab as UnifiedTab | undefined;
           if (tab && tab.kind === "editor" && tab.data.editor?.path === filePath) {
@@ -449,7 +446,7 @@ export default function App() {
         if (api) {
           const panel = api.getPanel(existing.tab.id);
           if (panel) {
-            api.setActivePanel(panel);
+            panel.api.setActive();
           }
         }
         // Also update workspace state activeFileId
@@ -925,22 +922,28 @@ export default function App() {
   }, [handleCreateWorkspace]);
 
   const handleNewTerminalForDeck = useCallback(
-    async (deckId: string, shellId?: string) => {
+    async (deckId: string, commandOrShellId?: string) => {
       console.log(
         "[App] handleNewTerminalForDeck called with deckId:",
         deckId,
-        "shellId:",
-        shellId
+        "commandOrShellId:",
+        commandOrShellId
       );
       const deckState = deckStates[deckId] || defaultDeckState;
       console.log("[App] deckState:", deckState);
       console.log("[App] terminals count:", deckState.terminals.length);
+
+      // Determine if this is a shellId or command
+      // shellId is typically "claude", "codex", etc.
+      // command is typically a shell command string
+      const isShellId = commandOrShellId && ["claude", "codex", "bash", "zsh", "pwsh", "powershell"].includes(commandOrShellId);
+
       const terminal = await handleCreateTerminal(
         deckId,
         deckState.terminals.length,
-        undefined,
-        undefined,
-        shellId
+        isShellId ? commandOrShellId : undefined,
+        isShellId ? undefined : commandOrShellId,
+        undefined
       );
       if (terminal) {
         // Create and add terminal tab
@@ -959,48 +962,16 @@ export default function App() {
 
   const handleNewClaudeTerminalForDeck = useCallback(
     async (deckId: string) => {
-      const deckState = deckStates[deckId] || defaultDeckState;
-      const terminal = await handleCreateTerminal(
-        deckId,
-        deckState.terminals.length,
-        "claude",
-        "Claude Code"
-      );
-      if (terminal) {
-        const deck = decks.find((d) => d.id === deckId);
-        if (deck) {
-          const tab = terminalToTab(
-            { id: terminal.id, command: terminal.command || "", cwd: deck.root },
-            deckId
-          );
-          handleOpenTab(tab);
-        }
-      }
+      handleNewTerminalForDeck(deckId, "claude");
     },
-    [deckStates, defaultDeckState, handleCreateTerminal, decks, handleOpenTab]
+    [handleNewTerminalForDeck]
   );
 
   const handleNewCodexTerminalForDeck = useCallback(
     async (deckId: string) => {
-      const deckState = deckStates[deckId] || defaultDeckState;
-      const terminal = await handleCreateTerminal(
-        deckId,
-        deckState.terminals.length,
-        "codex",
-        "Codex"
-      );
-      if (terminal) {
-        const deck = decks.find((d) => d.id === deckId);
-        if (deck) {
-          const tab = terminalToTab(
-            { id: terminal.id, command: terminal.command || "", cwd: deck.root },
-            deckId
-          );
-          handleOpenTab(tab);
-        }
-      }
+      handleNewTerminalForDeck(deckId, "codex");
     },
-    [deckStates, defaultDeckState, handleCreateTerminal, decks, handleOpenTab]
+    [handleNewTerminalForDeck]
   );
 
   const handleTerminalDeleteForDeck = useCallback(
@@ -1078,12 +1049,14 @@ export default function App() {
         const newName = prompt("デッキ名:", tab.title);
         if (newName && newName.trim() !== "" && newName !== tab.title) {
           handleRenameDeck(tab.data.deck.id, newName.trim());
-          // Update the tab title
+          // Update the tab title in panel params
           const api = dockviewApiRef.current;
           if (api) {
             const panel = api.getPanel(tab.id);
             if (panel) {
-              api.updatePanel(tab.id, { title: newName.trim() });
+              // Update the tab title in params
+              const updatedTab = { ...tab, title: newName.trim() };
+              panel.api.updateParameters({ tab: updatedTab });
             }
           }
         }
@@ -1140,7 +1113,7 @@ export default function App() {
       <main className="main">
         <DockviewLayout
           workspaceStates={workspaceStates}
-          updateWorkspaceState={updateWorkspaceState}
+          updateWorkspaceState={handleUpdateWorkspaceState}
           decks={decks}
           deckStates={deckStates}
           activeDeckIds={activeDeckIds}
@@ -1156,18 +1129,25 @@ export default function App() {
             }
           }}
           onRefreshTree={(wsId) => {
-            if (editorWorkspaceId === wsId) {
-              handleRefreshTree();
-            }
+            // handleRefreshTree is called without arguments
+            handleRefreshTree();
           }}
           onCreateFile={(wsId, path) => {
             if (editorWorkspaceId === wsId) {
-              handleCreateFile(path);
+              // path is expected to be full path, but handleCreateFile expects parentPath and fileName
+              const parts = path.split("/");
+              const fileName = parts[parts.length - 1] || "";
+              const parentPath = parts.slice(0, -1).join("/");
+              handleCreateFile(parentPath, fileName);
             }
           }}
           onCreateDirectory={(wsId, path) => {
             if (editorWorkspaceId === wsId) {
-              handleCreateDirectory(path);
+              // path is expected to be full path, but handleCreateDirectory expects parentPath and dirName
+              const parts = path.split("/");
+              const dirName = parts[parts.length - 1] || "";
+              const parentPath = parts.slice(0, -1).join("/");
+              handleCreateDirectory(parentPath, dirName);
             }
           }}
           onDeleteFile={(wsId, path) => {
@@ -1199,11 +1179,8 @@ export default function App() {
             // Terminal reordering is handled internally
           }}
           onCreateTerminal={(deckId, command) => {
-            if (command) {
-              handleNewTerminalForDeck(deckId, command);
-            } else {
-              handleNewTerminalForDeck(deckId);
-            }
+            // command is optional string parameter
+            handleNewTerminalForDeck(deckId, command);
           }}
           openTab={handleOpenTab}
           className="dockview-theme-side"

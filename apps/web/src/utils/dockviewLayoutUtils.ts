@@ -4,7 +4,6 @@
  */
 
 import type {
-  DockviewApi,
   GridBranchNode,
   GridLeafNode,
   GridNode,
@@ -12,7 +11,8 @@ import type {
   GridState,
   PanelGroup,
 } from "../types";
-import type { SerializedDockview } from "dockview";
+import type { DockviewApi, SerializedDockview } from "dockview";
+import { Orientation } from "dockview-core";
 
 /** Storage key for dockview layout */
 const DOCKVIEW_STORAGE_KEY = "side-ide-dockview-layout";
@@ -44,7 +44,7 @@ export function loadDockviewLayout(): SerializedDockview | null {
     const dockviewRaw = localStorage.getItem(DOCKVIEW_STORAGE_KEY);
     if (dockviewRaw) {
       const parsed = JSON.parse(dockviewRaw) as SerializedDockview;
-      if (parsed && parsed.panels && parsed.groups) {
+      if (parsed && parsed.panels) {
         return parsed;
       }
     }
@@ -110,13 +110,23 @@ function convertGridStateToDockview(
   if (!gridState || !panelGroupsMap) return null;
 
   try {
+    // Convert orientation from string to Dockview's Orientation enum
+    const orientation = gridState.orientation === "horizontal"
+      ? Orientation.HORIZONTAL
+      : Orientation.VERTICAL;
+
     const layout: SerializedDockview = {
-      panels: {},
-      groups: {},
-      dimensions: {
-        width: gridState.width,
+      grid: {
+        root: {
+          type: "branch",
+          size: 100,
+          data: [],
+        },
         height: gridState.height,
+        width: gridState.width,
+        orientation: orientation,
       },
+      panels: {},
     };
 
     // Process grid tree to build dockview layout
@@ -140,60 +150,29 @@ function processGridNode(
   rootOrientation: GridOrientation
 ): void {
   if (node.type === "leaf") {
-    // Leaf node - create a group and add its panels
+    // Leaf node - create panel entries for each tab
     const groupId = node.groupId;
     const panelGroup = panelGroupsMap[groupId];
 
     if (!panelGroup) return;
 
-    // Create group
-    layout.groups![groupId] = {
-      id: groupId,
-      type: "group",
-      groups: [groupId],
-      activeView: panelGroup.activeTabId || undefined,
-      hideHeader: false,
-    };
-
-    // Add panels (tabs) to the group
+    // Create panel entries for each tab
     for (const tab of panelGroup.tabs) {
       const tabData = convertTabToDockview(tab);
       if (tabData) {
         layout.panels![tab.id] = {
           id: tab.id,
-          title: tab.title,
           tabComponent: "default",
-          view: tab.kind,
-          component: tab.kind,
-          params: {
-            tab: tabData,
-          },
-          groupId: groupId,
+          params: { tab: tabData },
           title: tab.title || "Tab",
         };
       }
     }
   } else {
     // Branch node - this is a split container
-    const branchId = `branch-${node.children.map((c) => (c.type === "leaf" ? c.groupId : "branch")).join("-")}`;
-
-    // Determine direction from orientation
-    const direction = node.orientation === "horizontal" ? "horizontal" : "vertical";
-
-    // Create branch group
-    layout.groups![branchId] = {
-      id: branchId,
-      type: "branch",
-      groups: node.children.map((child) =>
-        child.type === "leaf" ? child.groupId : `branch-${child.children.map((c) => (c.type === "leaf" ? c.groupId : "branch")).join("-")}`
-      ),
-      sizes: node.sizes,
-      activeView: undefined,
-    };
-
-    // Process children recursively
+    // For simplified migration, just process all children
     for (const child of node.children) {
-      processGridNode(child, branchId, panelGroupsMap, layout, rootOrientation);
+      processGridNode(child, node.type === "branch" ? `branch-${node.children.map((c) => c.type === "leaf" ? (c as GridLeafNode).groupId : "branch").join("-")}` : null, panelGroupsMap, layout, rootOrientation);
     }
   }
 }
