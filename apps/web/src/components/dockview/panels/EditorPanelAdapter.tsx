@@ -19,15 +19,14 @@ export function EditorPanelAdapter(
   const file = tab.data.editor;
   const isSaving = ctx.savingFileId === file.id;
 
-  // Note: props.api is not available on IDockviewPanelProps in this version
-  // The active state can be determined by checking if this panel is the focused one
-  // For now, we'll default to true or derive from context if available
-  const isActive = true; // TODO: Track active panel state
+  // Determine active state using dockview API
+  // Check if the current panel is the active panel in dockview
+  const isActive = ctx.dockviewApi?.activePanel?.id === tab.id;
 
   return (
     <EditorPanelContent
       file={file}
-      active={isActive}
+      active={isActive ?? false}
       onChange={(fileId, content) => ctx.onChangeFile(fileId, content)}
       onSave={() => ctx.onSaveFile(file.id)}
       saving={isSaving}
