@@ -5,6 +5,7 @@ import type {
   DeckState,
   FileTreeNode,
   GitFileStatus,
+  TerminalSession,
   UnifiedTab,
   WorkspaceState,
 } from "../../types";
@@ -44,10 +45,7 @@ export interface DockviewContextValue {
   // Terminal operations
   wsBase: string;
   onDeleteTerminal: (termId: string) => void;
-  onReorderTerminals: (
-    deckId: string,
-    newOrder: import("../../types").TerminalSession[]
-  ) => void;
+  onReorderTerminals: (deckId: string, newOrder: TerminalSession[]) => void;
   onCreateTerminal: (deckId: string, command?: string) => void;
 
   // Tab operations

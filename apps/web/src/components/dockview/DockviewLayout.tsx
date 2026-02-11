@@ -16,9 +16,15 @@ const dockviewApiRef = { current: null as DockviewApi | null };
 
 // Placeholder panel components - will be replaced by adapters in Task 3
 // These are stub components that will be implemented in Task 3
-const PlaceholderPanel = (props: IDockviewPanelProps<{ tab: UnifiedTab }>) => {
-  const { params } = props;
-  const tab = params.tab;
+const PlaceholderPanel = (props: IDockviewPanelProps) => {
+  const tab = (props.params as { tab?: UnifiedTab })?.tab;
+  if (!tab) {
+    return (
+      <div className="dockview-placeholder-panel">
+        <p>Panel: No tab data</p>
+      </div>
+    );
+  }
   return (
     <div className="dockview-placeholder-panel">
       <p>Panel: {tab.kind}</p>
@@ -87,30 +93,36 @@ const RightHeaderActionsComponent = (
   const { containerApi, activePanel } = props;
 
   const handleSplitHorizontal = useCallback(() => {
-    if (activePanel) {
-      // Get the tab kind from the panel params
-      const tabKind = activePanel.params?.tab?.kind || "editor";
+    if (activePanel?.params?.tab) {
+      // Get the tab kind and create a copy with unique ID
+      const originalTab = activePanel.params.tab;
+      const tabKind = originalTab.kind || "editor";
+      // Create a new tab object with unique ID to avoid duplicates
+      const newTab = { ...originalTab, id: `split-${Date.now()}` };
       // Create a new group by splitting horizontally
       containerApi.addPanel({
-        id: `split-${Date.now()}`,
+        id: newTab.id,
         component: tabKind,
-        title: "New Panel",
-        params: { tab: activePanel.params?.tab },
+        title: newTab.title,
+        params: { tab: newTab },
         position: { referenceGroup: props.group, direction: "right" },
       });
     }
   }, [activePanel, containerApi, props.group]);
 
   const handleSplitVertical = useCallback(() => {
-    if (activePanel) {
-      // Get the tab kind from the panel params
-      const tabKind = activePanel.params?.tab?.kind || "editor";
+    if (activePanel?.params?.tab) {
+      // Get the tab kind and create a copy with unique ID
+      const originalTab = activePanel.params.tab;
+      const tabKind = originalTab.kind || "editor";
+      // Create a new tab object with unique ID to avoid duplicates
+      const newTab = { ...originalTab, id: `split-${Date.now()}` };
       // Create a new group by splitting vertically
       containerApi.addPanel({
-        id: `split-${Date.now()}`,
+        id: newTab.id,
         component: tabKind,
-        title: "New Panel",
-        params: { tab: activePanel.params?.tab },
+        title: newTab.title,
+        params: { tab: newTab },
         position: { referenceGroup: props.group, direction: "below" },
       });
     }
