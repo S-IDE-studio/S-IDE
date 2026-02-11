@@ -10,11 +10,11 @@ jobs:
       - name: Generate keypair
         run: |
           # Install minisign
-          wget https://github.com/jedisct1/minisign/releases/download/0.11/minisign.zip
-          unzip minisign.zip -d minisign
+          wget https://github.com/jedisct1/minisign/releases/download/0.12/minisign-0.12-linux.tar.gz
+          tar xzf minisign-0.12-linux.tar.gz
 
           # Generate keypair with empty password
-          echo "" | minisign/minisign -G -s tauri.key -p tauri.pubkey -t "S-IDE Update Key"
+          echo "" | ./minisign -G -s tauri.key -p tauri.pubkey -t "S-IDE Update Key"
 
           # Output keys (copy these to GitHub Secrets)
           echo "PRIVATE_KEY:"
