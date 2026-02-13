@@ -25,6 +25,11 @@
   --dv-color-abyss-foreground: var(--color-fg, #ffffff) !important;
   --dv-color-abyss-border: var(--color-border-active, #ffffff) !important;
   --dv-color-abyss-secondary: var(--color-bg-tertiary, #141414) !important;
+  --dv-color-abyss-lighter: var(--color-accent, #ffffff) !important;
+  --dv-color-abyss-light: var(--color-bg-soft, #0a0a0a) !important;
+  --dv-color-abyss-dark: var(--color-bg, #000000) !important;
+  --dv-color-abyss-primary-text: var(--color-fg, #ffffff) !important;
+  --dv-color-abyss-secondary-text: var(--color-fg-dim, #888888) !important;
 }
 
 /* Force override active sash color from abyss accent */
