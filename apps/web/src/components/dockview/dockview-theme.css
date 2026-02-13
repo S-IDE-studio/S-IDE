@@ -170,20 +170,14 @@
   border-top: none !important;
 }
 
-/* Tab hover state - subtle feedback (but not when hovering close button) */
-.dockview-theme-side .dv-tab:hover {
+/* Tab hover state - subtle feedback (only when NOT hovering close button) */
+.dockview-theme-side .dv-tab:hover:not(:has(.panel-tab-close:hover)) {
   background-color: var(--color-hover) !important;
 }
 
-.dockview-theme-side .dv-tab.active:hover,
-.dockview-theme-side .dv-tab.dv-active-tab:hover {
+.dockview-theme-side .dv-tab.active:hover:not(:has(.panel-tab-close:hover)),
+.dockview-theme-side .dv-tab.dv-active-tab:hover:not(:has(.panel-tab-close:hover)) {
   border-top: 1px solid var(--color-accent, #ffffff) !important;
-}
-
-/* Override when hovering close button - no border even on hover */
-.dockview-theme-side .dv-tab.active .panel-tab-close:hover,
-.dockview-theme-side .dv-tab.dv-active-tab .panel-tab-close:hover {
-  border-top: none !important;
 }
 
 /* ========================================
