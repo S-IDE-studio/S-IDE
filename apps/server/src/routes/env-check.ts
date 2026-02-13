@@ -116,7 +116,7 @@ export function createEnvCheckRouter() {
       const [claude, codex, copilot, cursor, kimi] = await Promise.all([
         checkToolVersion("claude"),
         checkToolVersion("codex"),
-        checkToolVersion("gh", "copilot --version"), // GitHub Copilot CLI
+        checkToolVersion("gh", "copilot --version"), // GitHub Copilot requires gh cli
         checkToolVersion("cursor"),
         checkToolVersion("kimi"),
       ]);

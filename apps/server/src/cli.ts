@@ -361,9 +361,13 @@ configCmd
     
     // Try to parse as number or boolean
     let parsedValue: string | number | boolean = value;
-    if (value === "true") parsedValue = true;
-    else if (value === "false") parsedValue = false;
-    else if (!Number.isNaN(Number(value))) parsedValue = Number(value);
+    if (value === "true") {
+      parsedValue = true;
+    } else if (value === "false") {
+      parsedValue = false;
+    } else if (value.trim() !== "" && !Number.isNaN(Number(value)) && Number.isFinite(Number(value))) {
+      parsedValue = Number(value);
+    }
     
     config[key] = parsedValue;
     saveConfig(config);

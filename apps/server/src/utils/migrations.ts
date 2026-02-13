@@ -62,7 +62,6 @@ export function runMigrations(db: DatabaseSync, migrations: Migration[]): void {
 
   for (const migration of pendingMigrations.sort((a, b) => a.version - b.version)) {
     console.log(`[DB] Applying migration ${migration.version}: ${migration.name}`);
-    
     try {
       migration.up(db);
       setVersion(db, migration.version);
