@@ -168,6 +168,22 @@
   background-color: var(--color-list-hover);
 }
 
+/* Prevent pointer events on close button SVG */
+.dockview-theme-side .dv-tab .panel-tab-close svg {
+  pointer-events: none;
+}
+
+/* When hovering close button on active tab - NO border */
+.dockview-theme-side .dv-tab.active .panel-tab-close:hover,
+.dockview-theme-side .dv-tab.dv-active-tab .panel-tab-close:hover {
+  border-top: 0;
+}
+
+/* Inactive tab - no border */
+.dockview-theme-side .dv-tab:not(.active):not(.dv-active-tab) {
+  border-top: 0;
+}
+
 /* ========================================
      Tab Content Elements
      ======================================== */
