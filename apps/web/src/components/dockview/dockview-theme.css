@@ -139,13 +139,11 @@
   transition: background-color 0.15s ease;
 }
 
-/* Tab active state */
+/* Tab active state - override dockview CSS variable */
 .dockview-theme-side .dv-tab.active,
 .dockview-theme-side .dv-tab.dv-active-tab {
-  background-color: var(--color-bg);
-  color: var(--color-fg);
-  opacity: 1;
-  border-top: 1px solid var(--color-accent, #ffffff);
+  --dv-activegroup-visiblepanel-tab-border-top: 0px;
+  border-top: 1px solid var(--color-accent, #ffffff) !important;
 }
 
 /* Tab close button */
@@ -157,20 +155,11 @@
   background-color: var(--color-list-hover);
 }
 
-/* When hovering close button on active tab, remove top border */
+/* When hovering close button on active tab - override border CSS variable */
 .dockview-theme-side .dv-tab.active .panel-tab-close:hover,
 .dockview-theme-side .dv-tab.dv-active-tab .panel-tab-close:hover {
-  border-top: none;
-}
-
-/* Tab hover state - only when NOT hovering close button */
-.dockview-theme-side .dv-tab:hover:not(:has(.panel-tab-close:hover)) {
-  background-color: var(--color-hover);
-}
-
-.dockview-theme-side .dv-tab.active:hover:not(:has(.panel-tab-close:hover)),
-.dockview-theme-side .dv-tab.dv-active-tab:hover:not(:has(.panel-tab-close:hover)) {
-  border-top: 1px solid var(--color-accent, #ffffff);
+  --dv-activegroup-visiblepanel-tab-border-top: 0px !important;
+  border-top: none !important;
 }
 
 /* ========================================
