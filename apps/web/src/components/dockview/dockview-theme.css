@@ -23,6 +23,10 @@
      Dockview Theme Colors (from theme.css)
      ======================================== */
 
+  /* Override abyss theme colors to monochrome */
+  --dv-color-abyss-accent: var(--color-accent);
+  --dv-color-abyss-accent-hover: var(--color-accent-hover);
+
   /* Base backgrounds */
   --dv-group-view-background-color: var(--color-bg, #000000);
   --dv-tabs-and-actions-container-background-color: var(--color-bg-soft, #0a0a0a);
