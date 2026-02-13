@@ -165,11 +165,7 @@
 
 .dockview-theme-side .dv-tab .panel-tab-close:hover {
   background-color: var(--color-list-hover) !important;
-}
-
-/* Keep top border when hovering close button on active tab */
-.dockview-theme-side .dv-tab.active .panel-tab-close:hover {
-  border-top: 1px solid var(--color-accent, #ffffff) !important;
+  border-top: none !important;
 }
 
 /* ========================================
