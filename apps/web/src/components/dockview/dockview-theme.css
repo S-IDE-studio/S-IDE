@@ -164,14 +164,15 @@
   background-color: var(--color-list-hover) !important;
 }
 
-/* When hovering close button, overlay border with background color */
-.dockview-theme-side .dv-tab .panel-tab-close:hover::before {
+/* When hovering close button on active tab, hide top border via ::before on tab */
+.dockview-theme-side .dv-tab.active .panel-tab-close:hover::before,
+.dockview-theme-side .dv-tab.dv-active-tab .panel-tab-close:hover::before {
   content: "";
   position: absolute;
-  top: -1px;
+  top: 0;
   left: 0;
   right: 0;
-  height: 1px;
+  height: 2px;
   background-color: var(--color-bg, #000000);
   z-index: 1;
 }
