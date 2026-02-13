@@ -18,14 +18,14 @@
 /* Force override all abyss theme colors to monochrome */
 .dockview-theme-abyss,
 .dockview-theme-abyss-spaced {
-  --dv-color-abyss-accent: var(--color-accent-dim, #666666) !important;
+  --dv-color-abyss-accent: #333333 !important;
   --dv-color-abyss-accent-hover: var(--color-accent-hover, rgba(255, 255, 255, 0.15)) !important;
   --dv-color-abyss-background: var(--color-bg, #000000) !important;
   --dv-color-abyss-background2: var(--color-bg-soft, #0a0a0a) !important;
   --dv-color-abyss-foreground: var(--color-fg, #ffffff) !important;
   --dv-color-abyss-border: var(--color-border-active, #ffffff) !important;
   --dv-color-abyss-secondary: var(--color-bg-tertiary, #141414) !important;
-  --dv-color-abyss-lighter: var(--color-accent-dim, #666666) !important;
+  --dv-color-abyss-lighter: #333333 !important;
   --dv-color-abyss-light: var(--color-bg-soft, #0a0a0a) !important;
   --dv-color-abyss-dark: var(--color-bg, #000000) !important;
   --dv-color-abyss-primary-text: var(--color-fg, #ffffff) !important;
