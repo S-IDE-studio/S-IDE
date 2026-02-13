@@ -1,9 +1,9 @@
-import type { Command } from "commander";
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, openSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { Command } from "commander";
 import { ConfigManager } from "../utils/config-manager.js";
 import { PidManager } from "../utils/pid-manager.js";
 
@@ -71,19 +71,15 @@ export function registerStartCommand(program: Command): void {
         // Open log file for stdout/stderr
         const logFd = openSync(LOG_FILE, "a");
 
-        const child = spawn(
-          process.execPath,
-          [serverIndexPath, `--port=${port}`],
-          {
-            detached: true,
-            stdio: ["ignore", logFd, logFd],
-            env: {
-              ...process.env,
-              PORT: port.toString(),
-              HOST: host,
-            },
-          }
-        );
+        const child = spawn(process.execPath, [serverIndexPath, `--port=${port}`], {
+          detached: true,
+          stdio: ["ignore", logFd, logFd],
+          env: {
+            ...process.env,
+            PORT: port.toString(),
+            HOST: host,
+          },
+        });
 
         // Write PID file
         pidManager.write(child.pid!);

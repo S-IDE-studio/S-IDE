@@ -13,6 +13,7 @@ import {
 import { sanitizeEnvVars } from "../utils/env.js";
 import { createHttpError, handleError, readJson } from "../utils/error.js";
 import { getDefaultShellPath, getShellById } from "../utils/shells.js";
+import { resolveTerminalCwd } from "../utils/terminal-cwd.js";
 
 // Track terminal index per deck for unique naming
 const deckTerminalCounters = new Map<string, number>();
@@ -82,6 +83,7 @@ function validateCommand(command: string): void {
 export function createTerminalRouter(
   db: DatabaseSync,
   decks: Map<string, Deck>,
+  workspaces: Map<string, import("../types.js").Workspace>,
   terminals: Map<string, TerminalSession>
 ) {
   const router = new Hono();
@@ -116,6 +118,8 @@ export function createTerminalRouter(
     }
   ): Promise<TerminalSession> {
     const id = options?.id || crypto.randomUUID();
+    const workspace = workspaces.get(deck.workspaceId);
+    const cwd = resolveTerminalCwd(deck, workspace);
 
     // Determine shell and arguments
     let shell: string;
@@ -228,7 +232,7 @@ export function createTerminalRouter(
     let term;
     try {
       const spawnOptions: import("../types/terminal.js").TerminalSpawnOptions = {
-        cwd: deck.root,
+        cwd,
         cols: 120,
         rows: 32,
         env,
@@ -248,7 +252,7 @@ export function createTerminalRouter(
       const spawnTime = Date.now() - spawnStart;
 
       console.log(
-        `[TERMINAL] Spawned terminal ${id}: shell=${shellName || shell}, pid=${term.pid}, cwd=${deck.root}`
+        `[TERMINAL] Spawned terminal ${id}: shell=${shellName || shell}, pid=${term.pid}, cwd=${cwd}`
       );
       if (command) {
         console.log(

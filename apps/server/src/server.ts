@@ -66,6 +66,10 @@ import {
   setupWebSocketServer,
 } from "./websocket.js";
 
+// Module-level app reference, shared between createServer and startServer
+// eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+let app!: Hono;
+
 // Request ID and logging middleware
 const requestIdMiddleware: MiddlewareHandler = async (c, next) => {
   // Use existing request ID or generate new one
@@ -117,8 +121,8 @@ export async function createServer(portOverride?: number): Promise<Server> {
   // Load persisted state
   loadPersistedState(db, workspaces, workspacePathIndex, decks);
 
-  // Create Hono app
-  const app = new Hono();
+  // Create Hono app and assign to module-level variable
+  app = new Hono();
 
   // Global middleware
   app.use("*", securityHeaders);
@@ -188,7 +192,12 @@ export async function createServer(portOverride?: number): Promise<Server> {
   app.route("/api/workspaces", createWorkspaceRouter(db, workspaces, workspacePathIndex));
   app.route("/api/decks", createDeckRouter(db, workspaces, decks));
   app.route("/api/shells", createShellsRouter());
-  const { router: terminalRouter, restoreTerminals } = createTerminalRouter(db, decks, terminals);
+  const { router: terminalRouter, restoreTerminals } = createTerminalRouter(
+    db,
+    decks,
+    workspaces,
+    terminals
+  );
   app.route("/api/terminals", terminalRouter);
   app.route("/api/git", createGitRouter(workspaces));
   app.route("/api/context-manager", createContextManagerRouter());

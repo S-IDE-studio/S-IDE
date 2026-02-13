@@ -17,7 +17,7 @@ describe("CLI", () => {
 
   it("should have correct CLI name and description", () => {
     expect(program.name()).toBe("side-server");
-    expect(program.description()).toContain("S-IDE Server");
+    expect(program.description()).toContain("S-IDE Backend Server");
   });
 
   it("should display version information", () => {
@@ -38,7 +38,7 @@ describe("CLI", () => {
   it("should display help text", () => {
     const helpText = program.helpInformation();
     expect(helpText).toContain("side-server");
-    expect(helpText).toContain("S-IDE Server");
+    expect(helpText).toContain("S-IDE Backend Server");
     expect(helpText).toContain("--version");
     expect(helpText).toContain("--help");
   });

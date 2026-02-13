@@ -111,7 +111,12 @@ export function createServer(portOverride) {
   app.route("/api/settings", createSettingsRouter());
   app.route("/api/workspaces", createWorkspaceRouter(db, workspaces, workspacePathIndex));
   app.route("/api/decks", createDeckRouter(db, workspaces, decks));
-  const { router: terminalRouter, restoreTerminals } = createTerminalRouter(db, decks, terminals);
+  const { router: terminalRouter, restoreTerminals } = createTerminalRouter(
+    db,
+    decks,
+    workspaces,
+    terminals
+  );
   app.route("/api/terminals", terminalRouter);
   app.route("/api/git", createGitRouter(workspaces));
   app.route("/api/context-manager", createContextManagerRouter());

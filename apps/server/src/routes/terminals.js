@@ -5,6 +5,7 @@ import { TERMINAL_BUFFER_LIMIT } from "../config.js";
 import { deleteTerminal as deleteTerminalFromDb, saveTerminal } from "../utils/database.js";
 import { createHttpError, handleError, readJson } from "../utils/error.js";
 import { getDefaultShell } from "../utils/shell.js";
+import { resolveTerminalCwd } from "../utils/terminal-cwd.js";
 
 // Track terminal index per deck for unique naming
 const deckTerminalCounters = new Map();
@@ -31,7 +32,7 @@ function validateCommand(command) {
     }
   }
 }
-export function createTerminalRouter(db, decks, terminals) {
+export function createTerminalRouter(db, decks, workspaces, terminals) {
   const router = new Hono();
   function appendToTerminalBuffer(session, data) {
     // Limit buffer size to prevent memory issues
@@ -50,6 +51,8 @@ export function createTerminalRouter(db, decks, terminals) {
   }
   function createTerminalSession(deck, title, command, options) {
     const id = options?.id || crypto.randomUUID();
+    const workspace = workspaces.get(deck.workspaceId);
+    const cwd = resolveTerminalCwd(deck, workspace);
     // Determine shell and arguments
     let shell;
     let shellArgs = [];
@@ -99,7 +102,7 @@ export function createTerminalRouter(db, decks, terminals) {
     let term;
     try {
       const spawnOptions = {
-        cwd: deck.root,
+        cwd,
         cols: 120,
         rows: 32,
         env,
@@ -115,7 +118,7 @@ export function createTerminalRouter(db, decks, terminals) {
       term = spawn(shell, shellArgs, spawnOptions);
       const spawnTime = Date.now() - spawnStart;
       console.log(
-        `[TERMINAL] Spawned terminal ${id}: shell=${shell}, pid=${term.pid}, cwd=${deck.root}`
+        `[TERMINAL] Spawned terminal ${id}: shell=${shell}, pid=${term.pid}, cwd=${cwd}`
       );
       if (command) {
         console.log(
