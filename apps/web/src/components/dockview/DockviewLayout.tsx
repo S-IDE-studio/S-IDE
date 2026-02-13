@@ -5,11 +5,12 @@ import {
   type IDockviewHeaderActionsProps,
   type IWatermarkPanelProps,
 } from "dockview";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { TabKind } from "../../types";
 import { DockviewContextProvider, useDockviewContext } from "./DockviewContext";
 import { DockviewTab } from "./DockviewTab";
 import { PANEL_ADAPTERS } from "./panels";
+import { persistDockviewLayout, restoreDockviewLayout } from "../../utils/dockviewLayoutUtils";
 
 // Shared ref object for accessing the DockviewApi from outside DockviewLayout
 // This is a module-level singleton that persists across the application lifecycle
@@ -23,11 +24,35 @@ function DockviewLayoutInner(): React.JSX.Element {
 
   /**
    * Handle dockview ready event
-   * Stores API reference in module-level ref
+   * Stores API reference in module-level ref and restores layout
    */
   const handleReady = useCallback((event: DockviewReadyEvent) => {
     dockviewApiRef.current = event.api;
+    // Restore layout from localStorage when dockview is ready
+    restoreDockviewLayout(event.api);
   }, []);
+
+  /**
+   * Auto-save layout periodically and on changes
+   */
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-save layout when dockview is available
+  useEffect(() => {
+    if (!dockviewApi) return;
+
+    // Save layout immediately when dockview becomes available
+    persistDockviewLayout(dockviewApi);
+
+    // Set up periodic save (every 2 seconds)
+    const interval = setInterval(() => {
+      if (dockviewApi) {
+        persistDockviewLayout(dockviewApi);
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [dockviewApi]);
 
   /**
    * Watermark component shown in empty groups
@@ -355,7 +380,11 @@ export function DockviewLayout(props: DockviewLayoutProps): React.JSX.Element {
 
   return (
     <DockviewContextProvider value={contextValue}>
-      <div className={`dockview-layout-wrapper ${className}`.trim()} style={style}>
+      <div
+        className={`dockview-layout-wrapper ${className}`.trim()}
+        style={style}
+        data-tauri-drag-region={false}
+      >
         <DockviewLayoutInner />
       </div>
     </DockviewContextProvider>
