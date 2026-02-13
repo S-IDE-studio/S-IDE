@@ -195,7 +195,7 @@
   color: var(--color-fg);
   /* Dockview standard tab height and padding */
   height: 35px;
-  padding: 0 10px;
+  padding: 0 8px;
   /* Dockview standard border radius */
   border-radius: var(--dv-border-radius, 0px);
 }

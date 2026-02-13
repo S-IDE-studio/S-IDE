@@ -2,7 +2,6 @@ import {
   type DockviewApi,
   DockviewReact,
   type DockviewReadyEvent,
-  type IDockviewHeaderActionsProps,
   type IWatermarkPanelProps,
 } from "dockview";
 import { useCallback, useEffect, useMemo, useRef } from "react";
@@ -66,80 +65,6 @@ function DockviewLayoutInner(): React.JSX.Element {
   }, []);
 
   /**
-   * Right header actions component
-   * Provides split and close actions for group headers
-   */
-  const RightHeaderActionsComponent = (props: IDockviewHeaderActionsProps): React.JSX.Element => {
-    const { containerApi, activePanel } = props;
-
-    const handleSplitHorizontal = () => {
-      if (activePanel?.params?.tab) {
-        const originalTab = activePanel.params.tab as { kind?: TabKind; title?: string };
-        const tabKind = originalTab.kind || "editor";
-        const newTab = { ...originalTab, id: `split-${Date.now()}` };
-        containerApi.addPanel({
-          id: newTab.id,
-          component: tabKind,
-          title: newTab.title || "New Panel",
-          params: { tab: newTab },
-          position: { referenceGroup: props.group, direction: "right" },
-        });
-      }
-    };
-
-    const handleSplitVertical = () => {
-      if (activePanel?.params?.tab) {
-        const originalTab = activePanel.params.tab as { kind?: TabKind; title?: string };
-        const tabKind = originalTab.kind || "editor";
-        const newTab = { ...originalTab, id: `split-${Date.now()}` };
-        containerApi.addPanel({
-          id: newTab.id,
-          component: tabKind,
-          title: newTab.title || "New Panel",
-          params: { tab: newTab },
-          position: { referenceGroup: props.group, direction: "below" },
-        });
-      }
-    };
-
-    const handleCloseGroup = () => {
-      containerApi.removeGroup(props.group);
-    };
-
-    return (
-      <div className="dockview-header-actions">
-        <button
-          type="button"
-          className="icon-button"
-          onClick={handleSplitHorizontal}
-          title="Split horizontally"
-          aria-label="Split horizontally"
-        >
-          ⬌
-        </button>
-        <button
-          type="button"
-          className="icon-button"
-          onClick={handleSplitVertical}
-          title="Split vertically"
-          aria-label="Split vertically"
-        >
-          ⬍
-        </button>
-        <button
-          type="button"
-          className="icon-button"
-          onClick={handleCloseGroup}
-          title="Close group"
-          aria-label="Close group"
-        >
-          ×
-        </button>
-      </div>
-    );
-  };
-
-  /**
    * Components map for all TabKind types
    * Uses panel adapters that wrap the actual content components
    */
@@ -151,7 +76,6 @@ function DockviewLayoutInner(): React.JSX.Element {
         components={components}
         defaultTabComponent={DockviewTab}
         watermarkComponent={WatermarkComponent}
-        rightHeaderActionsComponent={RightHeaderActionsComponent}
         onReady={handleReady}
         disableAutoResizing={false}
       />
