@@ -1,0 +1,115 @@
+/**
+ * S-IDE Unified Theme - Monochrome Black
+ *
+ * Single source of truth for all colors and design tokens
+ * This file should be imported FIRST before all other stylesheets
+ */
+
+/* ========================================
+   CSS Custom Properties (Design Tokens)
+   ======================================== */
+
+:root {
+  /* ========================================
+     Core Colors
+     ======================================== */
+
+  /* Backgrounds */
+  --color-bg: #000000;
+  --color-bg-soft: #0a0a0a;
+  --color-bg-tertiary: #141414;
+  --color-bg-secondary: #1a1a1a;
+
+  /* Foreground */
+  --color-fg: #ffffff;
+  --color-fg-dim: #888888;
+  --color-fg-muted: #444444;
+
+  /* Accents */
+  --color-accent: #ffffff;
+  --color-accent-dim: #666666;
+  --color-accent-hover: rgba(255, 255, 255, 0.15);
+
+  /* Borders */
+  --color-border: transparent;
+  --color-border-active: #ffffff;
+  --color-border-dim: rgba(255, 255, 255, 0.1);
+
+  /* Interactive */
+  --color-hover: rgba(255, 255, 255, 0.1);
+  --color-list-hover: rgba(255, 255, 255, 0.08);
+  --color-list-active: rgba(255, 255, 255, 0.15);
+
+  /* Surfaces */
+  --color-surface: #141414;
+  --color-panel: #000000;
+  --color-statusbar: #0a0a0a;
+
+  /* Title Bar */
+  --color-title-bar: #0a0a0a;
+
+  /* Special */
+  --color-focus-border: #666666;
+  --color-shadow: rgba(0, 0, 0, 0.3);
+
+  /* ========================================
+     Dockview Theme Colors
+     ======================================== */
+
+  /* Override dockview default colors completely */
+  --dv-group-view-background-color: #000000;
+  --dv-tabs-and-actions-container-background-color: #0a0a0a;
+
+  /* Tab colors - monochrome black */
+  --dv-activegroup-visiblepanel-tab-background-color: #000000;
+  --dv-activegroup-visiblepanel-tab-color: #ffffff;
+  --dv-activegroup-hiddenpanel-tab-background-color: #141414;
+  --dv-activegroup-hiddenpanel-tab-color: #888888;
+  --dv-inactivegroup-visiblepanel-tab-background-color: #000000;
+  --dv-inactivegroup-visiblepanel-tab-color: #888888;
+  --dv-inactivegroup-hiddenpanel-tab-background-color: #0a0a0a;
+  --dv-inactivegroup-hiddenpanel-tab-color: #666666;
+
+  /* Separator - hidden */
+  --dv-separator-border: transparent;
+
+  /* Drag feedback */
+  --dv-drag-over-background-color: rgba(255, 255, 255, 0.08);
+  --dv-drag-over-border-color: #666666;
+
+  /* Sash */
+  --dv-sash-color: transparent;
+  --dv-active-sash-color: #ffffff;
+
+  /* Scrollbar */
+  --dv-tabs-container-scrollbar-color: #666666;
+  --dv-scrollbar-background-color: rgba(255, 255, 255, 0.25);
+
+  /* Active outline - hidden for cleaner look */
+  --dv-paneview-active-outline-color: transparent;
+
+  /* ========================================
+     Legacy Aliases (for backward compatibility)
+     ======================================== */
+
+  /* Note: These are deprecated. Use the --color-* naming convention above */
+  --bg: var(--color-bg);
+  --bg-soft: var(--color-bg-soft);
+  --bg-tertiary: var(--color-bg-tertiary);
+  --panel: var(--color-panel);
+  --fg: var(--color-fg);
+  --ink: var(--color-fg);
+  --ink-muted: var(--color-fg-dim);
+  --muted: var(--color-fg-muted);
+  --accent: var(--color-accent);
+  --accent-dim: var(--color-accent-dim);
+  --border: var(--color-border);
+  --border-active: var(--color-border-active);
+  --hover: var(--color-hover);
+  --list-hover: var(--color-list-hover);
+  --list-active: var(--color-list-active);
+  --surface: var(--color-surface);
+  --title-bar: var(--color-title-bar);
+  --statusbar: var(--color-statusbar);
+  --focus-border: var(--color-focus-border);
+}
