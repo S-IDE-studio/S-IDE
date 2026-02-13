@@ -13,7 +13,7 @@ import path from "node:path";
 import { Command } from "commander";
 import { createServer } from "./server.js";
 
-const program = new Command();
+export const program = new Command();
 
 // Version from package.json
 const packageJson = JSON.parse(
