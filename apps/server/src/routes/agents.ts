@@ -8,6 +8,7 @@
 import { Hono } from "hono";
 import type { AgentInterface } from "../agents/base/AgentInterface.js";
 import type { AgentId } from "../agents/types.js";
+import { getAgentMetrics, startAgentTracking } from "../utils/agent-metrics.js";
 import { createHttpError, handleError, readJson } from "../utils/error.js";
 
 /**
@@ -35,6 +36,9 @@ const agentRegistry = new Map<AgentId, AgentInterface>();
  */
 export function registerAgent(agent: AgentInterface): void {
   agentRegistry.set(agent.id, agent);
+
+  // Start tracking metrics for this agent
+  startAgentTracking(agent.id);
 }
 
 /**
@@ -99,17 +103,20 @@ export function createAgentRouter() {
           const available = await agent.isAvailable();
           const config = await agent.getConfig();
 
+          // Get real metrics
+          const metrics = getAgentMetrics(agent.id);
+
           // Return agent status information
           return {
             id: agent.id,
             name: agent.name,
             icon: agent.icon,
             status: available ? ("idle" as const) : ("error" as const),
-            contextUsage: 0, // Would be populated from actual agent context
+            contextUsage: metrics.contextUsage,
             contextLimit: config.maxTokens || 200000,
-            tokenUsage: 0, // Would be populated from actual agent usage
+            tokenUsage: metrics.tokenUsage,
             tokenLimit: config.maxTokens || 200000,
-            uptime: 0, // Would be populated from actual agent uptime
+            uptime: metrics.uptime,
           };
         })
       );

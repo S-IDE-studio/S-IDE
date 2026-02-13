@@ -167,6 +167,95 @@ export function createLocalServerRouter() {
   });
 
   /**
+   * GET /api/local-server/scan/advanced - Advanced scan with nmap
+   */
+  router.get("/scan/advanced", async (c) => {
+    try {
+      const exec = (await import("node:child_process")).exec;
+      const { promisify } = await import("node:util");
+      const execAsync = promisify(exec);
+
+      // Check if nmap is available
+      let nmapAvailable = false;
+      try {
+        await execAsync("which nmap", { timeout: 2000 });
+        nmapAvailable = true;
+      } catch {
+        nmapAvailable = false;
+      }
+
+      if (!nmapAvailable) {
+        // Fallback to Node.js-based scan
+        const servers = await scanLocalServers();
+        return c.json({
+          method: "fallback",
+          message: "nmap not available, using fallback scanning",
+          servers,
+        });
+      }
+
+      // Run nmap scan
+      const { stdout } = await execAsync("nmap -sV -T4 --top-ports 100 localhost", {
+        timeout: 30000,
+      });
+
+      // Parse nmap output
+      const lines = stdout.split("\n");
+      const ports: Array<{ port: number; state: string; service: string; version?: string }> = [];
+
+      for (const line of lines) {
+        const match = line.match(/^(\d+)\/tcp\s+(\w+)\s+(.+)$/);
+        if (match) {
+          const [, portStr, state, serviceInfo] = match;
+          const port = Number.parseInt(portStr, 10);
+          const [service, ...versionParts] = serviceInfo.split(/\s+/);
+
+          ports.push({
+            port,
+            state,
+            service,
+            version: versionParts.length > 0 ? versionParts.join(" ") : undefined,
+          });
+        }
+      }
+
+      return c.json({
+        method: "nmap",
+        ports,
+      });
+    } catch (error) {
+      return handleError(c, error);
+    }
+  });
+
+  /**
+   * GET /api/local-server/nmap/available - Check if nmap is available
+   */
+  router.get("/nmap/available", async (c) => {
+    try {
+      const exec = (await import("node:child_process")).exec;
+      const { promisify } = await import("node:util");
+      const execAsync = promisify(exec);
+
+      try {
+        const { stdout } = await execAsync("nmap --version", { timeout: 2000 });
+        const versionMatch = stdout.match(/Nmap version ([\d.]+)/);
+
+        return c.json({
+          available: true,
+          version: versionMatch ? versionMatch[1] : "unknown",
+        });
+      } catch {
+        return c.json({
+          available: false,
+        });
+      }
+    } catch (error) {
+      return handleError(c, error);
+    }
+  });
+
+  /**
    * GET /api/local-server/status - Get status of all known servers
    */
   router.get("/status", async (c) => {
