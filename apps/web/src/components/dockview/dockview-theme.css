@@ -165,3 +165,22 @@
 .dockview-theme-side.dv-separator-border .dv-view:not(:first-child)::before {
   display: none;
 }
+
+/* ========================================
+     Sash (Resize Handle) - Force Monochrome
+     ======================================== */
+
+/* Force all sash states to monochrome colors */
+.dockview-theme-side .dv-sash {
+  background: transparent !important;
+}
+
+.dockview-theme-side .dv-sash:hover,
+.dockview-theme-side .dv-sash:active {
+  background: var(--color-accent) !important;
+}
+
+/* Sash drag overlay */
+.dockview-theme-side .dv-sash-drag-overlay {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
