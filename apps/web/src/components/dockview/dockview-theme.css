@@ -175,9 +175,18 @@
   background: transparent !important;
 }
 
+.dockview-theme-side .dv-sash::after {
+  background-color: transparent !important;
+}
+
 .dockview-theme-side .dv-sash:hover,
 .dockview-theme-side .dv-sash:active {
   background: var(--color-accent) !important;
+}
+
+.dockview-theme-side .dv-sash:hover::after,
+.dockview-theme-side .dv-sash:active::after {
+  background-color: var(--color-accent) !important;
 }
 
 /* Sash drag overlay */
