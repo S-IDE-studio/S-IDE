@@ -27,6 +27,12 @@
   --dv-color-abyss-secondary: var(--color-bg-tertiary, #141414) !important;
 }
 
+/* Force override active sash color from abyss accent */
+.dockview-theme-abyss .dv-sash::after,
+.dockview-theme-abyss-spaced .dv-sash::after {
+  background-color: var(--color-accent, #ffffff) !important;
+}
+
 .dockview-theme-side {
   /* Tauri: Disable window drag in dockview area to allow HTML5 drag & drop */
   -webkit-app-region: no-drag !important;
