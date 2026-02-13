@@ -2,6 +2,7 @@ import fsSync from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import type { Deck, Workspace } from "../types.js";
 import { getWorkspaceKey } from "./path.js";
+import { runMigrations, migrations } from "./migrations.js";
 
 // UUID validation regex pattern
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -95,6 +96,9 @@ export function initializeDatabase(db: DatabaseSync): void {
   // Create indexes for better query performance
   db.exec(`CREATE INDEX IF NOT EXISTS idx_decks_workspace_id ON decks(workspace_id);`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_terminals_deck_id ON terminals(deck_id);`);
+
+  // Run migrations for extended schema
+  runMigrations(db, migrations);
 }
 
 export function loadPersistedState(

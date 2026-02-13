@@ -39,6 +39,7 @@ import { createDeckRouter } from "./routes/decks.js";
 import { createFileRouter } from "./routes/files.js";
 import { createGitRouter } from "./routes/git.js";
 import { createLocalServerRouter } from "./routes/local-server.js";
+import { createMCPServerRouter } from "./routes/mcp-servers.js";
 import { createSettingsRouter } from "./routes/settings.js";
 import { createSharedResourcesRouter } from "./routes/shared-resources.js";
 import { createShellsRouter } from "./routes/shells.js";
@@ -189,7 +190,7 @@ export async function createServer(portOverride?: number): Promise<Server> {
   app.route("/api/agents", agentRouter);
   app.route("/api/shared", createSharedResourcesRouter());
   app.route("/api/bridge", createAgentBridgeRouter());
-  app.route("/api/mcp", agentRouter);
+  app.route("/api/mcp", createMCPServerRouter(db));
   app.route("/api/local-server", createLocalServerRouter());
   app.route("/api/tunnel", createTunnelRouter());
   app.route("/api/tabs", createTabsRouter());
