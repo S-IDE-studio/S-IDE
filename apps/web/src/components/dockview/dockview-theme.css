@@ -164,20 +164,13 @@
   background-color: var(--color-list-hover) !important;
 }
 
-/* When hovering close button on active tab, hide top border via ::before on tab */
-.dockview-theme-side .dv-tab.active .panel-tab-close:hover::before,
-.dockview-theme-side .dv-tab.dv-active-tab .panel-tab-close:hover::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background-color: var(--color-bg, #000000);
-  z-index: 1;
+/* When hovering close button on active tab, remove the top border */
+.dockview-theme-side .dv-tab.active .panel-tab-close:hover,
+.dockview-theme-side .dv-tab.dv-active-tab .panel-tab-close:hover {
+  border-top: none !important;
 }
 
-/* Tab hover state - subtle feedback */
+/* Tab hover state - subtle feedback (but not when hovering close button) */
 .dockview-theme-side .dv-tab:hover {
   background-color: var(--color-hover) !important;
 }
@@ -185,6 +178,12 @@
 .dockview-theme-side .dv-tab.active:hover,
 .dockview-theme-side .dv-tab.dv-active-tab:hover {
   border-top: 1px solid var(--color-accent, #ffffff) !important;
+}
+
+/* Override when hovering close button - no border even on hover */
+.dockview-theme-side .dv-tab.active .panel-tab-close:hover,
+.dockview-theme-side .dv-tab.dv-active-tab .panel-tab-close:hover {
+  border-top: none !important;
 }
 
 /* ========================================
