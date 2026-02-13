@@ -166,8 +166,9 @@ export function TerminalPanelContent({
 
       requestAnimationFrame(() => {
         if (!cancelled) {
+          const commandText = terminal.command || "Terminal";
           try {
-            term.write(`${TEXT_BOOT}${terminal.command || "Terminal"}\r\n\r\n`);
+            term.write(`${TEXT_BOOT}${commandText}\r\n\r\n`);
           } catch (err) {
             console.warn("[Terminal] Error during initial write:", err);
           }
@@ -213,9 +214,13 @@ export function TerminalPanelContent({
         const { token, authEnabled } = await getWsToken();
         if (cancelled) return;
 
-        const finalUrl = authEnabled
-          ? `${wsBase}/api/terminals/${terminal.id}?token=${token}`
-          : `${wsBase}/api/terminals/${terminal.id}`;
+        // Build URL without conditional expressions for React Compiler optimization
+        const baseUrl = `${wsBase}/api/terminals/${terminal.id}`;
+        let finalUrl = baseUrl;
+        if (authEnabled) {
+          finalUrl = `${baseUrl}?token=${token}`;
+        }
+
         console.log("[Terminal] Connecting to WebSocket:", finalUrl);
         const socket = new WebSocket(finalUrl);
         socketRef.current = socket;
@@ -258,7 +263,7 @@ export function TerminalPanelContent({
           }
 
           if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-            reconnectAttempts++;
+            reconnectAttempts = reconnectAttempts + 1;
             const delay = RECONNECT_BASE_DELAY_MS * 2 ** (reconnectAttempts - 1);
             term.write(
               `\r\n\x1b[33m${TEXT_RECONNECTING} (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})\x1b[0m\r\n`
@@ -294,7 +299,7 @@ export function TerminalPanelContent({
       } catch (err) {
         console.error("[Terminal] Failed to connect:", err);
         if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS && hasConnectedOnce) {
-          reconnectAttempts++;
+          reconnectAttempts = reconnectAttempts + 1;
           const delay = RECONNECT_BASE_DELAY_MS * 2 ** (reconnectAttempts - 1);
           term.write(
             `\r\n\x1b[33m${TEXT_RECONNECTING} (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})\x1b[0m\r\n`

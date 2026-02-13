@@ -55,7 +55,9 @@ export function TerminalCreateButton({
       setIsSettingDefault(true);
       try {
         await setDefaultShell(shellId);
-      } finally {
+        setIsSettingDefault(false);
+      } catch (error) {
+        console.error("Failed to set default shell:", error);
         setIsSettingDefault(false);
       }
     },

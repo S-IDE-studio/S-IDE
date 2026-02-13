@@ -23,17 +23,28 @@ export function AgentStatusPanelContent() {
 
   useEffect(() => {
     const fetchAgentStatus = async () => {
+      let response;
       try {
-        const response = await fetch("/api/agents/status");
-        if (response.ok) {
-          const data = await response.json();
-          setAgents(data.agents || []);
-        }
+        response = await fetch("/api/agents/status");
       } catch (error) {
         console.error("Failed to fetch agent status:", error);
-      } finally {
-        setLoading(false);
       }
+
+      if (response && response.ok) {
+        let data;
+        try {
+          data = await response.json();
+        } catch (error) {
+          console.error("Failed to parse agent status:", error);
+        }
+
+        if (data && data.agents) {
+          setAgents(data.agents);
+        } else {
+          setAgents([]);
+        }
+      }
+      setLoading(false);
     };
 
     fetchAgentStatus();

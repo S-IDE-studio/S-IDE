@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MODAL_Z_INDEX } from "../../constants";
 
 interface MCPServer {
@@ -217,34 +217,24 @@ export function CommonSettings({ isOpen, onClose }: CommonSettingsProps) {
   const [showAddMCP, setShowAddMCP] = useState(false);
   const [showAddSkill, setShowAddSkill] = useState(false);
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchAgents();
-      fetchSharedResources();
-    }
-  }, [isOpen]);
-
-  const fetchAgents = async () => {
+  const fetchAgents = useCallback(async () => {
     try {
       const res = await fetch("/api/agents");
       if (res.ok) {
         const data = await res.json();
-        setAgents(
-          data.filter((a: { enabled: boolean }) => a.enabled).map((a: { id: string }) => a.id)
-        );
+        const enabledAgentIds = data
+          .filter((a: { enabled: boolean }) => a.enabled)
+          .map((a: { id: string }) => a.id);
+        setAgents(enabledAgentIds);
         // Default to all agents selected
-        setSelectedAgents(
-          new Set(
-            data.filter((a: { enabled: boolean }) => a.enabled).map((a: { id: string }) => a.id)
-          )
-        );
+        setSelectedAgents(new Set(enabledAgentIds));
       }
     } catch (err) {
       console.error("Failed to fetch agents:", err);
     }
-  };
+  }, []);
 
-  const fetchSharedResources = async () => {
+  const fetchSharedResources = useCallback(async () => {
     setLoading(true);
     try {
       // For now, fetch from first available agent
@@ -259,82 +249,109 @@ export function CommonSettings({ isOpen, onClose }: CommonSettingsProps) {
         if (mcpsRes.ok) setSharedMCPs(await mcpsRes.json());
         if (skillsRes.ok) setSharedSkills(await skillsRes.json());
       }
+      setLoading(false);
     } catch (err) {
       console.error("Failed to fetch shared resources:", err);
-    } finally {
       setLoading(false);
     }
-  };
+  }, [agents]);
 
-  const toggleAgent = (agentId: string) => {
-    const newSelected = new Set(selectedAgents);
-    if (newSelected.has(agentId)) {
-      newSelected.delete(agentId);
-    } else {
-      newSelected.add(agentId);
-    }
-    setSelectedAgents(newSelected);
-  };
-
-  const handleShareMCP = async (mcp: MCPServer) => {
-    // Share MCP with selected agents
-    for (const agentId of selectedAgents) {
-      try {
-        await fetch(`/api/agents/${agentId}/mcps`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(mcp),
-        });
-      } catch (err) {
-        console.error(`Failed to add MCP to ${agentId}:`, err);
+  const toggleAgent = useCallback(
+    (agentId: string) => {
+      const newSelected = new Set(selectedAgents);
+      if (newSelected.has(agentId)) {
+        newSelected.delete(agentId);
+      } else {
+        newSelected.add(agentId);
       }
-    }
-    await fetchSharedResources();
-  };
+      setSelectedAgents(newSelected);
+    },
+    [selectedAgents]
+  );
 
-  const handleRemoveMCP = async (mcpId: string) => {
-    // Remove MCP from selected agents
-    for (const agentId of selectedAgents) {
-      try {
-        await fetch(`/api/agents/${agentId}/mcps/${mcpId}`, {
-          method: "DELETE",
-        });
-      } catch (err) {
-        console.error(`Failed to remove MCP from ${agentId}:`, err);
+  const handleShareMCP = useCallback(
+    async (mcp: MCPServer) => {
+      // Share MCP with selected agents
+      for (const agentId of selectedAgents) {
+        try {
+          await fetch(`/api/agents/${agentId}/mcps`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(mcp),
+          });
+        } catch (err) {
+          console.error(`Failed to add MCP to ${agentId}:`, err);
+        }
       }
-    }
-    await fetchSharedResources();
-  };
+      await fetchSharedResources();
+    },
+    [selectedAgents, fetchSharedResources]
+  );
 
-  const handleShareSkill = async (skill: Skill) => {
-    // Share skill with selected agents
-    for (const agentId of selectedAgents) {
-      try {
-        await fetch(`/api/agents/${agentId}/skills`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(skill),
-        });
-      } catch (err) {
-        console.error(`Failed to add skill to ${agentId}:`, err);
+  const handleRemoveMCP = useCallback(
+    async (mcpId: string) => {
+      // Remove MCP from selected agents
+      for (const agentId of selectedAgents) {
+        try {
+          await fetch(`/api/agents/${agentId}/mcps/${mcpId}`, {
+            method: "DELETE",
+          });
+        } catch (err) {
+          console.error(`Failed to remove MCP from ${agentId}:`, err);
+        }
       }
-    }
-    await fetchSharedResources();
-  };
+      await fetchSharedResources();
+    },
+    [selectedAgents, fetchSharedResources]
+  );
 
-  const handleRemoveSkill = async (skillId: string) => {
-    // Remove skill from selected agents
-    for (const agentId of selectedAgents) {
-      try {
-        await fetch(`/api/agents/${agentId}/skills/${skillId}`, {
-          method: "DELETE",
-        });
-      } catch (err) {
-        console.error(`Failed to remove skill from ${agentId}:`, err);
+  const handleShareSkill = useCallback(
+    async (skill: Skill) => {
+      // Share skill with selected agents
+      for (const agentId of selectedAgents) {
+        try {
+          await fetch(`/api/agents/${agentId}/skills`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(skill),
+          });
+        } catch (err) {
+          console.error(`Failed to add skill to ${agentId}:`, err);
+        }
       }
+      await fetchSharedResources();
+    },
+    [selectedAgents, fetchSharedResources]
+  );
+
+  const handleRemoveSkill = useCallback(
+    async (skillId: string) => {
+      // Remove skill from selected agents
+      for (const agentId of selectedAgents) {
+        try {
+          await fetch(`/api/agents/${agentId}/skills/${skillId}`, {
+            method: "DELETE",
+          });
+        } catch (err) {
+          console.error(`Failed to remove skill from ${agentId}:`, err);
+        }
+      }
+      await fetchSharedResources();
+    },
+    [selectedAgents, fetchSharedResources]
+  );
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchAgents();
     }
-    await fetchSharedResources();
-  };
+  }, [isOpen, fetchAgents]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchSharedResources();
+    }
+  }, [isOpen, fetchSharedResources]);
 
   if (!isOpen) return null;
 

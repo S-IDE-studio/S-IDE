@@ -32,18 +32,25 @@ export function AgentConfigLocalPanelContent({
   useEffect(() => {
     const fetchConfig = async () => {
       setLoading(true);
+      let success = false;
+      let configData: any = null;
+
       try {
         const response = await fetch(`/api/workspaces/${workspaceId}/agent-config`);
         if (response.ok) {
-          const data = await response.json();
-          setConfig(data.config || {});
+          configData = await response.json();
+          success = true;
         }
       } catch (error) {
         console.error("Failed to fetch workspace agent config:", error);
-        setMessage("Failed to load config");
-      } finally {
-        setLoading(false);
       }
+
+      if (success && configData) {
+        setConfig(configData.config || {});
+      } else {
+        setMessage("Failed to load config");
+      }
+      setLoading(false);
     };
 
     fetchConfig();
@@ -53,6 +60,9 @@ export function AgentConfigLocalPanelContent({
     setSaving(true);
     setMessage("");
 
+    let success = false;
+    let errorText = "";
+
     try {
       const response = await fetch(`/api/workspaces/${workspaceId}/agent-config`, {
         method: "POST",
@@ -61,29 +71,41 @@ export function AgentConfigLocalPanelContent({
       });
 
       if (response.ok) {
-        setMessage("Config saved successfully");
+        success = true;
       } else {
-        const error = await response.text();
-        setMessage(`Failed to save: ${error}`);
+        errorText = await response.text();
       }
     } catch (error) {
       console.error("Failed to save config:", error);
-      setMessage("Failed to save config");
-    } finally {
-      setSaving(false);
+      errorText = "Connection error";
     }
+
+    if (success) {
+      setMessage("Config saved successfully");
+    } else {
+      setMessage(errorText ? `Failed to save: ${errorText}` : "Failed to save config");
+    }
+    setSaving(false);
   }, [workspaceId, selectedAgentType, config]);
 
   const handleCopyFromGlobal = useCallback(async () => {
+    let success = false;
+    let fetchedData = null;
+
     try {
       const response = await fetch(`/api/agents/${selectedAgentType}/config`);
       if (response.ok) {
-        const data = await response.json();
-        setConfig(data);
-        setMessage("Config copied from global settings");
+        fetchedData = await response.json();
+        success = true;
       }
     } catch (error) {
       console.error("Failed to copy global config:", error);
+    }
+
+    if (success) {
+      setConfig(fetchedData);
+      setMessage("Config copied from global settings");
+    } else {
       setMessage("Failed to copy global config");
     }
   }, [selectedAgentType]);

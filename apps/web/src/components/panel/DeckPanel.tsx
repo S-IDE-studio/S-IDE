@@ -1,8 +1,6 @@
-import { PanelLeft } from "lucide-react";
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo } from "react";
 import type { FileTreeNode, GitFileStatus, TerminalGroup, TerminalSession } from "../../types";
 import { FileTree } from "../FileTree";
-import { TerminalPane } from "../TerminalPane";
 
 interface DeckPanelProps {
   deck: { id: string; name: string; root: string; workspaceId: string };
@@ -40,11 +38,9 @@ interface DeckPanelProps {
   onViewChange?: (view: "filetree" | "terminal") => void;
 }
 
-type DeckView = "filetree" | "terminal";
-
 export function DeckPanel({
   deck,
-  updateWorkspaceState,
+  updateWorkspaceState: _updateWorkspaceState,
   // FileTree props
   tree = [],
   treeLoading,
@@ -70,146 +66,38 @@ export function DeckPanel({
   onRenameGroup,
   isCreatingTerminal = false,
   // View control props
-  view: controlledView,
-  onViewChange,
+  view: _controlledView,
+  onViewChange: _onViewChange,
 }: DeckPanelProps) {
-  // Use controlled view if provided, otherwise use local state
-  const [localView, setLocalView] = useState<DeckView>("filetree");
-  const [sidebarVisible, setSidebarVisible] = useState(true);
-  const view = controlledView ?? localView;
-
-  // Sync local state when controlled view changes
-  useEffect(() => {
-    if (controlledView !== undefined) {
-      setLocalView(controlledView);
-    }
-  }, [controlledView]);
-
-  // Auto-hide sidebar when switching to terminal view
-  useEffect(() => {
-    if (view === "terminal") {
-      setSidebarVisible(false);
-    }
-  }, [view]);
-
-  const handleToggleDir = useCallback(
-    (node: FileTreeNode) => {
-      onToggleDir?.(node);
-    },
-    [onToggleDir]
-  );
-
-  const handleOpenFile = useCallback(
-    (node: FileTreeNode) => {
-      onOpenFile?.(node);
-    },
-    [onOpenFile]
-  );
-
-  const handleRefreshTree = useCallback(() => {
-    onRefreshTree?.();
-  }, [onRefreshTree]);
-
-  const handleSetView = useCallback(
-    (newView: DeckView) => {
-      if (onViewChange) {
-        onViewChange(newView);
-      } else {
-        setLocalView(newView);
-      }
-    },
-    [onViewChange]
-  );
+  void terminals;
+  void wsBase;
+  void deckId;
+  void onDeleteTerminal;
+  void onReorderTerminals;
+  void terminalGroups;
+  void onCreateTerminal;
+  void onToggleGroupCollapsed;
+  void onDeleteGroup;
+  void onRenameGroup;
+  void isCreatingTerminal;
 
   return (
     <div className="deck-panel-content">
-      {/* Sidebar - FileTree */}
-      {sidebarVisible && view === "filetree" && (
-        <div className="deck-sidebar">
-          <div className="deck-sidebar-header">
-            <span className="deck-sidebar-title">{deck.name}</span>
-            <button
-              type="button"
-              className="icon-button"
-              onClick={() => setSidebarVisible(false)}
-              title="Hide sidebar"
-            >
-              <PanelLeft size={16} />
-            </button>
-          </div>
-          <FileTree
-            root={deck.root}
-            entries={tree}
-            loading={treeLoading}
-            error={treeError}
-            onToggleDir={handleToggleDir}
-            onOpenFile={handleOpenFile}
-            onRefresh={handleRefreshTree}
-            onCreateFile={onCreateFile}
-            onCreateDirectory={onCreateDirectory}
-            onDeleteFile={onDeleteFile}
-            onDeleteDirectory={onDeleteDirectory}
-            gitFiles={gitFiles}
-          />
-        </div>
-      )}
-
-      {/* Main Content Area */}
-      <div className="deck-main">
-        {/* View Toggle */}
-        {!sidebarVisible && (
-          <div className="deck-header">
-            <button
-              type="button"
-              className="icon-button"
-              onClick={() => setSidebarVisible(true)}
-              title="Show sidebar"
-            >
-              <PanelLeft size={16} />
-            </button>
-            <div className="deck-view-toggle">
-              <button
-                type="button"
-                className={`chip ${view === "filetree" ? "active" : ""}`}
-                onClick={() => handleSetView("filetree")}
-              >
-                Files
-              </button>
-              <button
-                type="button"
-                className={`chip ${view === "terminal" ? "active" : ""}`}
-                onClick={() => handleSetView("terminal")}
-              >
-                Terminal
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* FileTree View */}
-        {view === "filetree" && sidebarVisible && (
-          <div className="deck-placeholder">
-            <p>ファイルを開くには、左側のファイルツリーからファイルを選択してください</p>
-          </div>
-        )}
-
-        {/* Terminal View */}
-        {view === "terminal" ? (
-          <TerminalPane
-            terminals={terminals}
-            wsBase={wsBase}
-            deckId={deckId}
-            onDeleteTerminal={onDeleteTerminal}
-            onReorderTerminals={onReorderTerminals}
-            terminalGroups={terminalGroups}
-            onCreateTerminal={onCreateTerminal}
-            onToggleGroupCollapsed={onToggleGroupCollapsed}
-            onDeleteGroup={onDeleteGroup}
-            onRenameGroup={onRenameGroup}
-            isCreatingTerminal={isCreatingTerminal}
-          />
-        ) : null}
-      </div>
+      <FileTree
+        root={deck.root}
+        entries={tree}
+        loading={treeLoading}
+        error={treeError}
+        onToggleDir={(node) => onToggleDir?.(node)}
+        onOpenFile={(node) => onOpenFile?.(node)}
+        onRefresh={() => onRefreshTree?.()}
+        onCreateFile={onCreateFile}
+        onCreateDirectory={onCreateDirectory}
+        onDeleteFile={onDeleteFile}
+        onDeleteDirectory={onDeleteDirectory}
+        gitFiles={gitFiles}
+        variant="deck"
+      />
     </div>
   );
 }

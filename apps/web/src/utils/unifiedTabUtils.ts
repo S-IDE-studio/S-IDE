@@ -57,7 +57,7 @@ export function deckToTab(deck: Deck): UnifiedTab {
  * Convert Terminal to UnifiedTab
  */
 export function terminalToTab(
-  terminal: { id: string; command: string; cwd: string },
+  terminal: { id: string; command: string; cwd: string; workspaceId?: string },
   deckId: string
 ): UnifiedTab {
   return {
@@ -65,7 +65,14 @@ export function terminalToTab(
     kind: "terminal",
     title: terminal.command || "Terminal",
     // Icon is rendered by DraggableTab based on kind
-    data: { terminal: { id: terminal.id, command: terminal.command, cwd: terminal.cwd } },
+    data: {
+      terminal: {
+        id: terminal.id,
+        command: terminal.command,
+        cwd: terminal.cwd,
+        workspaceId: terminal.workspaceId,
+      },
+    },
   };
 }
 

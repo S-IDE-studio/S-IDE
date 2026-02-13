@@ -129,38 +129,89 @@ export function AgentTabContent({ agentId, agentName }: AgentTabContentProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
+
     const fetchAgentData = async () => {
+      setLoading(true);
+      setError(null);
+
+      let detailsRes;
       try {
-        setLoading(true);
-        setError(null);
-
-        // Fetch agent details
-        const detailsRes = await fetch(`/api/agents/${agentId}`);
-        if (!detailsRes.ok) throw new Error("Failed to fetch agent details");
-        const details = await detailsRes.json();
-        setAgent(details);
-
-        // Fetch MCP servers
-        const mcpsRes = await fetch(`/api/agents/${agentId}/mcps`);
-        if (mcpsRes.ok) {
-          const mcpsData = await mcpsRes.json();
-          setMcps(mcpsData);
-        }
-
-        // Fetch Skills
-        const skillsRes = await fetch(`/api/agents/${agentId}/skills`);
-        if (skillsRes.ok) {
-          const skillsData = await skillsRes.json();
-          setSkills(skillsData);
-        }
+        detailsRes = await fetch(`/api/agents/${agentId}`);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load agent data");
-      } finally {
+        if (active) {
+          setError(err instanceof Error ? err.message : "Failed to load agent data");
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (!detailsRes.ok) {
+        if (active) {
+          setError("Failed to fetch agent details");
+          setLoading(false);
+        }
+        return;
+      }
+
+      let details;
+      try {
+        details = await detailsRes.json();
+      } catch (err) {
+        if (active) {
+          setError("Failed to parse agent data");
+          setLoading(false);
+        }
+        return;
+      }
+
+      // Fetch MCP servers independently
+      let mcpsRes;
+      try {
+        mcpsRes = await fetch(`/api/agents/${agentId}/mcps`);
+      } catch (err) {
+        console.error("Failed to fetch MCPs", err);
+      }
+
+      let mcpsData = [];
+      if (mcpsRes && mcpsRes.ok) {
+        try {
+          mcpsData = await mcpsRes.json();
+        } catch (err) {
+          console.error("Failed to parse MCPs", err);
+        }
+      }
+
+      // Fetch Skills independently
+      let skillsRes;
+      try {
+        skillsRes = await fetch(`/api/agents/${agentId}/skills`);
+      } catch (err) {
+        console.error("Failed to fetch skills", err);
+      }
+
+      let skillsData = [];
+      if (skillsRes && skillsRes.ok) {
+        try {
+          skillsData = await skillsRes.json();
+        } catch (err) {
+          console.error("Failed to parse skills", err);
+        }
+      }
+
+      if (active) {
+        setAgent(details);
+        setMcps(mcpsData);
+        setSkills(skillsData);
         setLoading(false);
       }
     };
 
     fetchAgentData();
+
+    return () => {
+      active = false;
+    };
   }, [agentId]);
 
   if (loading) {

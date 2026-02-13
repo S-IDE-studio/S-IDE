@@ -1,5 +1,11 @@
-import { ChevronRight, File, Folder } from "lucide-react";
+import { ChevronRight, File, FilePlus2, Folder, FolderPlus, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  DEFAULT_FILE,
+  getIconForFile,
+  getIconForFolder,
+  getIconForOpenFolder,
+} from "vscode-icons-js";
 import type { FileTreeNode, GitFileStatus } from "../types";
 
 const LABEL_LOADING = "読み込み中...";
@@ -7,6 +13,9 @@ const LABEL_FILES = "ファイル";
 const LABEL_REFRESH = "更新";
 const LABEL_EMPTY = "ファイルが見つかりません。";
 const LABEL_BACK = "戻る";
+const LABEL_NEW_FILE = "新規ファイル";
+const LABEL_NEW_FOLDER = "新規フォルダ";
+const VSCODE_ICONS_LOCAL_BASE = "/vscode-icons";
 
 // Invalid filename characters for Windows and Unix systems
 const INVALID_FILENAME_CHARS = /[<>:"/\\|?*\x00-\x1F]/;
@@ -78,6 +87,17 @@ interface FileTreeProps {
   onDeleteFile?: (filePath: string) => void;
   onDeleteDirectory?: (dirPath: string) => void;
   gitFiles?: GitFileStatus[];
+  variant?: "default" | "deck";
+}
+
+function getBaseName(path: string): string {
+  const normalized = path.replace(/[\\/]+$/, "");
+  const chunks = normalized.split(/[\\/]/).filter(Boolean);
+  return chunks[chunks.length - 1] || path;
+}
+
+function getVscodeIconUrl(iconFileName: string): string {
+  return `${VSCODE_ICONS_LOCAL_BASE}/${iconFileName}`;
 }
 
 export function FileTree({
@@ -96,6 +116,7 @@ export function FileTree({
   onDeleteFile,
   onDeleteDirectory,
   gitFiles,
+  variant = "default",
 }: FileTreeProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [newItemInput, setNewItemInput] = useState<NewItemInput | null>(null);
@@ -104,6 +125,7 @@ export function FileTree({
   const treeRef = useRef<HTMLDivElement>(null);
 
   const safeEntries = entries ?? [];
+  const rootName = getBaseName(root);
 
   // Close context menu when clicking outside
   useEffect(() => {
@@ -203,12 +225,57 @@ export function FileTree({
     [handleInputSubmit]
   );
 
+  const renderFileIcon = useCallback((entry: FileTreeNode) => {
+    const iconFile =
+      entry.type === "dir"
+        ? entry.expanded
+          ? getIconForOpenFolder(entry.name)
+          : getIconForFolder(entry.name)
+        : getIconForFile(entry.name) || DEFAULT_FILE;
+
+    if (variant === "deck") {
+      return (
+        <img
+          src={getVscodeIconUrl(iconFile)}
+          alt=""
+          aria-hidden="true"
+          className="tree-icon-img"
+          loading="lazy"
+        />
+      );
+    }
+
+    return entry.type === "dir" ? <FolderIcon /> : <FileIcon />;
+  }, [variant]);
+
   const renderNewItemInput = (depth: number) => {
     if (!newItemInput || newItemInput.depth !== depth) return null;
     return (
       <div className="tree-row tree-input-row" style={{ paddingLeft: 12 + depth * 16 }}>
         <span className="tree-icon" aria-hidden="true">
-          {newItemInput.type === "dir" ? <FolderIcon /> : <FileIcon />}
+          {newItemInput.type === "dir" ? (
+            variant === "deck" ? (
+              <img
+                src={getVscodeIconUrl(getIconForFolder("folder"))}
+                alt=""
+                aria-hidden="true"
+                className="tree-icon-img"
+                loading="lazy"
+              />
+            ) : (
+              <FolderIcon />
+            )
+          ) : variant === "deck" ? (
+            <img
+              src={getVscodeIconUrl(DEFAULT_FILE)}
+              alt=""
+              aria-hidden="true"
+              className="tree-icon-img"
+              loading="lazy"
+            />
+          ) : (
+            <FileIcon />
+          )}
         </span>
         <input
           ref={inputRef}
@@ -244,7 +311,7 @@ export function FileTree({
               {entry.type === "dir" ? <ChevronIcon /> : null}
             </span>
             <span className={`tree-icon ${entry.type}`} aria-hidden="true">
-              {entry.type === "dir" ? <FolderIcon /> : <FileIcon />}
+              {renderFileIcon(entry)}
             </span>
             <span className="tree-label">{entry.name}</span>
             {entry.loading ? <span className="tree-meta">{LABEL_LOADING}</span> : null}
@@ -262,11 +329,11 @@ export function FileTree({
     });
 
   return (
-    <section className="panel file-tree" ref={treeRef}>
+    <section className={`panel file-tree ${variant === "deck" ? "is-deck-tree" : ""}`} ref={treeRef}>
       <div className="panel-header">
         <div>
-          <div className="panel-title">{LABEL_FILES}</div>
-          <div className="panel-subtitle">{root}</div>
+          <div className="panel-title">{variant === "deck" ? rootName : LABEL_FILES}</div>
+          {variant !== "deck" ? <div className="panel-subtitle">{root}</div> : null}
         </div>
         <div className="tree-actions">
           {onBack ? (
@@ -274,9 +341,41 @@ export function FileTree({
               {LABEL_BACK}
             </button>
           ) : null}
-          <button type="button" className="chip" onClick={onRefresh}>
-            {LABEL_REFRESH}
-          </button>
+          {variant === "deck" ? (
+            <>
+              <button
+                type="button"
+                className="icon-button tree-control-button"
+                onClick={() => handleNewFile("", 0)}
+                aria-label={LABEL_NEW_FILE}
+                title={LABEL_NEW_FILE}
+              >
+                <FilePlus2 size={14} />
+              </button>
+              <button
+                type="button"
+                className="icon-button tree-control-button"
+                onClick={() => handleNewFolder("", 0)}
+                aria-label={LABEL_NEW_FOLDER}
+                title={LABEL_NEW_FOLDER}
+              >
+                <FolderPlus size={14} />
+              </button>
+              <button
+                type="button"
+                className="icon-button tree-control-button"
+                onClick={onRefresh}
+                aria-label={LABEL_REFRESH}
+                title={LABEL_REFRESH}
+              >
+                <RefreshCw size={14} />
+              </button>
+            </>
+          ) : (
+            <button type="button" className="chip" onClick={onRefresh}>
+              {LABEL_REFRESH}
+            </button>
+          )}
         </div>
       </div>
       <div className="panel-body tree-body" onContextMenu={(e) => handleContextMenu(e, null, true)}>

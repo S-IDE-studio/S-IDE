@@ -3,7 +3,10 @@
  * Environment setup and verification panel (converted from EnvironmentModal)
  */
 
+import { invoke } from "@tauri-apps/api/core";
 import { CheckCircle2, Loader2, Network, RefreshCw, Server, Terminal, XCircle } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { COMMON_PORTS_TO_CHECK } from "../../constants";
 
 // Check if running in Tauri (Tauri v2 uses __TAURI_INTERNALS__)
 function isTauriApp(): boolean {
@@ -11,9 +14,6 @@ function isTauriApp(): boolean {
     typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window)
   );
 }
-
-import { useCallback, useEffect, useState } from "react";
-import { COMMON_PORTS_TO_CHECK } from "../../constants";
 
 interface EnvironmentInfo {
   node: CommandInfo;
@@ -48,22 +48,19 @@ export function SetupPanelContent() {
   const loadEnvironmentInfo = useCallback(async () => {
     setLoading(true);
     try {
-      const tauri = await import("@tauri-apps/api/core");
-
       // Load environment info
-      const envResult = (await tauri.invoke("check_environment")) as EnvironmentInfo;
+      const envResult = (await invoke("check_environment")) as EnvironmentInfo;
       setEnvInfo(envResult);
 
       // Check ports
       const portResults = await Promise.all(
-        portsToCheck.map((port) => tauri.invoke("check_port", { port }))
+        portsToCheck.map((port) => invoke("check_port", { port }))
       );
       setPorts(portResults as PortStatus[]);
     } catch (e) {
       console.error("Failed to load environment info:", e);
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   }, [portsToCheck]);
 
   useEffect(() => {

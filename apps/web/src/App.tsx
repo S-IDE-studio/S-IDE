@@ -12,6 +12,7 @@ import { getConfig, getWsBase, listFiles, readFile } from "./api";
 import { CommonSettings } from "./components/AgentSettings";
 import { ContextStatus } from "./components/ContextStatus";
 import { DiffViewer } from "./components/DiffViewer";
+import { getDockviewApiRef } from "./components/dockview/DockviewLayout";
 import { DockviewLayout } from "./components/dockview/DockviewLayout";
 import { EnvironmentModal } from "./components/EnvironmentModal";
 import { GlobalStatusBar } from "./components/GlobalStatusBar";
@@ -40,7 +41,19 @@ import { useServerStatus } from "./hooks/useServerStatus";
 import { useTabsPresenceSync } from "./hooks/useTabsPresenceSync";
 import { useWorkspaces } from "./hooks/useWorkspaces";
 import type { EditorFile, SidebarPanel, UnifiedTab, WorkspaceMode } from "./types";
-import { persistDockviewLayout, restoreDockviewLayout } from "./utils/dockviewLayoutUtils";
+import { getLanguageFromPath, toTreeNodes } from "./utils";
+import { createEditorGroup, createSingleGroupLayout } from "./utils/editorGroupUtils";
+import { createEmptyDeckState, createEmptyWorkspaceState } from "./utils/stateUtils";
+import { resolveDeckIdForNewTerminal } from "./utils/terminalDeckResolver";
+import {
+  deckToTab,
+  editorToTab,
+  remoteAccessToTab,
+  serverSettingsToTab,
+  serverToTab,
+  terminalToTab,
+} from "./utils/unifiedTabUtils";
+import { parseUrlState } from "./utils/urlUtils";
 
 /** Local type for tabs presence sync compatibility - represents old panel group format */
 interface PanelGroup {
@@ -51,23 +64,11 @@ interface PanelGroup {
   percentage: number;
 }
 
-import { getLanguageFromPath, toTreeNodes } from "./utils";
-import { createEditorGroup, createSingleGroupLayout } from "./utils/editorGroupUtils";
-import { createEmptyDeckState, createEmptyWorkspaceState } from "./utils/stateUtils";
-import {
-  deckToTab,
-  editorToTab,
-  remoteAccessToTab,
-  serverToTab,
-  terminalToTab,
-} from "./utils/unifiedTabUtils";
-import { parseUrlState } from "./utils/urlUtils";
-
 export default function App() {
   const initialUrlState = parseUrlState();
 
-  // Dockview API ref for external access
-  const dockviewApiRef = useRef<import("dockview").DockviewApi | null>(null);
+  // Get Dockview API ref from DockviewLayout module
+  const dockviewApiRef = getDockviewApiRef();
 
   // Update check
   const {
@@ -103,26 +104,11 @@ export default function App() {
   >([]);
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
 
-  // Dockview initialization callback
-  const handleDockviewReady = useCallback((api: import("dockview").DockviewApi) => {
-    dockviewApiRef.current = api;
-
-    // Restore layout from localStorage
-    restoreDockviewLayout(api);
-
-    // Set up layout persistence on change
-    const disposable = api.onDidLayoutChange(() => {
-      persistDockviewLayout(api);
-    });
-
-    return () => {
-      disposable.dispose();
-    };
-  }, []);
-
   // Open tab handler for dockview
   const handleOpenTab = useCallback((tab: UnifiedTab) => {
+    console.log("[App] handleOpenTab called with tab:", tab);
     const api = dockviewApiRef.current;
+    console.log("[App] dockviewApiRef.current:", api);
     if (!api) {
       console.warn("Dockview API not ready, cannot open tab:", tab.id);
       return;
@@ -132,11 +118,13 @@ export default function App() {
       // Check if panel already exists
       const existingPanel = api.getPanel(tab.id);
       if (existingPanel) {
+        console.log("[App] Panel already exists, activating:", tab.id);
         // Activate existing panel
         existingPanel.api.setActive();
         return;
       }
 
+      console.log("[App] Adding new panel:", tab.id, "kind:", tab.kind);
       // Add new panel to focused group or create new group
       api.addPanel({
         id: tab.id,
@@ -144,9 +132,42 @@ export default function App() {
         title: tab.title,
         params: { tab },
       });
+      console.log("[App] Panel added successfully");
     } catch (e) {
       console.error("Failed to open tab:", e);
     }
+  }, []);
+
+  // Open default panels on startup to initialize dockview drag & drop
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const api = dockviewApiRef.current;
+      if (api && api.panels.length === 0) {
+        console.log("[App] Opening default panels to initialize dockview");
+        
+        // Open Server Settings as the first panel
+        const serverSettingsTab = serverSettingsToTab();
+        api.addPanel({
+          id: serverSettingsTab.id,
+          component: serverSettingsTab.kind,
+          title: serverSettingsTab.title,
+          params: { tab: serverSettingsTab },
+        });
+        
+        // Open Remote Access in a split view to create drop zones
+        setTimeout(() => {
+          const remoteAccessTab = remoteAccessToTab();
+          api.addPanel({
+            id: remoteAccessTab.id,
+            component: remoteAccessTab.kind,
+            title: remoteAccessTab.title,
+            params: { tab: remoteAccessTab },
+            position: { direction: 'right' },
+          });
+        }, 50);
+      }
+    }, 150);
+    return () => clearTimeout(timer);
   }, []);
 
   // Panel groups for useTabsPresenceSync compatibility
@@ -953,15 +974,22 @@ export default function App() {
         // Create and add terminal tab
         const deck = decks.find((d) => d.id === deckId);
         if (deck) {
+          const workspacePath =
+            workspaces.find((workspace) => workspace.id === deck.workspaceId)?.path || deck.root;
           const tab = terminalToTab(
-            { id: terminal.id, command: terminal.command || "", cwd: deck.root },
+            {
+              id: terminal.id,
+              command: terminal.command || "",
+              cwd: workspacePath,
+              workspaceId: deck.workspaceId,
+            },
             deckId
           );
           handleOpenTab(tab);
         }
       }
     },
-    [deckStates, defaultDeckState, handleCreateTerminal, decks, handleOpenTab]
+    [deckStates, defaultDeckState, handleCreateTerminal, decks, workspaces, handleOpenTab]
   );
 
   const handleNewClaudeTerminalForDeck = useCallback(
@@ -1091,18 +1119,21 @@ export default function App() {
         onCreateAgent={() => {
           /* TODO: Implement agent creation */
         }}
-        onNewTerminal={() => {
+        onNewTerminal={(shellId) => {
           console.log("[App] New Terminal requested");
           console.log("[App] activeDeckIds:", activeDeckIds);
           console.log("[App] decks:", decks);
-          // Create a new terminal in the first available deck
-          const firstDeckId = activeDeckIds[0];
-          if (firstDeckId) {
-            console.log("[App] Using activeDeckId:", firstDeckId);
-            handleNewTerminalForDeck(firstDeckId);
-          } else if (decks.length > 0) {
-            console.log("[App] Using first deck:", decks[0].id);
-            handleNewTerminalForDeck(decks[0].id);
+          const activeTab = dockviewApiRef.current?.activePanel?.params?.tab as UnifiedTab | undefined;
+          const deckId = resolveDeckIdForNewTerminal({
+            activePanelTab: activeTab ?? null,
+            decks,
+            activeDeckIds,
+            editorWorkspaceId,
+          });
+
+          if (deckId) {
+            console.log("[App] Using resolved deckId:", deckId);
+            handleNewTerminalForDeck(deckId, shellId);
           } else {
             // Create a new deck if none exists
             console.log("[App] No deck found, creating new deck");
@@ -1113,6 +1144,9 @@ export default function App() {
         onAddRemoteAccessTab={handleAddRemoteAccessTab}
         onDeleteWorkspace={handleDeleteWorkspace}
         onUpdateWorkspaceColor={handleUpdateWorkspaceColor}
+        agents={agents}
+        decks={decks}
+        onOpenPanel={handleOpenTab}
       />
       <main className="main">
         <DockviewLayout

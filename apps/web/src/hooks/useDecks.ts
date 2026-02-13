@@ -128,9 +128,12 @@ export const useDecks = ({
 
   const handleCreateDeck = useCallback(
     async (name: string, workspaceId: string) => {
+      // Generate default name if not provided (moved outside try/catch for React Compiler optimization)
+      const trimmedName = name.trim();
+      const nextNumber = getNextDeckNumber(workspaceId);
+      const deckName = trimmedName || `Deck ${nextNumber}`;
+
       try {
-        // Generate default name if not provided
-        const deckName = name.trim() || `Deck ${getNextDeckNumber(workspaceId)}`;
         const deck = await apiCreateDeck(deckName, workspaceId);
         setDecks((prev) => [...prev, deck]);
         setActiveDeckIds((prev) => [...prev.filter((id) => id !== deck.id), deck.id]);
@@ -164,17 +167,36 @@ export const useDecks = ({
       });
       // Set loading state
       setCreatingTerminalDeckIds((prev) => new Set(prev).add(deckId));
+
+      const clearLoadingState = () => {
+        setCreatingTerminalDeckIds((prev) => {
+          const next = new Set(prev);
+          next.delete(deckId);
+          return next;
+        });
+      };
+
+      // Prepare values outside try/catch for React Compiler optimization
+      const index = terminalsCount + 1;
+      const title = customTitle || `ターミナル ${index}`;
+      const commandValue = command || "";
+
       try {
-        const index = terminalsCount + 1;
-        const title = customTitle || `ターミナル ${index}`;
         console.log("[useDecks] Creating terminal with title:", title, "shellId:", shellId);
         const session = await apiCreateTerminal(deckId, title, command, shellId);
         console.log("[useDecks] Terminal created:", session);
+
+        // Extract values from session for React Compiler optimization
+        const sessionId = session.id;
+        const sessionTitle = session.title;
+
+        // Create terminal object with extracted values
         const terminal = {
-          id: session.id,
-          title: session.title || title,
-          command: command || "",
+          id: sessionId,
+          title: sessionTitle,
+          command: commandValue,
         };
+
         updateDeckState(deckId, (state) => {
           return {
             ...state,
@@ -183,18 +205,13 @@ export const useDecks = ({
             view: "terminal",
           };
         });
+        clearLoadingState();
         return terminal;
       } catch (error: unknown) {
         console.error("[useDecks] Failed to create terminal:", error);
         setStatusMessage(`ターミナルを起動できませんでした: ${getErrorMessage(error)}`);
+        clearLoadingState();
         return null;
-      } finally {
-        // Clear loading state
-        setCreatingTerminalDeckIds((prev) => {
-          const next = new Set(prev);
-          next.delete(deckId);
-          return next;
-        });
       }
     },
     [updateDeckState, setStatusMessage]

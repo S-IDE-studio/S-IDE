@@ -19,6 +19,15 @@ import { useServerStatus } from "../../hooks/useServerStatus";
 import { openExternalUrl } from "../../utils/externalLink";
 import { buildRemoteAccessUrl, pickRemoteAccessHost } from "../../utils/remoteAccess";
 
+// Lazy load Tauri API to avoid dynamic imports in component
+let tauriCore: typeof import("@tauri-apps/api/core") | null = null;
+const getTauriCore = async () => {
+  if (!tauriCore) {
+    tauriCore = await import("@tauri-apps/api/core");
+  }
+  return tauriCore;
+};
+
 export function RemoteAccessPanelContent() {
   const remote = useRemoteAccessStatus();
   const server = useServerStatus();
@@ -90,11 +99,11 @@ export function RemoteAccessPanelContent() {
     setActionError(null);
     setStarting(true);
     try {
-      const tauri = await import("@tauri-apps/api/core");
+      const tauri = await getTauriCore();
       await tauri.invoke("start_remote_access_https", { port: serverPort });
+      setStarting(false);
     } catch (e) {
       setActionError(typeof e === "string" ? e : String(e));
-    } finally {
       setStarting(false);
     }
   };
@@ -103,11 +112,11 @@ export function RemoteAccessPanelContent() {
     setActionError(null);
     setStopping(true);
     try {
-      const tauri = await import("@tauri-apps/api/core");
+      const tauri = await getTauriCore();
       await tauri.invoke("stop_remote_access");
+      setStopping(false);
     } catch (e) {
       setActionError(typeof e === "string" ? e : String(e));
-    } finally {
       setStopping(false);
     }
   };

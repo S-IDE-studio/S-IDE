@@ -1,7 +1,20 @@
 import { ChevronDown, Minus, Palette, Plus, Square, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getAvailableShells } from "../api";
-import type { ShellInfo, Workspace } from "../types";
+import type { Deck, ShellInfo, UnifiedTab, Workspace } from "../types";
+import {
+  agentConfigLocalToTab,
+  agentConfigToTab,
+  agentStatusToTab,
+  agentToTab,
+  deckToTab,
+  mcpToTab,
+  remoteAccessToTab,
+  serverSettingsToTab,
+  serverToTab,
+  setupToTab,
+  workspaceToTab,
+} from "../utils/unifiedTabUtils";
 
 const MAX_VISIBLE_WORKSPACES = 5;
 
@@ -42,6 +55,16 @@ interface TitleBarProps {
   onAddRemoteAccessTab?: () => void;
   onDeleteWorkspace?: (workspaceId: string) => void;
   onUpdateWorkspaceColor?: (workspaceId: string, color: string) => void;
+  // Panel menu props - accept flexible agent type
+  agents?: Array<{
+    id: string;
+    name: string;
+    icon: string;
+    description?: string;
+    enabled?: boolean;
+  }>;
+  decks?: Deck[];
+  onOpenPanel?: (tab: UnifiedTab) => void;
 }
 
 interface MenuItem {
@@ -157,6 +180,16 @@ function MenuBar({ items }: MenuBarProps) {
                 if (child.separator) {
                   return <div key={childIndex} className="title-bar-dropdown-separator" />;
                 }
+
+                // Render category header (starts with ===)
+                if (child.label.startsWith("===")) {
+                  return (
+                    <div key={childIndex} className="title-bar-dropdown-category">
+                      {child.label.replace(/===/g, "").trim()}
+                    </div>
+                  );
+                }
+
                 // Skip empty items (separators with no label)
                 if (!child.label) {
                   return null;
@@ -244,6 +277,9 @@ export function TitleBar({
   onAddRemoteAccessTab,
   onDeleteWorkspace,
   onUpdateWorkspaceColor,
+  agents = [],
+  decks = [],
+  onOpenPanel,
 }: TitleBarProps) {
   // Check if running in Tauri (evaluated once per component mount)
   const isInTauriApp = useMemo(() => isTauriApp(), []);
@@ -490,6 +526,128 @@ export function TitleBar({
       });
     }
 
+    // Build Panel menu items
+    const panelMenuItems: MenuItem[] = [];
+
+    // Development panels
+    panelMenuItems.push({ label: "=== Development ===" });
+
+    // Workspace submenu
+    if (workspaces.length > 0) {
+      const workspaceSubmenu: MenuItem[] = workspaces.map((ws) => ({
+        label: ws.name,
+        action: () => {
+          console.log("[TitleBar] Opening workspace panel:", ws.name);
+          onOpenPanel?.(workspaceToTab(ws));
+        },
+      }));
+      panelMenuItems.push({
+        label: "Workspace",
+        children: workspaceSubmenu,
+      });
+    } else {
+      panelMenuItems.push({
+        label: "Workspace",
+        action: () => {
+          console.log("[TitleBar] No workspaces, opening workspace modal");
+          // If no workspaces, prompt to create one
+          onOpenWorkspaceModal?.();
+        },
+      });
+    }
+
+    // Deck submenu
+    if (decks.length > 0) {
+      const deckSubmenu: MenuItem[] = decks.map((deck) => ({
+        label: deck.name,
+        action: () => onOpenPanel?.(deckToTab(deck)),
+      }));
+      panelMenuItems.push({
+        label: "Deck",
+        children: deckSubmenu,
+      });
+    } else {
+      panelMenuItems.push({
+        label: "Deck",
+        action: () => {
+          // If no decks, prompt to create one
+          onCreateDeck?.();
+        },
+      });
+    }
+
+    // Agent submenu
+    if (agents.length > 0) {
+      const agentSubmenu: MenuItem[] = agents.map((agent) => ({
+        label: agent.name,
+        action: () => onOpenPanel?.(agentToTab(agent)),
+      }));
+      panelMenuItems.push({
+        label: "Agent",
+        children: agentSubmenu,
+      });
+    } else {
+      panelMenuItems.push({
+        label: "Agent",
+        action: () => {
+          // If no agents, open agent config
+          onOpenPanel?.(agentConfigToTab());
+        },
+      });
+    }
+
+    panelMenuItems.push({ label: "", separator: true });
+    panelMenuItems.push({ label: "=== Tools ===" });
+
+    panelMenuItems.push({
+      label: "Local Servers",
+      action: () => onOpenPanel?.(serverToTab()),
+    });
+    panelMenuItems.push({
+      label: "MCP Servers",
+      action: () => onOpenPanel?.(mcpToTab()),
+    });
+    panelMenuItems.push({
+      label: "Remote Access",
+      action: () => onOpenPanel?.(remoteAccessToTab()),
+    });
+
+    panelMenuItems.push({ label: "", separator: true });
+    panelMenuItems.push({ label: "=== Settings ===" });
+
+    panelMenuItems.push({
+      label: "Server Settings",
+      action: () => {
+        console.log("[TitleBar] Opening Server Settings panel");
+        onOpenPanel?.(serverSettingsToTab());
+      },
+    });
+    panelMenuItems.push({
+      label: "Agent Status",
+      action: () => onOpenPanel?.(agentStatusToTab()),
+    });
+    panelMenuItems.push({
+      label: "Agent Config (Global)",
+      action: () => onOpenPanel?.(agentConfigToTab()),
+    });
+
+    // Agent Config Local submenu (workspace-specific)
+    if (workspaces.length > 0) {
+      const agentConfigLocalSubmenu: MenuItem[] = workspaces.map((ws) => ({
+        label: ws.name,
+        action: () => onOpenPanel?.(agentConfigLocalToTab(ws.id, ws.name)),
+      }));
+      panelMenuItems.push({
+        label: "Agent Config (Local)",
+        children: agentConfigLocalSubmenu,
+      });
+    }
+
+    panelMenuItems.push({
+      label: "Setup",
+      action: () => onOpenPanel?.(setupToTab()),
+    });
+
     return [
       {
         label: "File",
@@ -501,6 +659,10 @@ export function TitleBar({
       {
         label: "Terminal",
         children: terminalMenuItems,
+      },
+      {
+        label: "Panel",
+        children: panelMenuItems,
       },
       {
         label: "View",
@@ -523,6 +685,9 @@ export function TitleBar({
   }, [
     shells,
     defaultShellId,
+    workspaces,
+    decks,
+    agents,
     onOpenWorkspaceModal,
     onCreateDeck,
     onNewTerminal,
@@ -532,6 +697,7 @@ export function TitleBar({
     onOpenSettings,
     onCreateAgent,
     onToggleContextStatus,
+    onOpenPanel,
   ]);
 
   // Calculate visible and hidden workspaces
@@ -542,7 +708,6 @@ export function TitleBar({
   return (
     <div
       className={`title-bar ${isInTauriApp ? "title-bar--tauri" : ""} ${isMobileMode ? "title-bar--mobile" : ""}`}
-      data-tauri-drag-region={isInTauriApp}
     >
       {/* Left side - app icon and menu bar */}
       <div className="title-bar-left-section">
@@ -569,8 +734,8 @@ export function TitleBar({
       )}
 
       {/* Workspace tabs - centered */}
-      <div className="title-bar-center-section" data-tauri-drag-region={isInTauriApp}>
-        <div className="workspace-tabs">
+      <div className="title-bar-center-section" data-tauri-drag-region>
+        <div className="workspace-tabs">{isInTauriApp && <div className="workspace-tabs-drag-spacer" data-tauri-drag-region />}
           {visibleWorkspaces.map((workspace) => (
             <button
               key={workspace.id}

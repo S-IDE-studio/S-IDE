@@ -64,10 +64,10 @@ export function AgentConfigPanelContent() {
         const data = await response.json();
         setConfig(data);
       }
+      setLoading(false);
     } catch (error) {
       console.error("Failed to fetch agent config:", error);
       setMessage("Failed to load config");
-    } finally {
       setLoading(false);
     }
   }, []);
@@ -95,10 +95,10 @@ export function AgentConfigPanelContent() {
         const error = await response.text();
         setMessage(`Failed to save: ${error}`);
       }
+      setSaving(false);
     } catch (error) {
       console.error("Failed to save config:", error);
       setMessage("Failed to save config");
-    } finally {
       setSaving(false);
     }
   }, [config, selectedAgentId]);

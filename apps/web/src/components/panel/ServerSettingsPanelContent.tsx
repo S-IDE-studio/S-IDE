@@ -20,18 +20,26 @@ export function ServerSettingsPanelContent() {
 
   useEffect(() => {
     const fetchSettings = async () => {
+      let response;
       try {
-        const response = await fetch("/api/settings");
-        if (response.ok) {
-          const data = await response.json();
-          setSettings(data);
-        }
+        response = await fetch("/api/settings");
       } catch (error) {
         console.error("Failed to fetch settings:", error);
         setMessage("Failed to load settings");
-      } finally {
-        setLoading(false);
       }
+
+      if (response && response.ok) {
+        let data;
+        try {
+          data = await response.json();
+        } catch (error) {
+          console.error("Failed to parse settings:", error);
+        }
+        if (data) {
+          setSettings(data);
+        }
+      }
+      setLoading(false);
     };
 
     fetchSettings();
@@ -43,25 +51,36 @@ export function ServerSettingsPanelContent() {
     setSaving(true);
     setMessage("");
 
+    let response;
+    let errorOccurred = false;
+
     try {
-      const response = await fetch("/api/settings", {
+      response = await fetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings),
       });
+    } catch (error) {
+      console.error("Failed to save settings:", error);
+      errorOccurred = true;
+    }
 
+    if (errorOccurred) {
+      setMessage("Failed to save settings");
+    } else if (response) {
       if (response.ok) {
         setMessage("Settings saved. Reload to apply changes.");
       } else {
-        const error = await response.text();
+        let error;
+        try {
+          error = await response.text();
+        } catch (e) {
+          error = "Unknown error";
+        }
         setMessage(`Failed to save: ${error}`);
       }
-    } catch (error) {
-      console.error("Failed to save settings:", error);
-      setMessage("Failed to save settings");
-    } finally {
-      setSaving(false);
     }
+    setSaving(false);
   }, [settings]);
 
   if (loading) {

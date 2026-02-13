@@ -1,10 +1,25 @@
-import { useEffect, useState } from "react";
+import type { Update } from "@tauri-apps/plugin-updater";
+import { useCallback, useEffect, useState } from "react";
 
 // Check if running in Tauri
 function isTauriApp(): boolean {
   return (
     typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window)
   );
+}
+
+// Lazy load Tauri modules to avoid dynamic imports in component
+let updaterModule: typeof import("@tauri-apps/plugin-updater") | null = null;
+let processModule: typeof import("@tauri-apps/plugin-process") | null = null;
+
+async function loadTauriModules() {
+  if (!updaterModule) {
+    updaterModule = await import("@tauri-apps/plugin-updater");
+  }
+  if (!processModule) {
+    processModule = await import("@tauri-apps/plugin-process");
+  }
+  return { updater: updaterModule, process: processModule };
 }
 
 export interface UpdateInfo {
@@ -21,7 +36,7 @@ export function useAutoUpdater() {
   const [isInstalling, setIsInstalling] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const checkForUpdates = async () => {
+  const checkForUpdates = useCallback(async () => {
     if (!isTauriApp()) {
       setError("Updates are only available in the desktop app");
       return;
@@ -30,63 +45,85 @@ export function useAutoUpdater() {
     setIsChecking(true);
     setError(null);
 
+    let update: Update | null = null;
+    let checkError: unknown = null;
+
     try {
-      const { check } = await import("@tauri-apps/plugin-updater");
-      const { relaunch } = await import("@tauri-apps/plugin-process");
-
-      const update = await check();
-
-      if (update?.available) {
-        setUpdateInfo({
-          available: true,
-          version: update.version,
-          currentVersion: update.currentVersion,
-          body: update.body,
-          date: update.date,
-        });
-      } else {
-        setUpdateInfo({ available: false });
-      }
+      const { updater } = await loadTauriModules();
+      update = await updater.check();
     } catch (err) {
-      console.error("[AutoUpdater] Check failed:", err);
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setIsChecking(false);
+      checkError = err;
     }
-  };
 
-  const installUpdate = async () => {
+    // Handle conditional logic outside try/catch for React Compiler optimization
+    if (checkError) {
+      console.error("[AutoUpdater] Check failed:", checkError);
+      setError(checkError instanceof Error ? checkError.message : String(checkError));
+      setIsChecking(false);
+      return;
+    }
+
+    if (update && update.available) {
+      setUpdateInfo({
+        available: true,
+        version: update.version,
+        currentVersion: update.currentVersion,
+        body: update.body,
+        date: update.date,
+      });
+    } else {
+      setUpdateInfo({ available: false });
+    }
+    setIsChecking(false);
+  }, []);
+
+  const installUpdate = useCallback(async () => {
     if (!updateInfo.available) return;
 
     setIsInstalling(true);
     setError(null);
 
+    let update: Update | null = null;
+    let modules: Awaited<ReturnType<typeof loadTauriModules>> | null = null;
+    let installError: unknown = null;
+
     try {
-      const { check } = await import("@tauri-apps/plugin-updater");
-      const { relaunch } = await import("@tauri-apps/plugin-process");
+      modules = await loadTauriModules();
+      update = await modules.updater.check();
+    } catch (err) {
+      installError = err;
+    }
 
-      const update = await check();
+    // Handle conditional logic outside try/catch for React Compiler optimization
+    if (installError) {
+      console.error("[AutoUpdater] Install failed:", installError);
+      setError(installError instanceof Error ? installError.message : String(installError));
+      setIsInstalling(false);
+      return;
+    }
 
-      if (update?.available) {
+    if (update && update.available && modules) {
+      try {
         console.log("[AutoUpdater] Downloading and installing update...");
         await update.downloadAndInstall();
 
         console.log("[AutoUpdater] Update installed, relaunching...");
-        await relaunch();
+        await modules.process.relaunch();
+      } catch (err) {
+        console.error("[AutoUpdater] Install failed:", err);
+        setError(err instanceof Error ? err.message : String(err));
+        setIsInstalling(false);
+        return;
       }
-    } catch (err) {
-      console.error("[AutoUpdater] Install failed:", err);
-      setError(err instanceof Error ? err.message : String(err));
-      setIsInstalling(false);
     }
-  };
+  }, [updateInfo.available]);
 
   // Check on mount
   useEffect(() => {
     if (isTauriApp()) {
-      checkForUpdates();
+      void checkForUpdates();
     }
-  }, []);
+  }, [checkForUpdates]);
 
   return {
     updateInfo,

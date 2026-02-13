@@ -1485,6 +1485,12 @@ textarea {
   height: 16px;
 }
 
+.tree-icon-img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
 .tree-label {
   flex: 1;
   min-width: 0;
@@ -1510,6 +1516,10 @@ textarea {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.tree-control-button {
+  padding: 4px;
 }
 
 /* Tree Input */
@@ -5710,11 +5720,21 @@ input:focus-visible {
 
 /* Deck Panel Layout */
 .deck-panel-content {
-  display: flex;
-  flex-direction: row;
+  display: block;
   height: 100%;
   overflow: hidden;
   padding: 0;
+}
+
+.deck-panel-content .file-tree {
+  height: 100%;
+  border: none;
+}
+
+.file-tree.is-deck-tree .panel-title {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
 }
 
 .deck-sidebar {

@@ -139,13 +139,22 @@
   transition: background-color 0.15s ease;
 }
 
-/* Active tab with top border */
+/* Disable legacy inner .panel-tab top-border indicators inside dockview tabs */
+.dockview-theme-side .panel-tab,
+.dockview-theme-side .panel-tab:hover,
+.dockview-theme-side .panel-tab.active {
+  border-top: 0 !important;
+  border-top-color: transparent !important;
+  border-top-width: 0 !important;
+}
+
+/* Active tab */
 .dockview-theme-side .dv-tab.active,
 .dockview-theme-side .dv-tab.dv-active-tab {
   background-color: var(--color-bg);
   color: var(--color-fg);
   opacity: 1;
-  border-top: 1px solid var(--color-accent, #ffffff);
+  border-top: 0;
 }
 
 /* When hovering close button on active tab - NO border */
@@ -166,6 +175,13 @@
 
 .dockview-theme-side .dv-tab .panel-tab-close:hover {
   background-color: var(--color-list-hover);
+}
+
+/* Remove dockview focus overlay line that appears over tabs */
+.dockview-theme-side .dv-tab:focus-within::after,
+.dockview-theme-side .dv-tab:focus::after {
+  display: none;
+  outline: none !important;
 }
 
 /* Prevent pointer events on close button SVG */
@@ -228,6 +244,11 @@
 .dockview-theme-side .dv-tabs-and-actions-container {
   -webkit-app-region: no-drag;
   background-color: var(--color-bg-soft);
+}
+
+/* Remove dockview's default vertical divider line between tabs */
+.dockview-theme-side .dv-tabs-container.dv-horizontal .dv-tab:not(:first-child)::before {
+  display: none;
 }
 
 /* ========================================

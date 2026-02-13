@@ -21,51 +21,74 @@ export function McpPanelContent() {
   useEffect(() => {
     // Fetch MCP servers from API
     const fetchServers = async () => {
+      let response;
       try {
-        const response = await fetch("/api/mcp/servers");
-        if (response.ok) {
-          const data = await response.json();
-          setServers(data.servers || []);
-        }
+        response = await fetch("/api/mcp/servers");
       } catch (error) {
         console.error("Failed to fetch MCP servers:", error);
-      } finally {
-        setLoading(false);
       }
+
+      if (response && response.ok) {
+        let data;
+        try {
+          data = await response.json();
+        } catch (error) {
+          console.error("Failed to parse MCP servers:", error);
+        }
+
+        if (data && data.servers) {
+          setServers(data.servers);
+        } else {
+          setServers([]);
+        }
+      }
+      setLoading(false);
     };
 
     fetchServers();
   }, []);
 
   const handleToggleServer = useCallback(async (serverId: string) => {
+    let success = false;
     try {
       const response = await fetch(`/api/mcp/servers/${serverId}/toggle`, {
         method: "POST",
       });
-      if (response.ok) {
-        setServers((prev) =>
-          prev.map((s) =>
-            s.id === serverId ? { ...s, status: s.status === "active" ? "inactive" : "active" } : s
-          )
-        );
-      }
+      success = response.ok;
     } catch (error) {
       console.error("Failed to toggle MCP server:", error);
+    }
+
+    if (success) {
+      setServers((prev) =>
+        prev.map((s) =>
+          s.id === serverId ? { ...s, status: s.status === "active" ? "inactive" : "active" } : s
+        )
+      );
     }
   }, []);
 
   const handleToggleTool = useCallback(async (serverId: string, toolName: string) => {
+    let response;
     try {
-      const response = await fetch(`/api/mcp/servers/${serverId}/tools/${toolName}/toggle`, {
+      response = await fetch(`/api/mcp/servers/${serverId}/tools/${toolName}/toggle`, {
         method: "POST",
       });
-      if (response.ok) {
-        // Refresh servers to get updated tool states
-        const data = await response.json();
-        setServers((prev) => prev.map((s) => (s.id === serverId ? data : s)));
-      }
     } catch (error) {
       console.error("Failed to toggle MCP tool:", error);
+    }
+
+    if (response && response.ok) {
+      let data;
+      try {
+        data = await response.json();
+      } catch (error) {
+        console.error("Failed to parse toggle result:", error);
+      }
+
+      if (data) {
+        setServers((prev) => prev.map((s) => (s.id === serverId ? data : s)));
+      }
     }
   }, []);
 
