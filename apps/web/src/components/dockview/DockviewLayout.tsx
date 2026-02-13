@@ -78,6 +78,7 @@ function DockviewLayoutInner(): React.JSX.Element {
         watermarkComponent={WatermarkComponent}
         onReady={handleReady}
         disableAutoResizing={false}
+        hideHeaderActions={true}
       />
     </div>
   );
