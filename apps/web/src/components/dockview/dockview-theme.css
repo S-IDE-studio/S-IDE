@@ -9,6 +9,8 @@
  * Note: theme.css is imported in styles.css before this file
  */
 
+@import "dockview/dist/styles/dockview.css";
+
 /* ========================================
    S-IDE Custom dockview Theme
    ======================================== */
@@ -22,47 +24,47 @@
      ======================================== */
 
   /* Base backgrounds */
-  --dv-group-view-background-color: var(--color-bg);
-  --dv-tabs-and-actions-container-background-color: var(--color-bg-soft);
+  --dv-group-view-background-color: var(--color-bg, #000000);
+  --dv-tabs-and-actions-container-background-color: var(--color-bg-soft, #0a0a0a);
 
   /* Active group - visible panel */
-  --dv-activegroup-visiblepanel-tab-background-color: var(--color-bg);
-  --dv-activegroup-visiblepanel-tab-color: var(--color-fg);
+  --dv-activegroup-visiblepanel-tab-background-color: var(--color-bg, #000000);
+  --dv-activegroup-visiblepanel-tab-color: var(--color-fg, #ffffff);
 
   /* Active group - hidden panel */
-  --dv-activegroup-hiddenpanel-tab-background-color: var(--color-bg-tertiary);
-  --dv-activegroup-hiddenpanel-tab-color: var(--color-fg-dim);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--color-bg-tertiary, #141414);
+  --dv-activegroup-hiddenpanel-tab-color: var(--color-fg-dim, #888888);
 
   /* Inactive group - visible panel */
-  --dv-inactivegroup-visiblepanel-tab-background-color: var(--color-bg);
-  --dv-inactivegroup-visiblepanel-tab-color: var(--color-fg-dim);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--color-bg, #000000);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--color-fg-dim, #888888);
 
   /* Inactive group - hidden panel */
-  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--color-bg-soft);
-  --dv-inactivegroup-hiddenpanel-tab-color: var(--color-muted);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--color-bg-soft, #0a0a0a);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--color-muted, #666666);
 
-  /* Dividers and borders - hidden for clean look */
-  --dv-tab-divider-color: transparent;
-  --dv-separator-border: transparent;
+  /* Dividers and borders */
+  --dv-tab-divider-color: var(--border, transparent);
+  --dv-separator-border: var(--border-active, #ffffff);
   --dv-paneview-header-border-color: rgba(255, 255, 255, 0.1);
 
   /* Interactive elements */
-  --dv-icon-hover-background-color: var(--color-hover);
+  --dv-icon-hover-background-color: var(--color-hover, rgba(255, 255, 255, 0.1));
   --dv-drag-over-background-color: rgba(255, 255, 255, 0.08);
-  --dv-drag-over-border-color: var(--color-accent-dim);
+  --dv-drag-over-border-color: var(--color-accent-dim, #666666);
 
   /* Sash (resize handle) */
   --dv-sash-color: transparent;
-  --dv-active-sash-color: var(--color-accent);
+  --dv-active-sash-color: var(--color-accent, #ffffff);
   --dv-active-sash-transition-duration: 0.1s;
   --dv-active-sash-transition-delay: 0.5s;
 
   /* Scrollbar */
-  --dv-tabs-container-scrollbar-color: var(--color-muted);
+  --dv-tabs-container-scrollbar-color: var(--color-muted, #666666);
   --dv-scrollbar-background-color: rgba(255, 255, 255, 0.25);
 
-  /* Focus and active states - hidden for minimal look */
-  --dv-paneview-active-outline-color: transparent;
+  /* Focus and active states */
+  --dv-paneview-active-outline-color: var(--color-accent-dim, #666666);
 
   /* ========================================
      Layout & Typography
