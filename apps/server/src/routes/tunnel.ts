@@ -5,12 +5,12 @@
  * Uses localtunnel for creating public HTTPS URLs to local servers.
  */
 
-import { Hono } from "hono";
-import type { DatabaseSync } from "node:sqlite";
 import crypto from "node:crypto";
-import localtunnel from "localtunnel";
+import type { DatabaseSync } from "node:sqlite";
+import { Hono } from "hono";
 import type { Tunnel } from "localtunnel";
-import { handleError, createHttpError } from "../utils/error.js";
+import localtunnel from "localtunnel";
+import { createHttpError, handleError } from "../utils/error.js";
 
 /**
  * Tunnel status information
@@ -52,14 +52,14 @@ function addLog(level: "info" | "error" | "warning", message: string): void {
     level,
     message,
   };
-  
+
   tunnelLogs.push(log);
-  
+
   // Keep only last 100 logs
   if (tunnelLogs.length > 100) {
     tunnelLogs = tunnelLogs.slice(-100);
   }
-  
+
   console.log(`[TUNNEL] [${level.toUpperCase()}] ${message}`);
 }
 
@@ -68,13 +68,13 @@ function addLog(level: "info" | "error" | "warning", message: string): void {
  */
 async function startLocaltunnel(port: number, subdomain?: string): Promise<Tunnel> {
   addLog("info", `Starting localtunnel on port ${port}...`);
-  
+
   try {
     const tunnel = await localtunnel({
       port,
       subdomain,
     });
-    
+
     // Handle tunnel events
     tunnel.on("close", () => {
       addLog("warning", "Tunnel closed");
@@ -83,11 +83,11 @@ async function startLocaltunnel(port: number, subdomain?: string): Promise<Tunne
         tunnelStatus.running = false;
       }
     });
-    
+
     tunnel.on("error", (err: Error) => {
       addLog("error", `Tunnel error: ${err.message}`);
     });
-    
+
     addLog("info", `Tunnel established: ${tunnel.url}`);
     return tunnel;
   } catch (error) {
@@ -155,7 +155,7 @@ export function createTunnelRouter(db?: DatabaseSync) {
           INSERT INTO tunnel_configs (id, type, port, auto_start, settings, created_at)
           VALUES (?, ?, ?, ?, ?, ?)
         `);
-        
+
         stmt.run(
           id,
           "localtunnel",
@@ -209,7 +209,9 @@ export function createTunnelRouter(db?: DatabaseSync) {
   router.get("/logs", async (c) => {
     try {
       return c.json({
-        logs: tunnelLogs.map(log => `[${log.timestamp}] [${log.level.toUpperCase()}] ${log.message}`),
+        logs: tunnelLogs.map(
+          (log) => `[${log.timestamp}] [${log.level.toUpperCase()}] ${log.message}`
+        ),
       });
     } catch (error) {
       return handleError(c, error);

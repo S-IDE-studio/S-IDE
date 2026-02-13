@@ -4,8 +4,8 @@
  * Tracks agent usage metrics including uptime, token usage, and context usage.
  */
 
-import type { DatabaseSync } from "node:sqlite";
 import crypto from "node:crypto";
+import type { DatabaseSync } from "node:sqlite";
 import type { AgentId } from "../types.js";
 
 /**
@@ -100,7 +100,7 @@ export function getAgentMetrics(agentId: AgentId): {
   contextUsage: number;
 } {
   const process = agentProcesses.get(agentId);
-  
+
   if (!process) {
     return {
       uptime: 0,
@@ -124,7 +124,7 @@ export function getAgentMetrics(agentId: AgentId): {
  */
 export function persistAgentMetrics(db: DatabaseSync, agentId: AgentId): void {
   const process = agentProcesses.get(agentId);
-  
+
   if (!process) {
     return;
   }
@@ -180,7 +180,10 @@ export function getAgentMetricsHistory(
 /**
  * Start periodic metrics collection
  */
-export function startPeriodicMetricsCollection(db: DatabaseSync, intervalSeconds: number = 30): NodeJS.Timeout {
+export function startPeriodicMetricsCollection(
+  db: DatabaseSync,
+  intervalSeconds: number = 30
+): NodeJS.Timeout {
   console.log(`[METRICS] Starting periodic collection every ${intervalSeconds}s`);
 
   return setInterval(() => {

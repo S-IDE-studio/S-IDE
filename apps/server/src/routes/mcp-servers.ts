@@ -5,10 +5,10 @@
  * These servers provide additional tools and capabilities to agents.
  */
 
-import { Hono } from "hono";
-import type { DatabaseSync } from "node:sqlite";
 import crypto from "node:crypto";
-import { handleError, createHttpError } from "../utils/error.js";
+import type { DatabaseSync } from "node:sqlite";
+import { Hono } from "hono";
+import { createHttpError, handleError } from "../utils/error.js";
 
 /**
  * MCP Server configuration
@@ -79,7 +79,9 @@ export function createMCPServerRouter(db: DatabaseSync) {
         };
 
         // Get tools for this server
-        const toolsStmt = db.prepare("SELECT tool_name, enabled FROM mcp_tool_states WHERE server_id = ?");
+        const toolsStmt = db.prepare(
+          "SELECT tool_name, enabled FROM mcp_tool_states WHERE server_id = ?"
+        );
         const toolRows = toolsStmt.all(row.id) as unknown[];
         server.tools = toolRows.map((t: any) => ({
           name: t.tool_name,
@@ -124,7 +126,9 @@ export function createMCPServerRouter(db: DatabaseSync) {
       };
 
       // Get tools
-      const toolsStmt = db.prepare("SELECT tool_name, enabled FROM mcp_tool_states WHERE server_id = ?");
+      const toolsStmt = db.prepare(
+        "SELECT tool_name, enabled FROM mcp_tool_states WHERE server_id = ?"
+      );
       const toolRows = toolsStmt.all(row.id) as unknown[];
       server.tools = toolRows.map((t: any) => ({
         name: t.tool_name,
@@ -285,9 +289,11 @@ export function createMCPServerRouter(db: DatabaseSync) {
       }
 
       // Get tools
-      const toolsStmt = db.prepare("SELECT tool_name, enabled FROM mcp_tool_states WHERE server_id = ?");
+      const toolsStmt = db.prepare(
+        "SELECT tool_name, enabled FROM mcp_tool_states WHERE server_id = ?"
+      );
       const toolRows = toolsStmt.all(id) as unknown[];
-      
+
       const tools = toolRows.map((t: any) => ({
         name: t.tool_name,
         enabled: Boolean(t.enabled),
@@ -316,7 +322,9 @@ export function createMCPServerRouter(db: DatabaseSync) {
       }
 
       // Get current tool state
-      const getStmt = db.prepare("SELECT enabled FROM mcp_tool_states WHERE server_id = ? AND tool_name = ?");
+      const getStmt = db.prepare(
+        "SELECT enabled FROM mcp_tool_states WHERE server_id = ? AND tool_name = ?"
+      );
       const toolRow = getStmt.get(id, toolName) as { enabled: number } | undefined;
 
       if (!toolRow) {

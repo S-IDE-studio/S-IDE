@@ -8,8 +8,8 @@
 import { Hono } from "hono";
 import type { AgentInterface } from "../agents/base/AgentInterface.js";
 import type { AgentId } from "../agents/types.js";
-import { createHttpError, handleError, readJson } from "../utils/error.js";
 import { getAgentMetrics, startAgentTracking } from "../utils/agent-metrics.js";
+import { createHttpError, handleError, readJson } from "../utils/error.js";
 
 /**
  * Agent status information
@@ -36,7 +36,7 @@ const agentRegistry = new Map<AgentId, AgentInterface>();
  */
 export function registerAgent(agent: AgentInterface): void {
   agentRegistry.set(agent.id, agent);
-  
+
   // Start tracking metrics for this agent
   startAgentTracking(agent.id);
 }
@@ -102,7 +102,7 @@ export function createAgentRouter() {
         agents.map(async (agent) => {
           const available = await agent.isAvailable();
           const config = await agent.getConfig();
-          
+
           // Get real metrics
           const metrics = getAgentMetrics(agent.id);
 

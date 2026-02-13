@@ -4,9 +4,9 @@
  * Provides endpoints for checking system environment and tool availability
  */
 
-import { Hono } from "hono";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
+import { Hono } from "hono";
 import { handleError } from "../utils/error.js";
 
 const execAsync = promisify(exec);
@@ -59,11 +59,11 @@ async function checkToolVersion(
     const { stdout, stderr } = await execAsync(`${command} ${versionFlag}`, {
       timeout: 5000,
     });
-    
+
     const output = stdout || stderr;
     const lines = output.trim().split("\n");
     const versionLine = lines[0];
-    
+
     // Try to find the path
     let path: string | undefined;
     try {

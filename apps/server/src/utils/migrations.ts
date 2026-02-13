@@ -18,9 +18,9 @@ export interface Migration {
  */
 export function getCurrentVersion(db: DatabaseSync): number {
   try {
-    const result = db.prepare("SELECT version FROM schema_version ORDER BY version DESC LIMIT 1").get() as
-      | { version: number }
-      | undefined;
+    const result = db
+      .prepare("SELECT version FROM schema_version ORDER BY version DESC LIMIT 1")
+      .get() as { version: number } | undefined;
     return result?.version || 0;
   } catch {
     // Table doesn't exist yet
@@ -80,7 +80,7 @@ export function runMigrations(db: DatabaseSync, migrations: Migration[]): void {
  */
 export function rollbackTo(db: DatabaseSync, migrations: Migration[], targetVersion: number): void {
   const currentVersion = getCurrentVersion(db);
-  
+
   if (targetVersion >= currentVersion) {
     console.log("[DB] Already at or below target version");
     return;
@@ -98,7 +98,7 @@ export function rollbackTo(db: DatabaseSync, migrations: Migration[], targetVers
     }
 
     console.log(`[DB] Rolling back migration ${migration.version}: ${migration.name}`);
-    
+
     try {
       migration.down(db);
       db.prepare("DELETE FROM schema_version WHERE version = ?").run(migration.version);

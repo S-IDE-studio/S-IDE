@@ -178,7 +178,7 @@ export async function createServer(portOverride?: number): Promise<Server> {
 
   // Initialize agent router
   const agentRouter = initializeAgentRouter();
-  
+
   // Start periodic agent metrics collection
   const { startPeriodicMetricsCollection } = await import("./utils/agent-metrics.js");
   const metricsInterval = startPeriodicMetricsCollection(db, 30); // Every 30 seconds

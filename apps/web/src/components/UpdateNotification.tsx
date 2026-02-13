@@ -106,7 +106,7 @@ export function useUpdateCheck() {
     try {
       const result = await check();
       console.log("[UpdateCheck] Update check result:", result);
-      
+
       if (result?.available) {
         console.log("[UpdateCheck] Update available:", {
           current: result.currentVersion,
