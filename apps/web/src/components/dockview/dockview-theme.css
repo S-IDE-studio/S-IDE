@@ -152,12 +152,6 @@
   border-top: 1px solid var(--color-accent, #ffffff) !important;
 }
 
-/* Tab hover state - subtle feedback */
-.dockview-theme-side .dv-tab:hover {
-  background-color: var(--color-hover) !important;
-  border-top: none !important;
-}
-
 /* Tab close button - ensure visibility */
 .dockview-theme-side .dv-tab .panel-tab-close {
   opacity: 1 !important;
@@ -165,17 +159,30 @@
 
 .dockview-theme-side .dv-tab .panel-tab-close:hover {
   background-color: var(--color-list-hover) !important;
-  border-top: none !important;
 }
 
-/* Tab hover state - only when NOT hovering close button */
-.dockview-theme-side .dv-tab:not(:has(.panel-tab-close:hover)):hover {
+/* When hovering close button on active tab, remove top border from parent */
+.dockview-theme-side .dv-tab.active .panel-tab-close:hover {
+  border-top: 1px solid var(--color-bg, #000000) !important;
+  position: relative;
+}
+
+.dockview-theme-side .dv-tab.active .panel-tab-close:hover::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: var(--color-bg, #000000);
+}
+
+/* Tab hover state - subtle feedback (but not when hovering close button) */
+.dockview-theme-side .dv-tab:hover:not(:has(.panel-tab-close:hover)) {
   background-color: var(--color-hover) !important;
-  border-top: none !important;
 }
 
-/* Active tab hover state - keep top border when NOT hovering close button */
-.dockview-theme-side .dv-tab.active:not(:has(.panel-tab-close:hover)):hover {
+.dockview-theme-side .dv-tab.active:hover:not(:has(.panel-tab-close:hover)) {
   border-top: 1px solid var(--color-accent, #ffffff) !important;
 }
 
