@@ -11,7 +11,6 @@ import type { Server } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { Command } from "commander";
-import { createServer } from "./server.js";
 
 export const program = new Command();
 
@@ -216,6 +215,7 @@ program
       console.log(`Starting S-IDE server on ${host}:${port}...`);
 
       try {
+        const { createServer } = await import("./server.js");
         const server = await createServer(port);
         writePidFile(process.pid);
         setupGracefulShutdown(server);
@@ -394,5 +394,7 @@ configCmd
     console.log(`✓ Unset ${key}`);
   });
 
-// Parse arguments
-program.parse();
+// Parse arguments only if this file is run directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  program.parse();
+}
