@@ -91,6 +91,7 @@ pub fn find_tailscale_command() -> Option<String> {
         cmd.arg("tailscale.exe");
         
         // Hide console window
+        #[allow(unused_imports)]
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         cmd.creation_flags(CREATE_NO_WINDOW);
@@ -139,6 +140,7 @@ pub async fn get_status_summary() -> TailscaleStatusSummary {
     // Hide console window on Windows
     #[cfg(target_os = "windows")]
     {
+        #[allow(unused_imports)]
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         cmd.creation_flags(CREATE_NO_WINDOW);

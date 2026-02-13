@@ -34,11 +34,11 @@ export function useShells(): UseShellsResult {
       setShells(shellsData.shells);
       setDefaultShellState(defaultShellData);
       setIsUserConfigured(defaultShellData.isUserConfigured);
+      setLoading(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load shells";
       setError(message);
       console.error("[useShells] Failed to load shells:", err);
-    } finally {
       setLoading(false);
     }
   }, []);
@@ -54,11 +54,11 @@ export function useShells(): UseShellsResult {
       setShells(shellsData.shells);
       setDefaultShellState(defaultShellData);
       setIsUserConfigured(defaultShellData.isUserConfigured);
+      setLoading(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to refresh shells";
       setError(message);
       console.error("[useShells] Failed to refresh shells:", err);
-    } finally {
       setLoading(false);
     }
   }, []);
