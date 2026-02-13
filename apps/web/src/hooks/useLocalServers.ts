@@ -51,6 +51,21 @@ export interface ScanOptions {
   useNmap?: boolean;
 }
 
+// Import Tauri API at module level to avoid dynamic imports in component
+let tauriCore: typeof import("@tauri-apps/api/core") | null = null;
+
+async function getTauriCore() {
+  if (!tauriCore) {
+    try {
+      tauriCore = await import("@tauri-apps/api/core");
+    } catch {
+      // Not in Tauri environment
+      return null;
+    }
+  }
+  return tauriCore;
+}
+
 /**
  * Hook to scan and track local development servers
  * @param refreshInterval - Polling interval in milliseconds (default: 5000)
@@ -61,10 +76,12 @@ export function useLocalServers(refreshInterval: number = 5000): LocalServersRes
 
   const refresh = async () => {
     setIsScanning(true);
-    try {
-      // Try Tauri command first
+
+    // Try Tauri command first
+    const tauri = await getTauriCore();
+
+    if (tauri) {
       try {
-        const tauri = await import("@tauri-apps/api/core");
         const result = await tauri.invoke<LocalServer[]>("scan_local_servers");
 
         // Fetch MCP servers for each detected server
@@ -83,18 +100,26 @@ export function useLocalServers(refreshInterval: number = 5000): LocalServersRes
         );
 
         setServers(serversWithMCP);
+        setIsScanning(false);
       } catch (tauriError) {
-        // Not in Tauri environment, fallback to manual server check
-        // This can happen in web browser mode
-        console.log("[useLocalServers] Not in Tauri environment, using fallback");
+        // Tauri command failed, fallback to manual server check
+        console.log("[useLocalServers] Tauri command failed, using fallback");
         const fallbackServers = await scanFallbackServers();
         setServers(fallbackServers);
+        setIsScanning(false);
       }
-    } catch (error) {
-      console.error("[useLocalServers] Failed to scan servers:", error);
-      setServers([]);
-    } finally {
-      setIsScanning(false);
+    } else {
+      // Not in Tauri environment, fallback to manual server check
+      console.log("[useLocalServers] Not in Tauri environment, using fallback");
+      try {
+        const fallbackServers = await scanFallbackServers();
+        setServers(fallbackServers);
+        setIsScanning(false);
+      } catch (error) {
+        console.error("[useLocalServers] Failed to scan servers:", error);
+        setServers([]);
+        setIsScanning(false);
+      }
     }
   };
 

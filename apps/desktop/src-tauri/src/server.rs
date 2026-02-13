@@ -136,6 +136,7 @@ fn start_dev_server(port: u16) -> Result<ServerHandle, String> {
             .kill_on_drop(true);
         
         // Hide console window
+        #[allow(unused_imports)]
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         cmd.creation_flags(CREATE_NO_WINDOW);
@@ -196,6 +197,7 @@ fn start_production_server(port: u16) -> Result<ServerHandle, String> {
     // Hide console window on Windows in production
     #[cfg(target_os = "windows")]
     {
+        #[allow(unused_imports)]
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         const DETACHED_PROCESS: u32 = 0x00000008;

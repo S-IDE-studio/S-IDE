@@ -75,26 +75,42 @@ export function useTabsPresenceSync(opts: {
   }, [opts.workspaceStates]);
 
   const sendRef = useRef<() => Promise<void>>(async () => {});
-  sendRef.current = async () => {
-    const groups = panelGroupsRef.current;
-    if (!enabled || groups.length === 0) return;
+  useEffect(() => {
+    sendRef.current = async () => {
+      const groups = panelGroupsRef.current;
+      if (!enabled || groups.length === 0) return;
 
-    const activeTab = getFocusedActiveTab(groups);
-    const activeSyncKey = activeTab
-      ? getTabSyncKey(activeTab, { workspaceStates: workspaceStatesRef.current })
-      : null;
+      const activeTab = getFocusedActiveTab(groups);
+      const activeSyncKey = activeTab
+        ? getTabSyncKey(activeTab, { workspaceStates: workspaceStatesRef.current })
+        : null;
 
-    const outgoingTabs = presenceTabsRef.current;
+      const outgoingTabs = presenceTabsRef.current;
 
-    try {
-      const res = await postTabsPresence({
-        clientId: clientIdRef.current,
-        activeSyncKey,
-        tabs: outgoingTabs,
-      });
+      let res;
+      try {
+        res = await postTabsPresence({
+          clientId: clientIdRef.current,
+          activeSyncKey,
+          tabs: outgoingTabs,
+        });
+      } catch (err) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[tabs-sync] presence failed:", err);
+        }
+        return;
+      }
 
-      const union = Array.isArray(res?.tabs) ? res.tabs : [];
-      const unionKeys = new Set<string>(union.map((t) => String(t.syncKey || "")).filter(Boolean));
+      // Extract and process response outside of try/catch
+      const resTabs = res?.tabs;
+      const union = Array.isArray(resTabs) ? resTabs : [];
+      const unionKeysArray = union
+        .map((t) => {
+          const syncKey = t.syncKey;
+          return syncKey ? String(syncKey) : "";
+        })
+        .filter(Boolean);
+      const unionKeys = new Set<string>(unionKeysArray);
 
       opts.setPanelGroupsMap((prev) => {
         const firstGroupId = groups[0]?.id ?? Object.keys(prev)[0];
@@ -181,12 +197,8 @@ export function useTabsPresenceSync(opts: {
 
         return changed ? next : prev;
       });
-    } catch (err) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[tabs-sync] presence failed:", err);
-      }
-    }
-  };
+    };
+  });
 
   // Heartbeat: set up once (per enable/disable) to keep presence alive and detect union updates.
   useEffect(() => {

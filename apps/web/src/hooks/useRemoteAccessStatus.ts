@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 
 // Check if running in Tauri (Tauri v2 uses __TAURI_INTERNALS__)
@@ -50,9 +51,11 @@ export function useRemoteAccessStatus(): RemoteAccessStatus {
 
     const checkStatus = async () => {
       if (signal.aborted) return;
+      let result;
+      let error;
+
       try {
-        const tauri = await import("@tauri-apps/api/core");
-        const result = (await tauri.invoke("get_remote_access_status")) as {
+        result = (await invoke("get_remote_access_status")) as {
           installed: boolean;
           backend_state?: string | null;
           auth_url?: string | null;
@@ -63,8 +66,28 @@ export function useRemoteAccessStatus(): RemoteAccessStatus {
           serve_url?: string | null;
           settings?: { auto_start?: boolean } | null;
         };
+      } catch (e) {
+        error = e;
+      }
 
-        if (signal.aborted) return;
+      if (signal.aborted) return;
+
+      if (error) {
+        const errorMessage = typeof error === "string" ? error : String(error);
+        setState((s) => ({
+          ...s,
+          installed: false,
+          backendState: null,
+          authUrl: null,
+          dnsName: null,
+          hostname: null,
+          ips: [],
+          serveEnabled: false,
+          serveUrl: null,
+          settings: null,
+          lastError: errorMessage,
+        }));
+      } else if (result) {
         setState({
           isTauri: true,
           installed: Boolean(result.installed),
@@ -78,21 +101,6 @@ export function useRemoteAccessStatus(): RemoteAccessStatus {
           settings: result.settings ? { autoStart: Boolean(result.settings.auto_start) } : null,
           lastError: null,
         });
-      } catch (e) {
-        if (signal.aborted) return;
-        setState((s) => ({
-          ...s,
-          installed: false,
-          backendState: null,
-          authUrl: null,
-          dnsName: null,
-          hostname: null,
-          ips: [],
-          serveEnabled: false,
-          serveUrl: null,
-          settings: null,
-          lastError: typeof e === "string" ? e : String(e),
-        }));
       }
     };
 
