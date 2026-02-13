@@ -131,11 +131,18 @@
   background-color: var(--color-bg) !important;
   color: var(--color-fg) !important;
   opacity: 1 !important;
+  border-top: 1px solid var(--color-accent, #ffffff) !important;
+}
+
+/* Default tab - no top border */
+.dockview-theme-side .dv-tab {
+  border-top: none !important;
 }
 
 /* Tab hover state - subtle feedback */
 .dockview-theme-side .dv-tab:hover {
   background-color: var(--color-hover) !important;
+  border-top: none !important;
 }
 
 /* Tab close button - ensure visibility */
@@ -195,9 +202,11 @@
   color: var(--color-fg);
   /* Dockview standard tab height and padding */
   height: 35px;
-  padding: 0 8px;
+  padding: 0 6px;
   /* Dockview standard border radius */
   border-radius: var(--dv-border-radius, 0px);
+  /* Default no top border */
+  border-top: none !important;
 }
 
 /* Force monochrome tabs container */
