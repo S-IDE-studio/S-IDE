@@ -36,6 +36,7 @@ import { createAgentBridgeRouter } from "./routes/agent-bridge.js";
 import { getAllAgents, initializeAgentRouter, registerAgent } from "./routes/agents.js";
 import { createContextManagerRouter } from "./routes/context-manager.js";
 import { createDeckRouter } from "./routes/decks.js";
+import { createEnvCheckRouter } from "./routes/env-check.js";
 import { createFileRouter } from "./routes/files.js";
 import { createGitRouter } from "./routes/git.js";
 import { createLocalServerRouter } from "./routes/local-server.js";
@@ -196,6 +197,7 @@ export async function createServer(portOverride?: number): Promise<Server> {
   app.route("/api/bridge", createAgentBridgeRouter());
   app.route("/api/mcp", createMCPServerRouter(db));
   app.route("/api/local-server", createLocalServerRouter());
+  app.route("/api/env", createEnvCheckRouter());
   app.route("/api/tunnel", createTunnelRouter(db));
   app.route("/api/tabs", createTabsRouter());
 
