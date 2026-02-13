@@ -140,12 +140,15 @@
   border-radius: var(--dv-border-radius, 0px);
   /* Default no top border */
   border-top: none !important;
+  /* For pseudo-element positioning */
+  position: relative;
   /* Smooth transition for hover */
   transition: background-color 0.15s ease, border-top 0s;
 }
 
 /* Tab active state - Dockview standard */
-.dockview-theme-side .dv-tab.active {
+.dockview-theme-side .dv-tab.active,
+.dockview-theme-side .dv-tab.dv-active-tab {
   background-color: var(--color-bg) !important;
   color: var(--color-fg) !important;
   opacity: 1 !important;
@@ -161,28 +164,25 @@
   background-color: var(--color-list-hover) !important;
 }
 
-/* When hovering close button on active tab, remove top border from parent */
-.dockview-theme-side .dv-tab.active .panel-tab-close:hover {
-  border-top: 1px solid var(--color-bg, #000000) !important;
-  position: relative;
-}
-
-.dockview-theme-side .dv-tab.active .panel-tab-close:hover::before {
+/* When hovering close button, overlay border with background color */
+.dockview-theme-side .dv-tab .panel-tab-close:hover::before {
   content: "";
   position: absolute;
-  top: 0;
+  top: -1px;
   left: 0;
   right: 0;
   height: 1px;
   background-color: var(--color-bg, #000000);
+  z-index: 1;
 }
 
-/* Tab hover state - subtle feedback (but not when hovering close button) */
-.dockview-theme-side .dv-tab:hover:not(:has(.panel-tab-close:hover)) {
+/* Tab hover state - subtle feedback */
+.dockview-theme-side .dv-tab:hover {
   background-color: var(--color-hover) !important;
 }
 
-.dockview-theme-side .dv-tab.active:hover:not(:has(.panel-tab-close:hover)) {
+.dockview-theme-side .dv-tab.active:hover,
+.dockview-theme-side .dv-tab.dv-active-tab:hover {
   border-top: 1px solid var(--color-accent, #ffffff) !important;
 }
 
