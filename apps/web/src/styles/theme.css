@@ -97,10 +97,15 @@
   --bg-soft: var(--color-bg-soft);
   --bg-tertiary: var(--color-bg-tertiary);
   --panel: var(--color-panel);
+  --sidebar: var(--color-bg-soft);
+  --activitybar: var(--color-bg-soft);
   --fg: var(--color-fg);
+  --fg-dim: var(--color-fg-dim);
+  --fg-muted: var(--color-fg-muted);
   --ink: var(--color-fg);
   --ink-muted: var(--color-fg-dim);
   --muted: var(--color-fg-muted);
+  --text: var(--color-fg);
   --accent: var(--color-accent);
   --accent-dim: var(--color-accent-dim);
   --border: var(--color-border);
