@@ -126,17 +126,30 @@
      Tab Styling
      ======================================== */
 
+/* Base tab styles - must come first */
+.dockview-theme-side .dv-tab {
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto !important;
+  /* Force monochrome background */
+  background-color: var(--color-bg) !important;
+  color: var(--color-fg);
+  /* Dockview standard tab height and no padding */
+  height: 35px;
+  padding: 0;
+  /* Dockview standard border radius */
+  border-radius: var(--dv-border-radius, 0px);
+  /* Default no top border */
+  border-top: none !important;
+  /* Smooth transition for hover */
+  transition: background-color 0.15s ease, border-top 0s;
+}
+
 /* Tab active state - Dockview standard */
 .dockview-theme-side .dv-tab.active {
   background-color: var(--color-bg) !important;
   color: var(--color-fg) !important;
   opacity: 1 !important;
   border-top: 1px solid var(--color-accent, #ffffff) !important;
-}
-
-/* Default tab - no top border */
-.dockview-theme-side .dv-tab {
-  border-top: none !important;
 }
 
 /* Tab hover state - subtle feedback */
@@ -191,22 +204,6 @@
   font-size: 10px;
   margin-left: 4px;
   flex-shrink: 0;
-}
-
-/* Force monochrome tab backgrounds - Dockview standard */
-.dockview-theme-side .dv-tab {
-  -webkit-app-region: no-drag !important;
-  pointer-events: auto !important;
-  /* Force monochrome background */
-  background-color: var(--color-bg) !important;
-  color: var(--color-fg);
-  /* Dockview standard tab height and padding */
-  height: 35px;
-  padding: 0 6px;
-  /* Dockview standard border radius */
-  border-radius: var(--dv-border-radius, 0px);
-  /* Default no top border */
-  border-top: none !important;
 }
 
 /* Force monochrome tabs container */
