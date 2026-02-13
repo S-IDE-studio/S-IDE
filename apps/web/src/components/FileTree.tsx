@@ -225,28 +225,31 @@ export function FileTree({
     [handleInputSubmit]
   );
 
-  const renderFileIcon = useCallback((entry: FileTreeNode) => {
-    const iconFile =
-      entry.type === "dir"
-        ? entry.expanded
-          ? getIconForOpenFolder(entry.name)
-          : getIconForFolder(entry.name)
-        : getIconForFile(entry.name) || DEFAULT_FILE;
+  const renderFileIcon = useCallback(
+    (entry: FileTreeNode) => {
+      const iconFile =
+        entry.type === "dir"
+          ? entry.expanded
+            ? getIconForOpenFolder(entry.name)
+            : getIconForFolder(entry.name)
+          : getIconForFile(entry.name) || DEFAULT_FILE;
 
-    if (variant === "deck") {
-      return (
-        <img
-          src={getVscodeIconUrl(iconFile)}
-          alt=""
-          aria-hidden="true"
-          className="tree-icon-img"
-          loading="lazy"
-        />
-      );
-    }
+      if (variant === "deck") {
+        return (
+          <img
+            src={getVscodeIconUrl(iconFile)}
+            alt=""
+            aria-hidden="true"
+            className="tree-icon-img"
+            loading="lazy"
+          />
+        );
+      }
 
-    return entry.type === "dir" ? <FolderIcon /> : <FileIcon />;
-  }, [variant]);
+      return entry.type === "dir" ? <FolderIcon /> : <FileIcon />;
+    },
+    [variant]
+  );
 
   const renderNewItemInput = (depth: number) => {
     if (!newItemInput || newItemInput.depth !== depth) return null;
@@ -329,7 +332,10 @@ export function FileTree({
     });
 
   return (
-    <section className={`panel file-tree ${variant === "deck" ? "is-deck-tree" : ""}`} ref={treeRef}>
+    <section
+      className={`panel file-tree ${variant === "deck" ? "is-deck-tree" : ""}`}
+      ref={treeRef}
+    >
       <div className="panel-header">
         <div>
           <div className="panel-title">{variant === "deck" ? rootName : LABEL_FILES}</div>

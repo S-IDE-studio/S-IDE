@@ -14,6 +14,12 @@ import {
   TERMINAL_SCROLLBACK,
   TERMINAL_WEBSOCKET_NORMAL_CLOSE,
 } from "../../constants";
+import {
+  getActiveTerminalId,
+  registerTerminalSender,
+  setActiveTerminalId,
+} from "../../utils/terminalInputBridge";
+import { createResizeGuardState, shouldEmitResize } from "../../utils/terminalResizeGuard";
 
 const TEXT_BOOT = "ターミナルを起動しました: ";
 const TEXT_CONNECTED = "接続しました。";
@@ -47,7 +53,17 @@ export function TerminalPanelContent({
     let isIntentionalClose = false;
     let reconnectAttempts = 0;
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    let resizeRafId: number | null = null;
     let hasConnectedOnce = false;
+    const resizeGuardState = createResizeGuardState();
+    const unregisterTerminalSender = registerTerminalSender(terminal.id, (payload) => {
+      const currentSocket = socketRef.current;
+      if (!currentSocket || currentSocket.readyState !== WebSocket.OPEN) {
+        return false;
+      }
+      currentSocket.send(payload);
+      return true;
+    });
 
     containerRef.current.innerHTML = "";
     containerRef.current.style.width = "100%";
@@ -135,6 +151,7 @@ export function TerminalPanelContent({
           // Focus terminal when opened and on click
           const focusHandler = () => {
             console.log("[Terminal] Click handler: focusing terminal");
+            setActiveTerminalId(terminal.id);
             term.focus();
             if (canvas) canvas.focus();
           };
@@ -154,6 +171,7 @@ export function TerminalPanelContent({
 
           // Initial focus after a delay to ensure DOM is ready
           requestAnimationFrame(() => {
+            setActiveTerminalId(terminal.id);
             term.focus();
             if (canvas) canvas.focus();
             console.log("[Terminal] Initial focus applied, terminal element:", term.element);
@@ -176,24 +194,38 @@ export function TerminalPanelContent({
       });
     }, 0);
 
-    const sendResize = () => {
+    const sendResize = (force = false) => {
       const socket = socketRef.current;
       if (!socket || socket.readyState !== WebSocket.OPEN) return;
       const cols = term.cols;
       const rows = term.rows;
       if (!cols || !rows) return;
+      const next = { cols, rows };
+      if (!shouldEmitResize(resizeGuardState, next, { force, now: Date.now() })) {
+        return;
+      }
+
       socket.send(`${RESIZE_MESSAGE_PREFIX}${cols},${rows}`);
     };
 
-    const resizeObserver = new ResizeObserver(() => {
-      if (!cancelled && fitAddonRef.current) {
-        try {
-          fitAddon.fit();
-          sendResize();
-        } catch (err) {
-          console.warn("[Terminal] Error during resize:", err);
-        }
+    const fitAndMaybeResize = (force = false) => {
+      if (cancelled || !fitAddonRef.current) return;
+      try {
+        fitAddonRef.current.fit();
+        sendResize(force);
+      } catch (err) {
+        console.warn("[Terminal] Error during resize:", err);
       }
+    };
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (resizeRafId !== null) {
+        cancelAnimationFrame(resizeRafId);
+      }
+      resizeRafId = requestAnimationFrame(() => {
+        resizeRafId = null;
+        fitAndMaybeResize(false);
+      });
     });
     resizeObserver.observe(containerRef.current);
 
@@ -229,7 +261,7 @@ export function TerminalPanelContent({
           console.log("[Terminal] WebSocket opened for terminal:", terminal.id);
           reconnectAttempts = 0;
           hasConnectedOnce = true;
-          sendResize();
+          fitAndMaybeResize(true);
           if (isReconnect) {
             term.write(`\r\n\x1b[32m${TEXT_CONNECTED}\x1b[0m\r\n`);
           } else {
@@ -282,14 +314,13 @@ export function TerminalPanelContent({
             "socket state:",
             socketRef.current?.readyState
           );
-          const currentSocket = socketRef.current;
-          if (currentSocket && currentSocket.readyState === WebSocket.OPEN) {
+          if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
             console.log("[Terminal] Sending data to WebSocket:", JSON.stringify(data));
-            currentSocket.send(data);
+            socketRef.current.send(data);
           } else {
             console.warn(
               "[Terminal] Cannot send - socket not open. State:",
-              currentSocket?.readyState,
+              socketRef.current?.readyState,
               "WebSocket.OPEN:",
               WebSocket.OPEN
             );
@@ -317,6 +348,9 @@ export function TerminalPanelContent({
       if (reconnectTimeout) {
         clearTimeout(reconnectTimeout);
       }
+      if (resizeRafId !== null) {
+        cancelAnimationFrame(resizeRafId);
+      }
       resizeObserver.disconnect();
 
       // Dispose data handler
@@ -333,6 +367,10 @@ export function TerminalPanelContent({
         socketRef.current.close();
       }
       socketRef.current = null;
+      unregisterTerminalSender();
+      if (getActiveTerminalId() === terminal.id) {
+        setActiveTerminalId(null);
+      }
       term.dispose();
     };
   }, [terminal.id, terminal.command, wsBase]);

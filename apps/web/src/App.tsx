@@ -12,10 +12,10 @@ import { getConfig, getWsBase, listFiles, readFile } from "./api";
 import { CommonSettings } from "./components/AgentSettings";
 import { ContextStatus } from "./components/ContextStatus";
 import { DiffViewer } from "./components/DiffViewer";
-import { getDockviewApiRef } from "./components/dockview/DockviewLayout";
-import { DockviewLayout } from "./components/dockview/DockviewLayout";
+import { DockviewLayout, getDockviewApiRef } from "./components/dockview/DockviewLayout";
 import { EnvironmentModal } from "./components/EnvironmentModal";
 import { GlobalStatusBar } from "./components/GlobalStatusBar";
+import { MobileShortcutBar } from "./components/MobileShortcutBar";
 import { RemoteAccessControl } from "./components/RemoteAccessControl";
 import { ServerModal } from "./components/ServerModal";
 import { ServerStartupScreen } from "./components/ServerStartupScreen";
@@ -40,11 +40,16 @@ import { useGitState } from "./hooks/useGitState";
 import { useServerStatus } from "./hooks/useServerStatus";
 import { useTabsPresenceSync } from "./hooks/useTabsPresenceSync";
 import { useWorkspaces } from "./hooks/useWorkspaces";
-import type { EditorFile, SidebarPanel, UnifiedTab, WorkspaceMode } from "./types";
+import type { EditorFile, SidebarPanel, TabKind, UnifiedTab, WorkspaceMode } from "./types";
 import { getLanguageFromPath, toTreeNodes } from "./utils";
 import { createEditorGroup, createSingleGroupLayout } from "./utils/editorGroupUtils";
+import type { KeyboardShortcutPayload } from "./utils/mobileShortcuts";
 import { createEmptyDeckState, createEmptyWorkspaceState } from "./utils/stateUtils";
 import { resolveDeckIdForNewTerminal } from "./utils/terminalDeckResolver";
+import {
+  sendToActiveTerminal,
+  setActiveTerminalId as setBridgeActiveTerminalId,
+} from "./utils/terminalInputBridge";
 import {
   deckToTab,
   editorToTab,
@@ -54,6 +59,8 @@ import {
   terminalToTab,
 } from "./utils/unifiedTabUtils";
 import { parseUrlState } from "./utils/urlUtils";
+
+const STORAGE_KEY_MOBILE_MODE = "side-ide-mobile-mode";
 
 /** Local type for tabs presence sync compatibility - represents old panel group format */
 interface PanelGroup {
@@ -97,6 +104,9 @@ export default function App() {
   const [isCommonSettingsOpen, setIsCommonSettingsOpen] = useState(false);
   const [sidebarPanel, setSidebarPanel] = useState<SidebarPanel>("files");
   const [selectedServerUrl, setSelectedServerUrl] = useState<string | undefined>();
+  const [isMobileMode, setIsMobileMode] = useState(false);
+  const [activeTabKind, setActiveTabKind] = useState<TabKind | null>(null);
+  const [activeTerminalId, setActiveTerminalId] = useState<string | null>(null);
 
   // Agent state
   const [agents, setAgents] = useState<
@@ -144,7 +154,7 @@ export default function App() {
       const api = dockviewApiRef.current;
       if (api && api.panels.length === 0) {
         console.log("[App] Opening default panels to initialize dockview");
-        
+
         // Open Server Settings as the first panel
         const serverSettingsTab = serverSettingsToTab();
         api.addPanel({
@@ -153,7 +163,7 @@ export default function App() {
           title: serverSettingsTab.title,
           params: { tab: serverSettingsTab },
         });
-        
+
         // Open Remote Access in a split view to create drop zones
         setTimeout(() => {
           const remoteAccessTab = remoteAccessToTab();
@@ -162,7 +172,7 @@ export default function App() {
             component: remoteAccessTab.kind,
             title: remoteAccessTab.title,
             params: { tab: remoteAccessTab },
-            position: { direction: 'right' },
+            position: { direction: "right" },
           });
         }, 50);
       }
@@ -655,6 +665,42 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      setIsMobileMode(window.localStorage.getItem(STORAGE_KEY_MOBILE_MODE) === "1");
+    } catch {
+      setIsMobileMode(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(STORAGE_KEY_MOBILE_MODE, isMobileMode ? "1" : "0");
+    } catch {
+      // ignore storage errors
+    }
+  }, [isMobileMode]);
+
+  useEffect(() => {
+    const updateActivePanel = () => {
+      const tab = dockviewApiRef.current?.activePanel?.params?.tab as UnifiedTab | undefined;
+      const nextKind = tab?.kind || null;
+      const nextTerminalId = tab?.kind === "terminal" ? tab.data.terminal?.id || null : null;
+      setActiveTabKind((prev) => (prev === nextKind ? prev : nextKind));
+      setActiveTerminalId((prev) => (prev === nextTerminalId ? prev : nextTerminalId));
+    };
+
+    updateActivePanel();
+    const interval = window.setInterval(updateActivePanel, 150);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    setBridgeActiveTerminalId(activeTerminalId);
+  }, [activeTerminalId]);
+
+  useEffect(() => {
     const handlePopState = () => {
       const next = parseUrlState();
       setEditorWorkspaceId(next.workspaceId ?? null);
@@ -1097,6 +1143,41 @@ export default function App() {
     [handleRenameDeck]
   );
 
+  const handleToggleMobileMode = useCallback(() => {
+    setIsMobileMode((prev) => !prev);
+  }, []);
+
+  const handleMobileTerminalInput = useCallback((payload: string) => {
+    sendToActiveTerminal(payload);
+  }, []);
+
+  const handleMobileAppShortcut = useCallback((shortcut: KeyboardShortcutPayload) => {
+    if (shortcut.key === "Escape") {
+      setShowContextStatus(false);
+      setIsSettingsModalOpen(false);
+      setIsServerModalOpen(false);
+      setIsEnvironmentModalOpen(false);
+      setIsCommonSettingsOpen(false);
+    }
+
+    const keyboardEvent = new KeyboardEvent("keydown", {
+      key: shortcut.key,
+      ctrlKey: Boolean(shortcut.ctrlKey),
+      altKey: Boolean(shortcut.altKey),
+      shiftKey: Boolean(shortcut.shiftKey),
+      bubbles: true,
+      cancelable: true,
+    });
+
+    const activeElement = document.activeElement as HTMLElement | null;
+    if (activeElement) {
+      activeElement.dispatchEvent(keyboardEvent);
+      return;
+    }
+
+    window.dispatchEvent(keyboardEvent);
+  }, []);
+
   // Check if welcome screen should be shown
   const showWelcomeScreen = workspaces.length === 0 && decks.length === 0;
 
@@ -1106,7 +1187,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app ${isMobileMode ? "app--mobile" : ""}`.trim()}>
       <TitleBar
         workspaces={workspaces}
         activeWorkspaceId={editorWorkspaceId}
@@ -1123,7 +1204,9 @@ export default function App() {
           console.log("[App] New Terminal requested");
           console.log("[App] activeDeckIds:", activeDeckIds);
           console.log("[App] decks:", decks);
-          const activeTab = dockviewApiRef.current?.activePanel?.params?.tab as UnifiedTab | undefined;
+          const activeTab = dockviewApiRef.current?.activePanel?.params?.tab as
+            | UnifiedTab
+            | undefined;
           const deckId = resolveDeckIdForNewTerminal({
             activePanelTab: activeTab ?? null,
             decks,
@@ -1147,6 +1230,8 @@ export default function App() {
         agents={agents}
         decks={decks}
         onOpenPanel={handleOpenTab}
+        isMobileMode={isMobileMode}
+        onToggleMobileMode={handleToggleMobileMode}
       />
       <main className="main">
         <DockviewLayout
@@ -1233,6 +1318,12 @@ export default function App() {
           />
         )}
       </main>
+      <MobileShortcutBar
+        isMobileMode={isMobileMode}
+        activeTabKind={activeTabKind}
+        onTerminalInput={handleMobileTerminalInput}
+        onAppShortcut={handleMobileAppShortcut}
+      />
       <StatusMessage message={statusMessage} />
       <GlobalStatusBar
         serverStatus={<ServerStatus status={serverStatus.status} port={serverStatus.port} />}

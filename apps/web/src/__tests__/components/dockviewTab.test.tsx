@@ -27,8 +27,16 @@ describe("DockviewTab", () => {
   it("renders VSCode icon image for editor tab", () => {
     const tab = createTab();
     const api = { close: vi.fn() } as any;
+    const containerApi = {} as any;
 
-    render(<DockviewTab api={api} params={{ tab }} /> as any);
+    render(
+      <DockviewTab
+        api={api}
+        containerApi={containerApi}
+        tabLocation={"header" as any}
+        params={{ tab }}
+      />
+    );
 
     const icon = document.querySelector(".panel-tab-icon-img") as HTMLImageElement | null;
     expect(icon).toBeTruthy();
@@ -38,8 +46,16 @@ describe("DockviewTab", () => {
   it("closes panel when close button is clicked", () => {
     const tab = createTab();
     const api = { close: vi.fn() } as any;
+    const containerApi = {} as any;
 
-    render(<DockviewTab api={api} params={{ tab }} /> as any);
+    render(
+      <DockviewTab
+        api={api}
+        containerApi={containerApi}
+        tabLocation={"header" as any}
+        params={{ tab }}
+      />
+    );
 
     screen.getByRole("button", { name: "Close" }).click();
     expect(api.close).toHaveBeenCalledTimes(1);

@@ -6,7 +6,6 @@
  */
 
 import type { IDockviewPanelHeaderProps } from "dockview";
-import { DEFAULT_FILE, getIconForFile } from "vscode-icons-js";
 import {
   Bot,
   Box,
@@ -25,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { useCallback } from "react";
+import { DEFAULT_FILE, getIconForFile } from "vscode-icons-js";
 import type { UnifiedTab } from "../../types";
 
 interface DockviewTabProps extends IDockviewPanelHeaderProps<{ tab: UnifiedTab }> {

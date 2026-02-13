@@ -1,5 +1,6 @@
 import { Settings } from "lucide-react";
-import { type ReactNode, useMemo } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { getStatusBarDensity } from "../utils/layoutCompaction";
 
 interface GlobalStatusBarProps {
   serverStatus?: ReactNode;
@@ -29,6 +30,24 @@ export function GlobalStatusBar({
   onToggleContextStatus,
   onOpenEnvironmentModal,
 }: GlobalStatusBarProps) {
+  const [statusBarDensity, setStatusBarDensity] = useState(() =>
+    typeof window === "undefined" ? "full" : getStatusBarDensity(window.innerWidth)
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const onResize = () => setStatusBarDensity(getStatusBarDensity(window.innerWidth));
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const isCompact = statusBarDensity === "compact";
+  const isMinimal = statusBarDensity === "minimal";
+  const isFull = statusBarDensity === "full";
+
   // Get memory usage if available
   const memoryUsage = useMemo(() => {
     const perf = performance as PerformanceWithMemory;
@@ -54,14 +73,16 @@ export function GlobalStatusBar({
   return (
     <div className="global-status-bar">
       <div className="global-statusbar-left">
-        {serverStatus || (
-          <span className="statusbar-item">
-            <span className="status-indicator status-online"></span>
-            Server: Connected
-          </span>
-        )}
-        {remoteAccessControl}
-        {onToggleContextStatus && (
+        <span className="statusbar-item statusbar-item--server">
+          {serverStatus || (
+            <>
+              <span className="status-indicator status-online"></span>
+              Server: Connected
+            </>
+          )}
+        </span>
+        {isFull && remoteAccessControl}
+        {onToggleContextStatus && !isMinimal && (
           <button
             className="statusbar-item statusbar-clickable"
             onClick={onToggleContextStatus}
@@ -76,12 +97,12 @@ export function GlobalStatusBar({
             }}
           >
             <span className="status-indicator" style={{ backgroundColor: healthColor }}></span>
-            Context: {contextHealthScore}%
+            {isCompact ? `Ctx ${contextHealthScore}%` : `Context: ${contextHealthScore}%`}
           </button>
         )}
       </div>
       <div className="global-statusbar-right">
-        {onOpenEnvironmentModal && (
+        {onOpenEnvironmentModal && isFull && (
           <button
             className="statusbar-item statusbar-clickable"
             onClick={onOpenEnvironmentModal}
@@ -99,9 +120,13 @@ export function GlobalStatusBar({
             <span>Environment</span>
           </button>
         )}
-        <span className="statusbar-item">WebSocket: Active</span>
-        <span className="statusbar-item">Terminals: {activeTerminalsCount}</span>
-        {memoryUsage && <span className="statusbar-item">Memory: {memoryUsage}</span>}
+        <span className="statusbar-item statusbar-item--ws">
+          {isMinimal ? "WS: On" : "WebSocket: Active"}
+        </span>
+        <span className="statusbar-item statusbar-item--terminals">
+          {isMinimal ? `T:${activeTerminalsCount}` : `Terminals: ${activeTerminalsCount}`}
+        </span>
+        {isFull && memoryUsage && <span className="statusbar-item">Memory: {memoryUsage}</span>}
       </div>
     </div>
   );

@@ -117,9 +117,7 @@ export function createTerminalRouter(db, decks, workspaces, terminals) {
       const spawnStart = Date.now();
       term = spawn(shell, shellArgs, spawnOptions);
       const spawnTime = Date.now() - spawnStart;
-      console.log(
-        `[TERMINAL] Spawned terminal ${id}: shell=${shell}, pid=${term.pid}, cwd=${cwd}`
-      );
+      console.log(`[TERMINAL] Spawned terminal ${id}: shell=${shell}, pid=${term.pid}, cwd=${cwd}`);
       if (command) {
         console.log(
           `[TERMINAL] Created terminal ${id} with command="${command}" using shell=${shell} args=${JSON.stringify(shellArgs)}`

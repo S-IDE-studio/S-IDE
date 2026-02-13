@@ -61,6 +61,15 @@
   user-select: none;
 }
 
+.title-bar-right-section {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  margin-left: auto;
+  flex-shrink: 0;
+  user-select: none;
+}
+
 /* Center section - workspace tabs (centered in title bar) */
 .title-bar-center-section {
   position: absolute;
@@ -322,10 +331,6 @@
 }
 
 .title-bar-mobile-toggle .mobile-mode-label {
-  display: none;
-}
-
-.title-bar--mobile .title-bar-mobile-toggle .mobile-mode-label {
   display: inline;
 }
 
@@ -334,12 +339,15 @@
   display: none;
 }
 
-.title-bar--mobile .title-bar-left {
+.title-bar--mobile .title-bar-menu--hamburger {
+  display: flex;
+}
+
+.title-bar--mobile .title-bar-left-section {
   flex: 1;
 }
 
 .title-bar--mobile .title-bar-mobile-toggle {
-  width: 100%;
   justify-content: center;
 }
 
@@ -411,9 +419,23 @@
   user-select: none;
 }
 
+.title-bar-menus-measure {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+  height: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
 .title-bar-menu {
   position: relative;
   height: 100%;
+}
+
+.title-bar-menu--overflow .title-bar-menu-button {
+  font-family: "JetBrains Mono", monospace;
+  letter-spacing: 0.4px;
 }
 
 .title-bar-menu-button {
@@ -575,6 +597,10 @@ textarea {
   gap: 0;
 }
 
+.app--mobile {
+  grid-template-rows: 32px minmax(0, 1fr) 56px 24px;
+}
+
 /* Unified Layout */
 .unified-layout {
   display: flex;
@@ -683,6 +709,10 @@ textarea {
   -webkit-app-region: no-drag !important;
 }
 
+.app--mobile .main {
+  grid-row: 2;
+}
+
 .main > * {
   width: 100%;
 }
@@ -703,6 +733,55 @@ textarea {
   min-height: 0;
 }
 
+.dockview-theme-side .dv-groupview > .dv-tabs-and-actions-container {
+  order: 0;
+}
+
+.dockview-theme-side .dv-groupview > .dv-content-container {
+  order: 1;
+}
+
+.mobile-shortcut-bar {
+  display: none;
+}
+
+.app--mobile .mobile-shortcut-bar {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 6px 8px;
+  background: var(--title-bar);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  z-index: 900;
+}
+
+.mobile-shortcut-btn {
+  height: 40px;
+  min-width: 46px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--fg);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mobile-shortcut-btn:active {
+  background: var(--list-hover);
+}
+
+.mobile-shortcut-btn--active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* ========================================
    Global Status Bar
    ======================================== */
@@ -718,6 +797,7 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: nowrap;
   padding: 0 10px;
   background: var(--statusbar);
   color: var(--statusbar-fg);
@@ -742,6 +822,9 @@ textarea {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 
 .global-statusbar-left,
@@ -751,12 +834,23 @@ textarea {
   gap: 12px;
 }
 
+.global-statusbar-left {
+  flex: 1 1 auto;
+}
+
+.global-statusbar-right {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
 .statusbar-item {
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 0 6px;
   height: 22px;
+  min-width: 0;
+  white-space: nowrap;
   cursor: default;
   transition: background 0.1s;
 }
@@ -768,6 +862,16 @@ textarea {
 .statusbar-item svg {
   width: 14px;
   height: 14px;
+  flex-shrink: 0;
+}
+
+.global-status-bar .server-status-indicator {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.global-status-bar .server-status-indicator > span {
+  white-space: nowrap;
 }
 
 /* ========================================
@@ -5813,7 +5917,7 @@ input:focus-visible {
 }
 
 .terminal-panel-content .xterm-screen {
-  padding: 8px;
+  padding: 0;
 }
 
 /* ========================================

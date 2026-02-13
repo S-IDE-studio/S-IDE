@@ -5,11 +5,10 @@ import {
   type IWatermarkPanelProps,
 } from "dockview";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import type { TabKind } from "../../types";
+import { persistDockviewLayout, restoreDockviewLayout } from "../../utils/dockviewLayoutUtils";
 import { DockviewContextProvider, useDockviewContext } from "./DockviewContext";
 import { DockviewTab } from "./DockviewTab";
 import { PANEL_ADAPTERS } from "./panels";
-import { persistDockviewLayout, restoreDockviewLayout } from "../../utils/dockviewLayoutUtils";
 
 // Shared ref object for accessing the DockviewApi from outside DockviewLayout
 // This is a module-level singleton that persists across the application lifecycle
@@ -78,7 +77,6 @@ function DockviewLayoutInner(): React.JSX.Element {
         watermarkComponent={WatermarkComponent}
         onReady={handleReady}
         disableAutoResizing={false}
-        hideHeaderActions={true}
       />
     </div>
   );

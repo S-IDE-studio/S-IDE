@@ -2,10 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-const dockviewThemePath = path.resolve(
-  process.cwd(),
-  "src/components/dockview/dockview-theme.css"
-);
+const dockviewThemePath = path.resolve(process.cwd(), "src/components/dockview/dockview-theme.css");
 
 function getDockviewThemeCss(): string {
   return fs.readFileSync(dockviewThemePath, "utf-8");

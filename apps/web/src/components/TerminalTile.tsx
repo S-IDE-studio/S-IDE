@@ -17,6 +17,7 @@ import {
   TERMINAL_X10_MOUSE_MODE,
 } from "../constants";
 import type { TerminalSession } from "../types";
+import { createResizeGuardState, shouldEmitResize } from "../utils/terminalResizeGuard";
 import { TerminalTag } from "./TerminalGroupHeader";
 
 interface TerminalTileProps {
@@ -49,7 +50,9 @@ export function TerminalTile({ session, wsUrl, onDelete, onError }: TerminalTile
     let isIntentionalClose = false;
     let reconnectAttempts = 0;
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    let resizeRafId: number | null = null;
     let hasConnectedOnce = false;
+    const resizeGuardState = createResizeGuardState();
 
     // Clear container and set explicit dimensions BEFORE opening terminal
     // This prevents "Cannot read properties of undefined (reading 'dimensions')" error
@@ -439,24 +442,38 @@ export function TerminalTile({ session, wsUrl, onDelete, onError }: TerminalTile
     // fitAddon.fit() and term.write() are called in requestAnimationFrame above
     // to ensure proper initialization timing
 
-    const sendResize = () => {
+    const sendResize = (force = false) => {
       const socket = socketRef.current;
       if (!socket || socket.readyState !== WebSocket.OPEN) return;
       const cols = term.cols;
       const rows = term.rows;
       if (!cols || !rows) return;
+      const next = { cols, rows };
+      if (!shouldEmitResize(resizeGuardState, next, { force, now: Date.now() })) {
+        return;
+      }
+
       socket.send(`${RESIZE_MESSAGE_PREFIX}${cols},${rows}`);
     };
 
-    const resizeObserver = new ResizeObserver(() => {
-      if (!cancelled && fitAddonRef.current) {
-        try {
-          fitAddon.fit();
-          sendResize();
-        } catch (err) {
-          console.warn("[Terminal] Error during resize:", err);
-        }
+    const fitAndMaybeResize = (force = false) => {
+      if (cancelled || !fitAddonRef.current) return;
+      try {
+        fitAddonRef.current.fit();
+        sendResize(force);
+      } catch (err) {
+        console.warn("[Terminal] Error during resize:", err);
       }
+    };
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (resizeRafId !== null) {
+        cancelAnimationFrame(resizeRafId);
+      }
+      resizeRafId = requestAnimationFrame(() => {
+        resizeRafId = null;
+        fitAndMaybeResize(false);
+      });
     });
     resizeObserver.observe(containerRef.current);
 
@@ -480,7 +497,7 @@ export function TerminalTile({ session, wsUrl, onDelete, onError }: TerminalTile
         socket.addEventListener("open", () => {
           reconnectAttempts = 0;
           hasConnectedOnce = true;
-          sendResize();
+          fitAndMaybeResize(true);
           if (isReconnect) {
             term.write(`\r\n\x1b[32m${TEXT_CONNECTED}\x1b[0m\r\n`);
           } else {
@@ -556,6 +573,9 @@ export function TerminalTile({ session, wsUrl, onDelete, onError }: TerminalTile
       isIntentionalClose = true;
       if (reconnectTimeout) {
         clearTimeout(reconnectTimeout);
+      }
+      if (resizeRafId !== null) {
+        cancelAnimationFrame(resizeRafId);
       }
       resizeObserver.disconnect();
       if (dataDisposable) {

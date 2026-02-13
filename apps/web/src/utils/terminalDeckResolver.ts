@@ -7,7 +7,11 @@ type ResolveArgs = {
   editorWorkspaceId: string | null;
 };
 
-function firstDeckForWorkspace(decks: Deck[], workspaceId: string, activeDeckIds: string[]): Deck | null {
+function firstDeckForWorkspace(
+  decks: Deck[],
+  workspaceId: string,
+  activeDeckIds: string[]
+): Deck | null {
   for (const id of activeDeckIds) {
     const d = decks.find((deck) => deck.id === id && deck.workspaceId === workspaceId);
     if (d) return d;

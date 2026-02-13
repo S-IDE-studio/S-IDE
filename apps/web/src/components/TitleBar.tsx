@@ -1,7 +1,18 @@
-import { ChevronDown, Minus, Palette, Plus, Square, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChevronDown,
+  Menu,
+  Minus,
+  Palette,
+  Plus,
+  Smartphone,
+  Square,
+  Trash2,
+  X,
+} from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getAvailableShells } from "../api";
 import type { Deck, ShellInfo, UnifiedTab, Workspace } from "../types";
+import { computeVisibleMenuCount } from "../utils/layoutCompaction";
 import {
   agentConfigLocalToTab,
   agentConfigToTab,
@@ -65,6 +76,8 @@ interface TitleBarProps {
   }>;
   decks?: Deck[];
   onOpenPanel?: (tab: UnifiedTab) => void;
+  isMobileMode?: boolean;
+  onToggleMobileMode?: () => void;
 }
 
 interface MenuItem {
@@ -76,34 +89,40 @@ interface MenuItem {
 
 interface MenuBarProps {
   items: MenuItem[];
+  maxWidth?: number;
+  useHamburger?: boolean;
 }
 
-function MenuBar({ items }: MenuBarProps) {
-  const [openMenuIndex, setOpenMenuIndex] = useState<number | null>(null);
+function MenuBar({ items, maxWidth, useHamburger = false }: MenuBarProps) {
+  const [openMenuKey, setOpenMenuKey] = useState<string | null>(null);
   const [openSubmenuIndex, setOpenSubmenuIndex] = useState<number | null>(null);
-  const menuContainerRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const menuContainerRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const measureButtonRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const overflowMeasureRef = useRef<HTMLButtonElement | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [menuWidths, setMenuWidths] = useState<number[]>([]);
+  const [overflowButtonWidth, setOverflowButtonWidth] = useState<number>(44);
 
   const closeMenu = useCallback(() => {
-    setOpenMenuIndex(null);
+    setOpenMenuKey(null);
     setOpenSubmenuIndex(null);
   }, []);
 
-  const handleMenuMouseEnter = useCallback((index: number) => {
+  const handleMenuMouseEnter = useCallback((menuKey: string) => {
     // Clear any pending close timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
-    setOpenMenuIndex(index);
-    // Don't reset submenu index when switching between top-level menu items
-    // setOpenSubmenuIndex(null);
+    setOpenMenuKey(menuKey);
+    setOpenSubmenuIndex(null);
   }, []);
 
   const handleMenuMouseLeave = useCallback(() => {
     // Delay closing to allow moving to dropdown or submenu
     timeoutRef.current = setTimeout(() => {
-      setOpenMenuIndex(null);
+      setOpenMenuKey(null);
       setOpenSubmenuIndex(null);
     }, 300);
   }, []);
@@ -127,17 +146,14 @@ function MenuBar({ items }: MenuBarProps) {
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (openMenuIndex !== null) {
-        const container = menuContainerRefs.current[openMenuIndex];
-        if (container && !container.contains(e.target as Node)) {
-          setOpenMenuIndex(null);
-        }
+      if (openMenuKey !== null && rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setOpenMenuKey(null);
       }
     };
 
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && openMenuIndex !== null) {
-        setOpenMenuIndex(null);
+      if (e.key === "Escape" && openMenuKey !== null) {
+        setOpenMenuKey(null);
       }
     };
 
@@ -147,7 +163,103 @@ function MenuBar({ items }: MenuBarProps) {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [openMenuIndex]);
+  }, [openMenuKey]);
+
+  useLayoutEffect(() => {
+    const nextWidths = items.map((_, index) => {
+      const button = measureButtonRefs.current[index];
+      return button ? Math.ceil(button.getBoundingClientRect().width) : 0;
+    });
+    setMenuWidths(nextWidths);
+    if (overflowMeasureRef.current) {
+      setOverflowButtonWidth(Math.ceil(overflowMeasureRef.current.getBoundingClientRect().width));
+    }
+  }, [items]);
+
+  const visibleMenuCount = useMemo(() => {
+    if (useHamburger) {
+      return 0;
+    }
+    if (!maxWidth || maxWidth <= 0) {
+      return items.length;
+    }
+    return computeVisibleMenuCount(menuWidths, maxWidth, overflowButtonWidth);
+  }, [items.length, maxWidth, menuWidths, overflowButtonWidth, useHamburger]);
+
+  const visibleItems = items.slice(0, visibleMenuCount);
+  const overflowItems = items.slice(visibleMenuCount);
+
+  const renderDropdownItems = useCallback(
+    (menuChildren: MenuItem[]) => (
+      <div className="title-bar-dropdown" onMouseEnter={handleDropdownMouseEnter}>
+        {menuChildren.map((child, childIndex) => {
+          if (child.separator) {
+            return <div key={childIndex} className="title-bar-dropdown-separator" />;
+          }
+
+          if (child.label.startsWith("===")) {
+            return (
+              <div key={childIndex} className="title-bar-dropdown-category">
+                {child.label.replace(/===/g, "").trim()}
+              </div>
+            );
+          }
+
+          if (!child.label) {
+            return null;
+          }
+
+          const hasSubmenu = child.children && child.children.length > 0;
+          const isOpen = openSubmenuIndex === childIndex;
+
+          return (
+            <div
+              key={childIndex}
+              className="title-bar-dropdown-item-wrapper"
+              onMouseEnter={() => (hasSubmenu ? handleSubmenuMouseEnter(childIndex) : undefined)}
+            >
+              <button
+                type="button"
+                className={`title-bar-dropdown-item ${hasSubmenu ? "title-bar-dropdown-item--has-submenu" : ""}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!hasSubmenu) {
+                    child.action?.();
+                    closeMenu();
+                  }
+                }}
+              >
+                <span className="title-bar-dropdown-item-label">{child.label}</span>
+                {hasSubmenu && <span className="title-bar-dropdown-item-arrow">▶</span>}
+              </button>
+              {hasSubmenu && isOpen && (
+                <div
+                  className="title-bar-submenu"
+                  onMouseEnter={() => setOpenSubmenuIndex(childIndex)}
+                >
+                  {child.children!.map((subChild, subChildIndex) => (
+                    <button
+                      key={subChildIndex}
+                      type="button"
+                      className="title-bar-dropdown-item"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        subChild.action?.();
+                        closeMenu();
+                      }}
+                    >
+                      {subChild.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    ),
+    [closeMenu, handleDropdownMouseEnter, handleSubmenuMouseEnter, openSubmenuIndex]
+  );
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -159,105 +271,95 @@ function MenuBar({ items }: MenuBarProps) {
   }, []);
 
   return (
-    <div className="title-bar-menus">
-      {items.map((item, index) => (
-        <div
-          key={index}
-          ref={(el) => {
-            menuContainerRefs.current[index] = el;
-          }}
-          className="title-bar-menu"
-          onMouseEnter={() => handleMenuMouseEnter(index)}
-          onMouseLeave={handleMenuMouseLeave}
-        >
-          <button type="button" className="title-bar-menu-button">
+    <div ref={rootRef} className="title-bar-menus">
+      <div className="title-bar-menus-measure" aria-hidden="true">
+        {items.map((item, index) => (
+          <button
+            key={`measure-${index}-${item.label}`}
+            type="button"
+            className="title-bar-menu-button"
+            ref={(el) => {
+              measureButtonRefs.current[index] = el;
+            }}
+          >
             {item.label}
           </button>
-          {openMenuIndex === index && item.children && (
-            <div className="title-bar-dropdown" onMouseEnter={handleDropdownMouseEnter}>
-              {item.children.map((child, childIndex) => {
-                // Render separator
-                if (child.separator) {
-                  return <div key={childIndex} className="title-bar-dropdown-separator" />;
-                }
+        ))}
+        <button ref={overflowMeasureRef} type="button" className="title-bar-menu-button">
+          ---
+        </button>
+      </div>
 
-                // Render category header (starts with ===)
-                if (child.label.startsWith("===")) {
-                  return (
-                    <div key={childIndex} className="title-bar-dropdown-category">
-                      {child.label.replace(/===/g, "").trim()}
-                    </div>
-                  );
-                }
+      {visibleItems.map((item, index) => {
+        const menuKey = `menu-${index}`;
+        return (
+          <div
+            key={menuKey}
+            ref={(el) => {
+              menuContainerRefs.current[menuKey] = el;
+            }}
+            className="title-bar-menu"
+            onMouseEnter={() => handleMenuMouseEnter(menuKey)}
+            onMouseLeave={handleMenuMouseLeave}
+          >
+            <button type="button" className="title-bar-menu-button">
+              {item.label}
+            </button>
+            {openMenuKey === menuKey && item.children && renderDropdownItems(item.children)}
+          </div>
+        );
+      })}
 
-                // Skip empty items (separators with no label)
-                if (!child.label) {
-                  return null;
-                }
-
-                const hasSubmenu = child.children && child.children.length > 0;
-                const isOpen = openSubmenuIndex === childIndex;
-
-                console.log(
-                  "[MenuBar] Rendering child:",
-                  childIndex,
-                  child.label,
-                  "hasSubmenu:",
-                  hasSubmenu,
-                  "isOpen:",
-                  isOpen
-                );
-
-                return (
-                  <div
-                    key={childIndex}
-                    className="title-bar-dropdown-item-wrapper"
-                    onMouseEnter={() =>
-                      hasSubmenu ? handleSubmenuMouseEnter(childIndex) : undefined
-                    }
-                  >
-                    <button
-                      type="button"
-                      className={`title-bar-dropdown-item ${hasSubmenu ? "title-bar-dropdown-item--has-submenu" : ""}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!hasSubmenu) {
-                          child.action?.();
-                          closeMenu();
-                        }
-                      }}
-                    >
-                      <span className="title-bar-dropdown-item-label">{child.label}</span>
-                      {hasSubmenu && <span className="title-bar-dropdown-item-arrow">▶</span>}
-                    </button>
-                    {hasSubmenu && isOpen && (
-                      <div
-                        className="title-bar-submenu"
-                        onMouseEnter={() => setOpenSubmenuIndex(childIndex)}
-                      >
-                        {child.children!.map((subChild, subChildIndex) => (
-                          <button
-                            key={subChildIndex}
-                            type="button"
-                            className="title-bar-dropdown-item"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              subChild.action?.();
-                              closeMenu();
-                            }}
-                          >
-                            {subChild.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+      {overflowItems.length > 0 && (
+        <div
+          ref={(el) => {
+            menuContainerRefs.current.overflow = el;
+          }}
+          className="title-bar-menu title-bar-menu--overflow"
+          onMouseEnter={() => handleMenuMouseEnter("overflow")}
+          onMouseLeave={handleMenuMouseLeave}
+        >
+          <button type="button" className="title-bar-menu-button" title="More menus">
+            ---
+          </button>
+          {openMenuKey === "overflow" &&
+            renderDropdownItems(
+              overflowItems.map((item) => ({
+                label: item.label,
+                children: item.children,
+                action: item.action,
+              }))
+            )}
         </div>
-      ))}
+      )}
+
+      {useHamburger && (
+        <div
+          ref={(el) => {
+            menuContainerRefs.current.hamburger = el;
+          }}
+          className="title-bar-menu title-bar-menu--hamburger"
+          onMouseEnter={() => handleMenuMouseEnter("hamburger")}
+          onMouseLeave={handleMenuMouseLeave}
+        >
+          <button
+            type="button"
+            className="title-bar-menu-button"
+            aria-label="Open menus"
+            title="Menu"
+          >
+            <Menu size={14} />
+          </button>
+          {openMenuKey === "hamburger" &&
+            renderDropdownItems(
+              items.map((item) => ({
+                label: item.label,
+                children: item.children,
+                action: item.action,
+              }))
+            )}
+        </div>
+      )}
     </div>
   );
 }
@@ -280,11 +382,12 @@ export function TitleBar({
   agents = [],
   decks = [],
   onOpenPanel,
+  isMobileMode = false,
+  onToggleMobileMode,
 }: TitleBarProps) {
   // Check if running in Tauri (evaluated once per component mount)
   const isInTauriApp = useMemo(() => isTauriApp(), []);
 
-  const [isMobileMode, setIsMobileMode] = useState(false);
   const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(
     null
@@ -302,6 +405,11 @@ export function TitleBar({
     null
   );
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const titleBarRef = useRef<HTMLDivElement | null>(null);
+  const leftSectionRef = useRef<HTMLDivElement | null>(null);
+  const centerSectionRef = useRef<HTMLDivElement | null>(null);
+  const appIconRef = useRef<HTMLDivElement | null>(null);
+  const [menuMaxWidth, setMenuMaxWidth] = useState<number | undefined>(undefined);
 
   // Load available shells on mount
   useEffect(() => {
@@ -316,17 +424,6 @@ export function TitleBar({
         console.error("[TitleBar] Failed to load shells:", error);
         // Silently fail - shells will be empty
       });
-  }, []);
-
-  useEffect(() => {
-    // Check initial mobile mode based on screen width
-    const checkMobileMode = () => {
-      setIsMobileMode(window.innerWidth < 768);
-    };
-
-    checkMobileMode();
-    window.addEventListener("resize", checkMobileMode);
-    return () => window.removeEventListener("resize", checkMobileMode);
   }, []);
 
   // Close workspace dropdown when clicking outside
@@ -386,6 +483,35 @@ export function TitleBar({
     };
   }, [contextMenuWorkspace]);
 
+  useLayoutEffect(() => {
+    const recalculateMenuWidth = () => {
+      if (!titleBarRef.current || !leftSectionRef.current || !centerSectionRef.current) {
+        setMenuMaxWidth(undefined);
+        return;
+      }
+
+      const leftRect = leftSectionRef.current.getBoundingClientRect();
+      const centerRect = centerSectionRef.current.getBoundingClientRect();
+      const appIconWidth = appIconRef.current
+        ? Math.ceil(appIconRef.current.getBoundingClientRect().width)
+        : 0;
+      const gapPadding = 10;
+      const available = Math.floor(centerRect.left - leftRect.left - appIconWidth - gapPadding);
+      setMenuMaxWidth(available > 0 ? available : 0);
+    };
+
+    recalculateMenuWidth();
+    const observer = new ResizeObserver(() => recalculateMenuWidth());
+    if (titleBarRef.current) observer.observe(titleBarRef.current);
+    if (centerSectionRef.current) observer.observe(centerSectionRef.current);
+
+    window.addEventListener("resize", recalculateMenuWidth);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", recalculateMenuWidth);
+    };
+  }, [workspaces.length, isInTauriApp]);
+
   // Handle workspace tab right-click
   const handleWorkspaceContextMenu = useCallback(
     (workspace: Workspace, event: React.MouseEvent) => {
@@ -442,10 +568,6 @@ export function TitleBar({
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
     const win = await getCurrentWindow();
     await win.toggleMaximize();
-  };
-
-  const handleToggleMobileMode = () => {
-    setIsMobileMode((prev) => !prev);
   };
 
   // VSCode-style menu structure
@@ -707,35 +829,23 @@ export function TitleBar({
 
   return (
     <div
+      ref={titleBarRef}
       className={`title-bar ${isInTauriApp ? "title-bar--tauri" : ""} ${isMobileMode ? "title-bar--mobile" : ""}`}
     >
       {/* Left side - app icon and menu bar */}
-      <div className="title-bar-left-section">
+      <div ref={leftSectionRef} className="title-bar-left-section">
         {isInTauriApp && (
-          <div className="title-bar-app-icon" data-tauri-drag-region>
+          <div ref={appIconRef} className="title-bar-app-icon" data-tauri-drag-region>
             <img src="/icon-transparent.svg" alt="S-IDE" className="app-icon-img" />
           </div>
         )}
-        <MenuBar items={menuItems} />
+        <MenuBar items={menuItems} maxWidth={menuMaxWidth} useHamburger={isMobileMode} />
       </div>
 
-      {/* Mobile mode toggle for web */}
-      {!isInTauriApp && (
-        <button
-          type="button"
-          className="title-bar-mobile-toggle"
-          data-tauri-drag-region={false}
-          onClick={handleToggleMobileMode}
-          title={isMobileMode ? "デスクトップモード" : "モバイルモード"}
-          aria-label="Toggle mobile mode"
-        >
-          <span className="mobile-mode-label">{isMobileMode ? "Desktop" : "Mobile"}</span>
-        </button>
-      )}
-
       {/* Workspace tabs - centered */}
-      <div className="title-bar-center-section" data-tauri-drag-region>
-        <div className="workspace-tabs">{isInTauriApp && <div className="workspace-tabs-drag-spacer" data-tauri-drag-region />}
+      <div ref={centerSectionRef} className="title-bar-center-section" data-tauri-drag-region>
+        <div className="workspace-tabs">
+          {isInTauriApp && <div className="workspace-tabs-drag-spacer" data-tauri-drag-region />}
           {visibleWorkspaces.map((workspace) => (
             <button
               key={workspace.id}
@@ -809,38 +919,55 @@ export function TitleBar({
         </div>
       </div>
 
-      {/* Window controls - always show on right side */}
-      {isInTauriApp && (
-        <div className="title-bar-controls">
+      <div className="title-bar-right-section">
+        {/* Mobile mode toggle for web */}
+        {!isInTauriApp && (
           <button
             type="button"
-            className="title-bar-button"
+            className="title-bar-mobile-toggle"
             data-tauri-drag-region={false}
-            onClick={handleMinimize}
-            aria-label="Minimize"
+            onClick={onToggleMobileMode}
+            title={isMobileMode ? "デスクトップモード" : "モバイルモード"}
+            aria-label="Toggle mobile mode"
           >
-            <Minus size={14} />
+            <Smartphone size={14} />
+            <span className="mobile-mode-label">{isMobileMode ? "Desktop" : "Mobile"}</span>
           </button>
-          <button
-            type="button"
-            className="title-bar-button"
-            data-tauri-drag-region={false}
-            onClick={handleMaximize}
-            aria-label="Maximize"
-          >
-            <Square size={12} />
-          </button>
-          <button
-            type="button"
-            className="title-bar-button title-bar-close"
-            data-tauri-drag-region={false}
-            onClick={handleClose}
-            aria-label="Close"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      )}
+        )}
+
+        {/* Window controls - always show on right side */}
+        {isInTauriApp && (
+          <div className="title-bar-controls">
+            <button
+              type="button"
+              className="title-bar-button"
+              data-tauri-drag-region={false}
+              onClick={handleMinimize}
+              aria-label="Minimize"
+            >
+              <Minus size={14} />
+            </button>
+            <button
+              type="button"
+              className="title-bar-button"
+              data-tauri-drag-region={false}
+              onClick={handleMaximize}
+              aria-label="Maximize"
+            >
+              <Square size={12} />
+            </button>
+            <button
+              type="button"
+              className="title-bar-button title-bar-close"
+              data-tauri-drag-region={false}
+              onClick={handleClose}
+              aria-label="Close"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Workspace context menu */}
       {contextMenuWorkspace && contextMenuPosition && (

@@ -6,6 +6,7 @@ import { PORT, TRUST_PROXY } from "./config.js";
 import { verifyWebSocketAuth } from "./middleware/auth.js";
 import { logSecurityEvent } from "./middleware/security.js";
 import type { TerminalSession } from "./types.js";
+import { createResizeFlapGuard, shouldApplyResize } from "./utils/resizeFlapGuard.js";
 
 // Type for WebSocket data messages
 type WebSocketData = Buffer & { isBinary: boolean };
@@ -179,6 +180,7 @@ export function setupWebSocketServer(
 
     const wsConnectTime = Date.now();
     console.log(`[PERF] WebSocket connected to terminal ${id} at ${wsConnectTime}`);
+    const resizeGuard = createResizeFlapGuard();
 
     session.sockets.add(socket);
     session.lastActive = Date.now();
@@ -257,6 +259,9 @@ export function setupWebSocketServer(
           const [colsRaw, rowsRaw] = payload.split(",");
           const cols = validateTerminalSize(Number(colsRaw));
           const rows = validateTerminalSize(Number(rowsRaw));
+          if (!shouldApplyResize(resizeGuard, cols, rows, Date.now())) {
+            return;
+          }
 
           try {
             session.term.resize(cols, rows);

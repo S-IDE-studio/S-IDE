@@ -8,7 +8,16 @@
 import crypto from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { Hono } from "hono";
-import type { Tunnel } from "localtunnel";
+
+// localtunnel's type package is not consistently resolved across environments.
+// Keep a minimal local interface to stabilize CI type-check.
+interface Tunnel {
+  url: string;
+  close: () => void;
+  on: (event: "close" | "error", listener: (error?: Error) => void) => void;
+}
+
+// @ts-expect-error - localtunnel runtime module is available; type resolution is environment-dependent.
 import localtunnel from "localtunnel";
 import { createHttpError, handleError } from "../utils/error.js";
 

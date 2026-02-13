@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { resolveDeckIdForNewTerminal } from "../../utils/terminalDeckResolver";
 import type { Deck, UnifiedTab } from "../../types";
+import { resolveDeckIdForNewTerminal } from "../../utils/terminalDeckResolver";
 
 const decks: Deck[] = [
   {
@@ -8,14 +8,14 @@ const decks: Deck[] = [
     name: "Desktop Deck",
     root: "C:/Users/rebui/Desktop",
     workspaceId: "ws-desktop",
-    createdAt: Date.now(),
+    createdAt: new Date().toISOString(),
   },
   {
     id: "deck-project",
     name: "Project Deck",
     root: "C:/Users/rebui/Desktop/S-IDE",
     workspaceId: "ws-project",
-    createdAt: Date.now(),
+    createdAt: new Date().toISOString(),
   },
 ];
 

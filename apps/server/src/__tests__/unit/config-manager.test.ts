@@ -16,6 +16,13 @@ describe("ConfigManager", () => {
 
     // Save original environment
     originalEnv = { ...process.env };
+    delete process.env.PORT;
+    delete process.env.HOST;
+    delete process.env.MAX_FILE_SIZE;
+    delete process.env.TERMINAL_BUFFER_LIMIT;
+    delete process.env.DEFAULT_ROOT;
+    delete process.env.BASIC_AUTH_USER;
+    delete process.env.BASIC_AUTH_PASS;
   });
 
   afterEach(() => {
