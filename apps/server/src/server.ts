@@ -177,6 +177,10 @@ export async function createServer(portOverride?: number): Promise<Server> {
 
   // Initialize agent router
   const agentRouter = initializeAgentRouter();
+  
+  // Start periodic agent metrics collection
+  const { startPeriodicMetricsCollection } = await import("./utils/agent-metrics.js");
+  const metricsInterval = startPeriodicMetricsCollection(db, 30); // Every 30 seconds
 
   // Mount routers
   app.route("/api/settings", createSettingsRouter());
@@ -192,7 +196,7 @@ export async function createServer(portOverride?: number): Promise<Server> {
   app.route("/api/bridge", createAgentBridgeRouter());
   app.route("/api/mcp", createMCPServerRouter(db));
   app.route("/api/local-server", createLocalServerRouter());
-  app.route("/api/tunnel", createTunnelRouter());
+  app.route("/api/tunnel", createTunnelRouter(db));
   app.route("/api/tabs", createTabsRouter());
 
   // Restore persisted terminals
