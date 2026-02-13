@@ -15,32 +15,32 @@
    S-IDE Custom dockview Theme
    ======================================== */
 
-/* Force override all abyss theme colors to monochrome */
+/* Override abyss theme colors to monochrome */
 .dockview-theme-abyss,
 .dockview-theme-abyss-spaced {
-  --dv-color-abyss-accent: #333333 !important;
-  --dv-color-abyss-accent-hover: var(--color-accent-hover, rgba(255, 255, 255, 0.15)) !important;
-  --dv-color-abyss-background: var(--color-bg, #000000) !important;
-  --dv-color-abyss-background2: var(--color-bg-soft, #0a0a0a) !important;
-  --dv-color-abyss-foreground: var(--color-fg, #ffffff) !important;
-  --dv-color-abyss-border: var(--color-border-active, #ffffff) !important;
-  --dv-color-abyss-secondary: var(--color-bg-tertiary, #141414) !important;
-  --dv-color-abyss-lighter: #333333 !important;
-  --dv-color-abyss-light: var(--color-bg-soft, #0a0a0a) !important;
-  --dv-color-abyss-dark: var(--color-bg, #000000) !important;
-  --dv-color-abyss-primary-text: var(--color-fg, #ffffff) !important;
-  --dv-color-abyss-secondary-text: var(--color-fg-dim, #888888) !important;
+  --dv-color-abyss-accent: #333333;
+  --dv-color-abyss-accent-hover: var(--color-accent-hover, rgba(255, 255, 255, 0.15));
+  --dv-color-abyss-background: var(--color-bg, #000000);
+  --dv-color-abyss-background2: var(--color-bg-soft, #0a0a0a);
+  --dv-color-abyss-foreground: var(--color-fg, #ffffff);
+  --dv-color-abyss-border: var(--color-border-active, #ffffff);
+  --dv-color-abyss-secondary: var(--color-bg-tertiary, #141414);
+  --dv-color-abyss-lighter: #333333;
+  --dv-color-abyss-light: var(--color-bg-soft, #0a0a0a);
+  --dv-color-abyss-dark: var(--color-bg, #000000);
+  --dv-color-abyss-primary-text: var(--color-fg, #ffffff);
+  --dv-color-abyss-secondary-text: var(--color-fg-dim, #888888);
 }
 
-/* Force override active sash color from abyss accent */
+/* Override active sash color from abyss accent */
 .dockview-theme-abyss .dv-sash::after,
 .dockview-theme-abyss-spaced .dv-sash::after {
-  background-color: var(--color-accent, #ffffff) !important;
+  background-color: var(--color-accent, #ffffff);
 }
 
 .dockview-theme-side {
-  /* Tauri: Disable window drag in dockview area to allow HTML5 drag & drop */
-  -webkit-app-region: no-drag !important;
+  /* Tauri: Disable window drag in dockview area */
+  -webkit-app-region: no-drag;
 
   /* ========================================
      Dockview Theme Colors (from theme.css)
@@ -117,8 +117,7 @@
 /* Subtle drop target indication for tab dragging */
 .dockview-theme-side .dv-drop-target-container
   .dv-drop-target-anchor.dv-drop-target-anchor-container-changed {
-  /* Force monochrome black background */
-  background-color: rgba(0, 0, 0, 0.05) !important;
+  background-color: rgba(0, 0, 0, 0.05);
   border-bottom: 2px solid var(--color-accent);
 }
 
@@ -126,65 +125,59 @@
      Tab Styling
      ======================================== */
 
-/* Base tab styles - must come first */
+/* Base tab styles */
 .dockview-theme-side .dv-tab {
-  -webkit-app-region: no-drag !important;
-  pointer-events: auto !important;
-  /* Force monochrome background */
-  background-color: var(--color-bg) !important;
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
+  background-color: var(--color-bg);
   color: var(--color-fg);
-  /* Dockview standard tab height and no padding */
   height: 35px;
   padding: 0;
-  /* Dockview standard border radius */
   border-radius: var(--dv-border-radius, 0px);
-  /* Default no top border */
-  border-top: none !important;
-  /* For pseudo-element positioning */
+  border-top: none;
   position: relative;
-  /* Smooth transition for hover */
-  transition: background-color 0.15s ease, border-top 0s;
+  transition: background-color 0.15s ease;
 }
 
-/* Tab active state - Dockview standard */
+/* Tab active state */
 .dockview-theme-side .dv-tab.active,
 .dockview-theme-side .dv-tab.dv-active-tab {
-  background-color: var(--color-bg) !important;
-  color: var(--color-fg) !important;
-  opacity: 1 !important;
-  border-top: 1px solid var(--color-accent, #ffffff) !important;
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  opacity: 1;
+  border-top: 1px solid var(--color-accent, #ffffff);
 }
 
-/* Tab close button - ensure visibility */
+/* Tab close button */
 .dockview-theme-side .dv-tab .panel-tab-close {
-  opacity: 1 !important;
+  opacity: 1;
 }
 
 .dockview-theme-side .dv-tab .panel-tab-close:hover {
-  background-color: var(--color-list-hover) !important;
+  background-color: var(--color-list-hover);
 }
 
-/* When hovering close button on active tab, remove the top border */
+/* When hovering close button on active tab, remove top border */
 .dockview-theme-side .dv-tab.active .panel-tab-close:hover,
 .dockview-theme-side .dv-tab.dv-active-tab .panel-tab-close:hover {
-  border-top: none !important;
+  border-top: none;
 }
 
-/* Tab hover state - subtle feedback (only when NOT hovering close button) */
+/* Tab hover state - only when NOT hovering close button */
 .dockview-theme-side .dv-tab:hover:not(:has(.panel-tab-close:hover)) {
-  background-color: var(--color-hover) !important;
+  background-color: var(--color-hover);
 }
 
 .dockview-theme-side .dv-tab.active:hover:not(:has(.panel-tab-close:hover)),
 .dockview-theme-side .dv-tab.dv-active-tab:hover:not(:has(.panel-tab-close:hover)) {
-  border-top: 1px solid var(--color-accent, #ffffff) !important;
+  border-top: 1px solid var(--color-accent, #ffffff);
 }
 
 /* ========================================
-     Tab Content Elements - Dockview Standard
+     Tab Content Elements
      ======================================== */
 
-/* Tab icon - ensure visibility and sizing */
+/* Tab icon */
 .dockview-theme-side .dv-tab .panel-tab-icon {
   display: flex;
   align-items: center;
@@ -195,7 +188,7 @@
   color: var(--color-fg);
 }
 
-/* Tab title - ensure visibility */
+/* Tab title */
 .dockview-theme-side .dv-tab .panel-tab-title {
   flex: 1;
   overflow: hidden;
@@ -222,9 +215,8 @@
 /* Force monochrome tabs container */
 .dockview-theme-side .dv-tabs-container,
 .dockview-theme-side .dv-tabs-and-actions-container {
-  -webkit-app-region: no-drag !important;
-  /* Force monochrome background */
-  background-color: var(--color-bg-soft) !important;
+  -webkit-app-region: no-drag;
+  background-color: var(--color-bg-soft);
 }
 
 /* ========================================
@@ -268,9 +260,9 @@
      Separator (Hidden)
      ======================================== */
 
-/* Hide separator completely for cleaner monochrome look */
+/* Hide separator completely */
 .dockview-theme-side .dv-separator {
-  display: none !important;
+  display: none;
 }
 
 .dockview-theme-side.dv-separator-border .dv-view:not(:first-child)::before {
@@ -278,29 +270,29 @@
 }
 
 /* ========================================
-     Sash (Resize Handle) - Force Monochrome
+     Sash (Resize Handle)
      ======================================== */
 
-/* Force all sash states to monochrome colors */
+/* All sash states */
 .dockview-theme-side .dv-sash {
-  background: transparent !important;
+  background: transparent;
 }
 
 .dockview-theme-side .dv-sash::after {
-  background-color: transparent !important;
+  background-color: transparent;
 }
 
 .dockview-theme-side .dv-sash:hover,
 .dockview-theme-side .dv-sash:active {
-  background: var(--color-accent) !important;
+  background: var(--color-accent);
 }
 
 .dockview-theme-side .dv-sash:hover::after,
 .dockview-theme-side .dv-sash:active::after {
-  background-color: var(--color-accent) !important;
+  background-color: var(--color-accent);
 }
 
 /* Sash drag overlay */
 .dockview-theme-side .dv-sash-drag-overlay {
-  background: rgba(255, 255, 255, 0.05) !important;
+  background: rgba(255, 255, 255, 0.05);
 }
