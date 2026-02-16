@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "S-IDE",
-  "version": "2.1.22",
+  "version": "3.0.0",
   "identifier": "com.side.ide",
   "build": {
     "beforeDevCommand": "cd ../.. && pnpm run dev:web",
@@ -62,7 +62,7 @@
       "active": true,
       "endpoints": ["https://github.com/S-IDE-studio/S-IDE/releases/latest/download/latest.json"],
       "dialog": true,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk3QTBDMzZFQjBFQ0IyQzUKUldURnN1eXdic09nbDd3UktDTkI0czJsVVZnbEJ6Z3d0T3I5ODRoaW1jOXJLTTN1N0VKMmpjbHMK"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXkgNjRDQzgxMzMwMjM2Mzk5OApSV1NZT1RZQ000SE1aSFdiaVIvM0VSOEE1UVlJWkxLLzdIV3M5VEgwc3RLQzFDK1JvQkFKc1NHeQo="
     }
   }
 }

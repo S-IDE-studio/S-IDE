@@ -6080,3 +6080,139 @@ input:focus-visible {
   color: var(--fg-dim);
   font-size: 13px;
 }
+
+/* Update Notification Styles */
+.update-notification-modal {
+  max-width: 600px;
+  width: 90vw;
+}
+
+.update-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background: var(--bg-sub);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.update-version-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.update-label {
+  color: var(--fg-dim);
+  font-size: 13px;
+}
+
+.update-value {
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.update-version-new {
+  color: #4caf50;
+}
+
+.update-date {
+  font-size: 12px;
+  color: var(--fg-dim);
+  text-align: right;
+}
+
+.update-release-notes {
+  margin-top: 16px;
+}
+
+.update-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--fg-primary);
+}
+
+.update-release-notes-body {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 12px;
+  background: var(--bg-sub);
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.release-note-subheading {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 12px;
+  margin-bottom: 8px;
+  color: var(--fg-primary);
+}
+
+.release-note-item {
+  margin-left: 20px;
+  margin-bottom: 4px;
+  color: var(--fg-secondary);
+}
+
+.release-note-paragraph {
+  margin-bottom: 8px;
+  color: var(--fg-secondary);
+}
+
+/* Update Progress Styles */
+.update-progress-modal {
+  max-width: 400px;
+  width: 90vw;
+}
+
+.update-progress-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 0;
+}
+
+.update-progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.update-progress-label {
+  font-size: 14px;
+  color: var(--fg-secondary);
+}
+
+.update-progress-percent {
+  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.update-progress-bar {
+  height: 8px;
+  background: var(--bg-sub);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.update-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4caf50, #66bb6a);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  min-width: 0;
+}
+
+.update-progress-message {
+  text-align: center;
+  font-size: 13px;
+  color: #4caf50;
+  font-weight: 500;
+}
