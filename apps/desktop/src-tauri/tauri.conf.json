@@ -35,7 +35,7 @@
     "icon": ["icons/icon.ico", "icons/icon.icns", "icons/icon.png"],
     "publisher": "S-IDE studio",
     "resources": ["resources/**/*"],
-    "createUpdaterArtifacts": "v1Compatible",
+    "createUpdaterArtifacts": true,
     "windows": {
       "nsis": {
         "displayLanguageSelector": false,
