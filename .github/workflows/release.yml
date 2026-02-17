@@ -203,9 +203,14 @@ jobs:
             DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/S-IDE_${VERSION}_aarch64.app.tar.gz"
             BUNDLE_FILE="S-IDE_${VERSION}_aarch64.app.tar.gz"
           elif [[ "${{ matrix.platform }}" == "ubuntu-latest" ]]; then
-            SIG_FILE="$(find_sig "*.AppImage.tar.gz.sig")"
-            DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/S-IDE_${VERSION}_amd64.AppImage.tar.gz"
-            BUNDLE_FILE="S-IDE_${VERSION}_amd64.AppImage.tar.gz"
+            # Try AppImage signature first, fall back to deb signature
+            SIG_FILE="$(find_sig "*.AppImage.sig")"
+            if [[ -z "$SIG_FILE" ]]; then
+              SIG_FILE="$(find_sig "*.deb.sig")"
+            fi
+            # Use AppImage as primary download URL
+            DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/S-IDE_${VERSION}_amd64.AppImage"
+            BUNDLE_FILE="S-IDE_${VERSION}_amd64.AppImage"
           fi
 
           if [[ -n "$SIG_FILE" ]]; then
@@ -266,8 +271,7 @@ jobs:
             apps/desktop/src-tauri/target/release/bundle/**/*.deb
             apps/desktop/src-tauri/target/release/bundle/**/*.deb.sig
             apps/desktop/src-tauri/target/release/bundle/**/*.AppImage
-            apps/desktop/src-tauri/target/release/bundle/**/*.AppImage.tar.gz
-            apps/desktop/src-tauri/target/release/bundle/**/*.AppImage.tar.gz.sig
+            apps/desktop/src-tauri/target/release/bundle/**/*.AppImage.sig
             dist/release/*
             server-bundle.zip
             latest.json
