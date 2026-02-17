@@ -17,9 +17,9 @@ jobs:
           # - platform: 'macos-14'
           #   args: '--target aarch64-apple-darwin'
           #   stable_macos: 's-ide-macos-arm64.dmg'
-          - platform: 'windows-latest'
-            args: ''
           - platform: 'ubuntu-latest'
+            args: ''
+          - platform: 'windows-latest'
             args: ''
 
     runs-on: ${{ matrix.platform }}
@@ -189,7 +189,8 @@ jobs:
             find "${BASES[@]}" -type f -path "*/release/bundle/*" -name "$1" | head -n 1 || true
           }
 
-          # Platform-specific signature file patterns and JSON filenames
+          # Platform-specific signature file patterns
+          # All platforms use the same 'latest.json' filename
           if [[ "${{ matrix.platform }}" == "windows-latest" ]]; then
             # Windows uses .exe or .msi signature files
             SIG_FILE="$(find_sig "*.exe.sig")"
@@ -199,12 +200,10 @@ jobs:
             # Use .exe as primary download URL for NSIS setup
             DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/S-IDE_${VERSION}_x64-setup.exe"
             BUNDLE_FILE="S-IDE_${VERSION}_x64-setup.exe"
-            JSON_FILENAME="latest-windows.json"
           elif [[ "${{ matrix.platform }}" == macos-* ]]; then
             SIG_FILE="$(find_sig "*.app.tar.gz.sig")"
             DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/S-IDE_${VERSION}_aarch64.app.tar.gz"
             BUNDLE_FILE="S-IDE_${VERSION}_aarch64.app.tar.gz"
-            JSON_FILENAME="latest-macos.json"
           elif [[ "${{ matrix.platform }}" == "ubuntu-latest" ]]; then
             # Try AppImage signature first, fall back to deb signature
             SIG_FILE="$(find_sig "*.AppImage.sig")"
@@ -214,15 +213,15 @@ jobs:
             # Use AppImage as primary download URL
             DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/S-IDE_${VERSION}_amd64.AppImage"
             BUNDLE_FILE="S-IDE_${VERSION}_amd64.AppImage"
-            JSON_FILENAME="latest-linux.json"
           fi
 
           if [[ -n "$SIG_FILE" ]]; then
             SIGNATURE=$(cat "$SIG_FILE")
             echo "Found signature file: $SIG_FILE"
 
-            # Create platform-specific latest.json
-            cat > "$JSON_FILENAME" << EOF
+            # Create latest.json (common filename for all platforms)
+            # Last job to run will win - Windows is now last in matrix order
+            cat > latest.json << EOF
           {
             "version": "$VERSION",
             "pub_date": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
@@ -232,8 +231,8 @@ jobs:
           }
           EOF
 
-            echo "Generated $JSON_FILENAME:"
-            cat "$JSON_FILENAME"
+            echo "Generated latest.json for ${{ matrix.platform }}:"
+            cat latest.json
           else
             echo "Warning: No signature file found for ${{ matrix.platform }}"
             echo "Signature files are required for auto-updates"
@@ -278,9 +277,7 @@ jobs:
             apps/desktop/src-tauri/target/release/bundle/**/*.AppImage.sig
             dist/release/*
             server-bundle.zip
-            latest-windows.json
-            latest-linux.json
-            latest-macos.json
+            latest.json
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
