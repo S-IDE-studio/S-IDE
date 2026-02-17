@@ -183,7 +183,7 @@ export function ServerStartupScreen({ onComplete }: ServerStartupScreenProps) {
     <div className="server-startup-screen">
       <div className="startup-content">
         <div className="startup-logo">S-IDE</div>
-        <div className="startup-version">v2.0.0</div>
+        <div className="startup-version">v3.0.3</div>
         <div className="status-text">{STATUS_MESSAGES[status]}</div>
         {status !== "failed" && (
           <div className="progress-bar">
