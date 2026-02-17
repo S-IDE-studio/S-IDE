@@ -17,7 +17,6 @@ interface Tunnel {
   on: (event: "close" | "error", listener: (error?: Error) => void) => void;
 }
 
-// @ts-expect-error - localtunnel runtime module is available; type resolution is environment-dependent.
 import localtunnel from "localtunnel";
 import { createHttpError, handleError } from "../utils/error.js";
 
