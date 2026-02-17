@@ -175,7 +175,7 @@ jobs:
           set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
           echo "Generating latest.json for version $VERSION"
-          
+
           # Find signature files
           BASES=()
           if [[ -d "apps/desktop/src-tauri/target" ]]; then
@@ -184,30 +184,34 @@ jobs:
           if [[ -d "target" ]]; then
             BASES+=("target")
           fi
-          
+
+          find_bundle() {
+            find "${BASES[@]}" -type f -path "*/release/bundle/*" -name "$1" | head -n 1 || true
+          }
+
           find_sig() {
             find "${BASES[@]}" -type f -path "*/release/bundle/*" -name "$1" | head -n 1 || true
           }
-          
+
           # Platform-specific signature file patterns
           if [[ "${{ matrix.platform }}" == "windows-latest" ]]; then
             SIG_FILE="$(find_sig "*.nsis.zip.sig")"
-            if [[ -z "$SIG_FILE" ]]; then
-              SIG_FILE="$(find_sig "*.msi.zip.sig")"
-            fi
             DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/S-IDE_${VERSION}_x64-setup.nsis.zip"
+            BUNDLE_FILE="S-IDE_${VERSION}_x64-setup.nsis.zip"
           elif [[ "${{ matrix.platform }}" == macos-* ]]; then
             SIG_FILE="$(find_sig "*.app.tar.gz.sig")"
             DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/S-IDE_${VERSION}_aarch64.app.tar.gz"
+            BUNDLE_FILE="S-IDE_${VERSION}_aarch64.app.tar.gz"
           elif [[ "${{ matrix.platform }}" == "ubuntu-latest" ]]; then
             SIG_FILE="$(find_sig "*.AppImage.tar.gz.sig")"
             DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/S-IDE_${VERSION}_amd64.AppImage.tar.gz"
+            BUNDLE_FILE="S-IDE_${VERSION}_amd64.AppImage.tar.gz"
           fi
-          
+
           if [[ -n "$SIG_FILE" ]]; then
             SIGNATURE=$(cat "$SIG_FILE")
             echo "Found signature file: $SIG_FILE"
-            
+
             # Create latest.json with proper JSON formatting
             cat > latest.json << EOF
           {
@@ -218,7 +222,7 @@ jobs:
             "notes": "See release notes at https://github.com/${{ github.repository }}/releases/tag/${GITHUB_REF_NAME}"
           }
           EOF
-            
+
             echo "Generated latest.json:"
             cat latest.json
           else
@@ -226,31 +230,44 @@ jobs:
             echo "Signature files are required for auto-updates"
           fi
 
+      - name: Copy signature files for upload
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/release
+          BASES=()
+          if [[ -d "apps/desktop/src-tauri/target" ]]; then
+            BASES+=("apps/desktop/src-tauri/target")
+          fi
+          if [[ -d "target" ]]; then
+            BASES+=("target")
+          fi
+
+          # Copy all signature files to dist/release
+          find "${BASES[@]}" -type f -path "*/release/bundle/*.sig" -exec cp {} dist/release/ \;
+
+          # List copied signature files
+          echo "Signature files copied:"
+          ls -la dist/release/*.sig 2>&1 || echo "No signature files found"
+
       - name: Upload to Release
         uses: softprops/action-gh-release@v1
-        continue-on-error: true
         with:
           files: |
-            apps/desktop/src-tauri/target/**/release/bundle/**/*.dmg
-            apps/desktop/src-tauri/target/**/release/bundle/**/*.app.tar.gz
-            apps/desktop/src-tauri/target/**/release/bundle/**/*.msi
-            apps/desktop/src-tauri/target/**/release/bundle/**/*.msi.zip
-            apps/desktop/src-tauri/target/**/release/bundle/**/*.msi.zip.sig
-            apps/desktop/src-tauri/target/**/release/bundle/**/*.exe
-            apps/desktop/src-tauri/target/**/release/bundle/**/*.nsis.zip
-            apps/desktop/src-tauri/target/**/release/bundle/**/*.nsis.zip.sig
-            apps/desktop/src-tauri/target/**/release/bundle/**/*.deb
-            apps/desktop/src-tauri/target/**/release/bundle/**/*.AppImage
-            target/**/release/bundle/**/*.dmg
-            target/**/release/bundle/**/*.app.tar.gz
-            target/**/release/bundle/**/*.msi
-            target/**/release/bundle/**/*.msi.zip
-            target/**/release/bundle/**/*.msi.zip.sig
-            target/**/release/bundle/**/*.exe
-            target/**/release/bundle/**/*.nsis.zip
-            target/**/release/bundle/**/*.nsis.zip.sig
-            target/**/release/bundle/**/*.deb
-            target/**/release/bundle/**/*.AppImage
+            apps/desktop/src-tauri/target/release/bundle/**/*.dmg
+            apps/desktop/src-tauri/target/release/bundle/**/*.app.tar.gz
+            apps/desktop/src-tauri/target/release/bundle/**/*.app.tar.gz.sig
+            apps/desktop/src-tauri/target/release/bundle/**/*.msi
+            apps/desktop/src-tauri/target/release/bundle/**/*.msi.zip
+            apps/desktop/src-tauri/target/release/bundle/**/*.msi.zip.sig
+            apps/desktop/src-tauri/target/release/bundle/**/*.exe
+            apps/desktop/src-tauri/target/release/bundle/**/*.nsis.zip
+            apps/desktop/src-tauri/target/release/bundle/**/*.nsis.zip.sig
+            apps/desktop/src-tauri/target/release/bundle/**/*.deb
+            apps/desktop/src-tauri/target/release/bundle/**/*.deb.sig
+            apps/desktop/src-tauri/target/release/bundle/**/*.AppImage
+            apps/desktop/src-tauri/target/release/bundle/**/*.AppImage.tar.gz
+            apps/desktop/src-tauri/target/release/bundle/**/*.AppImage.tar.gz.sig
             dist/release/*
             server-bundle.zip
             latest.json
