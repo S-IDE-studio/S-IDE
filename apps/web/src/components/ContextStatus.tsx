@@ -193,13 +193,13 @@ export const ContextStatus: React.FC<ContextStatusProps> = ({
       if (abortController.signal.aborted) return;
       setStatus(data);
       onStatusChange?.(data);
-    } catch (err) {
-      if (!abortController.signal.aborted) {
-        setError(err instanceof Error ? err.message : "Failed to fetch status");
-      }
-    } finally {
       if (!abortController.signal.aborted) {
         setLoading(false);
+      }
+    } catch (err) {
+      if (!abortController.signal.aborted) {
+        setLoading(false);
+        setError(err instanceof Error ? err.message : "Failed to fetch status");
       }
     }
 
@@ -219,7 +219,6 @@ export const ContextStatus: React.FC<ContextStatusProps> = ({
       clearInterval(interval);
       cleanup?.();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCompact = async () => {
@@ -227,10 +226,10 @@ export const ContextStatus: React.FC<ContextStatusProps> = ({
       setActionLoading("compact");
       await api.compact();
       await fetchStatus();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to compact");
-    } finally {
       setActionLoading(null);
+    } catch (err) {
+      setActionLoading(null);
+      setError(err instanceof Error ? err.message : "Failed to compact");
     }
   };
 
@@ -239,10 +238,10 @@ export const ContextStatus: React.FC<ContextStatusProps> = ({
       setActionLoading("snapshot");
       await api.snapshot();
       await fetchStatus();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create snapshot");
-    } finally {
       setActionLoading(null);
+    } catch (err) {
+      setActionLoading(null);
+      setError(err instanceof Error ? err.message : "Failed to create snapshot");
     }
   };
 

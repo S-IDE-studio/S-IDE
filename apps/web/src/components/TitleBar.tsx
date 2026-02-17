@@ -37,6 +37,19 @@ function isTauriApp(): boolean {
   );
 }
 
+// Lazy import cache for Tauri window API (module-level to avoid import expressions in component)
+let windowApiCache: typeof import("@tauri-apps/api/window") | null = null;
+let windowApiPromise: Promise<typeof import("@tauri-apps/api/window")> | null = null;
+
+async function getWindowApi(): Promise<typeof import("@tauri-apps/api/window")> {
+  if (windowApiCache) return windowApiCache;
+  if (!windowApiPromise) {
+    windowApiPromise = import("@tauri-apps/api/window");
+  }
+  windowApiCache = await windowApiPromise;
+  return windowApiCache;
+}
+
 // Accent color options for workspaces
 const ACCENT_COLORS = [
   "#3b82f6", // blue
@@ -551,22 +564,22 @@ export function TitleBar({
 
   const handleClose = async () => {
     if (!isInTauriApp) return;
-    const { getCurrentWindow } = await import("@tauri-apps/api/window");
-    const win = await getCurrentWindow();
+    const api = await getWindowApi();
+    const win = await api.getCurrentWindow();
     await win.close();
   };
 
   const handleMinimize = async () => {
     if (!isInTauriApp) return;
-    const { getCurrentWindow } = await import("@tauri-apps/api/window");
-    const win = await getCurrentWindow();
+    const api = await getWindowApi();
+    const win = await api.getCurrentWindow();
     await win.minimize();
   };
 
   const handleMaximize = async () => {
     if (!isInTauriApp) return;
-    const { getCurrentWindow } = await import("@tauri-apps/api/window");
-    const win = await getCurrentWindow();
+    const api = await getWindowApi();
+    const win = await api.getCurrentWindow();
     await win.toggleMaximize();
   };
 

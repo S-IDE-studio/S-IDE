@@ -392,8 +392,9 @@ export function TerminalTile({ session, wsUrl, onDelete, onError }: TerminalTile
       console.log(`[XTGETTCAP] Termcap query: ${data}`);
 
       // Decode hex-encoded capability names
+      const hexPairsMatch = data.match(/.{2}/g);
       try {
-        const hexPairs = data.match(/.{2}/g) || [];
+        const hexPairs = hexPairsMatch ?? [];
         const capName = hexPairs.map((h) => String.fromCharCode(parseInt(h, 16))).join("");
         console.log(`[XTGETTCAP] Decoded capability: ${capName}`);
 
@@ -524,7 +525,7 @@ export function TerminalTile({ session, wsUrl, onDelete, onError }: TerminalTile
           // Abnormal closure (1006, etc.) = network issue, server crash, etc.
           // Try to reconnect if we haven't exceeded attempts
           if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-            reconnectAttempts++;
+            reconnectAttempts = reconnectAttempts + 1;
             const delay = RECONNECT_BASE_DELAY_MS * 2 ** (reconnectAttempts - 1);
             term.write(
               `\r\n\x1b[33m${TEXT_RECONNECTING} (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})\x1b[0m\r\n`
@@ -554,7 +555,7 @@ export function TerminalTile({ session, wsUrl, onDelete, onError }: TerminalTile
         console.error("[Terminal] Failed to connect:", err);
         onError?.(`Connection failed: ${errorMessage}`);
         if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS && hasConnectedOnce) {
-          reconnectAttempts++;
+          reconnectAttempts = reconnectAttempts + 1;
           const delay = RECONNECT_BASE_DELAY_MS * 2 ** (reconnectAttempts - 1);
           term.write(
             `\r\n\x1b[33m${TEXT_RECONNECTING} (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})\x1b[0m\r\n`

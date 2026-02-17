@@ -5,6 +5,19 @@ interface ServerStartupScreenProps {
   onComplete: () => void;
 }
 
+// Lazy import cache for Tauri core API (module-level to avoid import expressions in component)
+let tauriCoreCache: typeof import("@tauri-apps/api/core") | null = null;
+let tauriCorePromise: Promise<typeof import("@tauri-apps/api/core")> | null = null;
+
+async function getTauriCore(): Promise<typeof import("@tauri-apps/api/core")> {
+  if (tauriCoreCache) return tauriCoreCache;
+  if (!tauriCorePromise) {
+    tauriCorePromise = import("@tauri-apps/api/core");
+  }
+  tauriCoreCache = await tauriCorePromise;
+  return tauriCoreCache;
+}
+
 type StartupStatus = "init" | "checking" | "starting" | "ready" | "failed";
 
 const STATUS_MESSAGES: Record<StartupStatus, string> = {
@@ -61,8 +74,9 @@ export function ServerStartupScreen({ onComplete }: ServerStartupScreenProps) {
       }
 
       try {
-        const tauri = await import("@tauri-apps/api/core");
-        const result = (await tauri.invoke("get_server_status")) as {
+        const api = await getTauriCore();
+
+        const result = (await api.invoke("get_server_status")) as {
           running: boolean;
           port: number;
         };
@@ -98,7 +112,7 @@ export function ServerStartupScreen({ onComplete }: ServerStartupScreenProps) {
           }, 300);
         }
 
-        await tauri.invoke("start_server", { port: DEFAULT_SERVER_PORT });
+        await api.invoke("start_server", { port: DEFAULT_SERVER_PORT });
 
         // Wait for server to be ready
         await sleep(SERVER_STARTUP_DELAY);
@@ -106,7 +120,7 @@ export function ServerStartupScreen({ onComplete }: ServerStartupScreenProps) {
         if (!alive) return;
 
         // Verify server is running and healthy
-        const verifyResult = (await tauri.invoke("get_server_status")) as {
+        const verifyResult = (await api.invoke("get_server_status")) as {
           running: boolean;
           port: number;
         };

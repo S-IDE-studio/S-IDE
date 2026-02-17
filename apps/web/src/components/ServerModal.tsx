@@ -8,6 +8,19 @@ interface ServerModalProps {
   onClose: () => void;
 }
 
+// Lazy import cache for Tauri core API (module-level to avoid import expressions in component)
+let tauriCoreCache: typeof import("@tauri-apps/api/core") | null = null;
+let tauriCorePromise: Promise<typeof import("@tauri-apps/api/core")> | null = null;
+
+async function getTauriCore(): Promise<typeof import("@tauri-apps/api/core")> {
+  if (tauriCoreCache) return tauriCoreCache;
+  if (!tauriCorePromise) {
+    tauriCorePromise = import("@tauri-apps/api/core");
+  }
+  tauriCoreCache = await tauriCorePromise;
+  return tauriCoreCache;
+}
+
 export function ServerModal({ isOpen, status, port, onClose }: ServerModalProps) {
   const [actionPort, setActionPort] = useState(port.toString());
   const [isPerformingAction, setIsPerformingAction] = useState(false);
@@ -40,20 +53,20 @@ export function ServerModal({ isOpen, status, port, onClose }: ServerModalProps)
   const handleStartServer = async () => {
     setIsPerformingAction(true);
     try {
-      const tauri = await import("@tauri-apps/api/core");
+      const api = await getTauriCore();
       const portNum = parseInt(actionPort, 10);
-      await tauri.invoke("start_server", { port: portNum });
+      await api.invoke("start_server", { port: portNum });
       setLogs((prev) => [
         ...prev,
         `[${new Date().toLocaleTimeString()}] Server started on port ${portNum}`,
       ]);
+      setIsPerformingAction(false);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Unknown error";
       setLogs((prev) => [
         ...prev,
         `[${new Date().toLocaleTimeString()}] Failed to start: ${message}`,
       ]);
-    } finally {
       setIsPerformingAction(false);
     }
   };
@@ -61,16 +74,16 @@ export function ServerModal({ isOpen, status, port, onClose }: ServerModalProps)
   const handleStopServer = async () => {
     setIsPerformingAction(true);
     try {
-      const tauri = await import("@tauri-apps/api/core");
-      await tauri.invoke("stop_server");
+      const api = await getTauriCore();
+      await api.invoke("stop_server");
       setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] Server stopped`]);
+      setIsPerformingAction(false);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Unknown error";
       setLogs((prev) => [
         ...prev,
         `[${new Date().toLocaleTimeString()}] Failed to stop: ${message}`,
       ]);
-    } finally {
       setIsPerformingAction(false);
     }
   };

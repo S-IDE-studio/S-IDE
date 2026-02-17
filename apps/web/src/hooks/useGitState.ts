@@ -189,6 +189,8 @@ export const useGitState = (
           loading: false,
           error: null,
         }));
+        loadingRefs.current[workspaceId] = false;
+        delete loadingRefs.current[`${workspaceId}_abort`];
       } catch (error) {
         if (!abortController.signal.aborted) {
           const message = error instanceof Error ? error.message : "Failed to get git status";
@@ -200,7 +202,6 @@ export const useGitState = (
             error: message,
           }));
         }
-      } finally {
         loadingRefs.current[workspaceId] = false;
         delete loadingRefs.current[`${workspaceId}_abort`];
       }
@@ -422,10 +423,10 @@ export const useGitState = (
       const result = await pushChanges(activeWorkspaceId, repoPath);
       setStatusMessage(`Pushed to ${result.branch}`);
       await refreshGitStatus();
+      updateGitState(activeWorkspaceId, (prev) => ({ ...prev, pushing: false }));
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to push";
       setStatusMessage(message);
-    } finally {
       updateGitState(activeWorkspaceId, (prev) => ({ ...prev, pushing: false }));
     }
   }, [activeWorkspaceId, getCurrentRepoPath, updateGitState, refreshGitStatus, setStatusMessage]);
@@ -446,10 +447,10 @@ export const useGitState = (
         setStatusMessage("Already up to date");
       }
       await refreshGitStatus();
+      updateGitState(activeWorkspaceId, (prev) => ({ ...prev, pulling: false }));
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to pull";
       setStatusMessage(message);
-    } finally {
       updateGitState(activeWorkspaceId, (prev) => ({ ...prev, pulling: false }));
     }
   }, [activeWorkspaceId, getCurrentRepoPath, updateGitState, refreshGitStatus, setStatusMessage]);

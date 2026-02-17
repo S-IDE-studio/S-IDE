@@ -204,20 +204,21 @@ export function useAdvancedScan(): AdvancedScanResult {
     setError(undefined);
 
     try {
-      const tauri = await import("@tauri-apps/api/core");
-      const data = await tauri.invoke<ScanResult[]>("scan_local_servers_advanced", {
+      const api = await getTauriCore();
+      if (!api) throw new Error("Tauri not available");
+      const data = await api.invoke<ScanResult[]>("scan_local_servers_advanced", {
         ports: options.ports ?? null,
         os_detection: options.osDetection ?? false,
         version_detection: options.versionDetection ?? false,
         use_nmap: options.useNmap ?? false,
       });
       setResults(data);
+      setIsScanning(false);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       setError(errorMsg);
       console.error("[useAdvancedScan] Scan failed:", errorMsg);
       setResults([]);
-    } finally {
       setIsScanning(false);
     }
   };
@@ -230,7 +231,8 @@ export function useAdvancedScan(): AdvancedScanResult {
  */
 export async function checkNmapAvailable(): Promise<boolean> {
   try {
-    const tauri = await import("@tauri-apps/api/core");
+    const tauri = await getTauriCore();
+    if (!tauri) return false;
     return await tauri.invoke<boolean>("check_nmap_available");
   } catch {
     return false;

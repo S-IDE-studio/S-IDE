@@ -123,9 +123,9 @@ export function useUpdateCheck() {
       } else {
         console.log("[UpdateCheck] No update available. Current version is up to date.");
       }
+      setIsChecking(false);
     } catch (error) {
       console.error("[UpdateCheck] Update check failed:", error);
-    } finally {
       setIsChecking(false);
     }
   };

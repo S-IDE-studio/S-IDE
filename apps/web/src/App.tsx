@@ -7,6 +7,31 @@ function isTauriApp(): boolean {
   );
 }
 
+// Lazy import cache for Tauri APIs (module-level to avoid import expressions in component)
+let tauriCoreCache: typeof import("@tauri-apps/api/core") | null = null;
+let tauriCorePromise: Promise<typeof import("@tauri-apps/api/core")> | null = null;
+
+async function getTauriCore(): Promise<typeof import("@tauri-apps/api/core")> {
+  if (tauriCoreCache) return tauriCoreCache;
+  if (!tauriCorePromise) {
+    tauriCorePromise = import("@tauri-apps/api/core");
+  }
+  tauriCoreCache = await tauriCorePromise;
+  return tauriCoreCache;
+}
+
+let tauriDialogCache: typeof import("@tauri-apps/plugin-dialog") | null = null;
+let tauriDialogPromise: Promise<typeof import("@tauri-apps/plugin-dialog")> | null = null;
+
+async function getTauriDialog(): Promise<typeof import("@tauri-apps/plugin-dialog")> {
+  if (tauriDialogCache) return tauriDialogCache;
+  if (!tauriDialogPromise) {
+    tauriDialogPromise = import("@tauri-apps/plugin-dialog");
+  }
+  tauriDialogCache = await tauriDialogPromise;
+  return tauriDialogCache;
+}
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getConfig, getWsBase, listFiles, readFile } from "./api";
 import { CommonSettings } from "./components/AgentSettings";
@@ -735,7 +760,6 @@ export default function App() {
   // saved layout from localStorage.
 
   // Load available agents (only once on mount)
-  // Note: activeAgent is intentionally in deps to prevent re-fetching when user changes active agent
   useEffect(() => {
     const abortController = new AbortController();
     const signal = abortController.signal;
@@ -768,8 +792,7 @@ export default function App() {
     return () => {
       abortController.abort();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeAgent]);
+  }, []);
 
   useEffect(() => {
     if (workspaceMode === "editor" && !editorWorkspaceId) {
@@ -899,7 +922,7 @@ export default function App() {
         const isTauri = typeof window !== "undefined" && isTauriApp();
         if (isTauri && typeof settings.remoteAccessAutoStart === "boolean") {
           try {
-            const tauri = await import("@tauri-apps/api/core");
+            const tauri = await getTauriCore();
             await tauri.invoke("set_remote_access_settings", {
               auto_start: settings.remoteAccessAutoStart,
             });
@@ -954,8 +977,8 @@ export default function App() {
 
     if (isTauri) {
       try {
-        const { open } = await import("@tauri-apps/plugin-dialog");
-        const selected = await open({
+        const dialog = await getTauriDialog();
+        const selected = await dialog.open({
           directory: true,
           multiple: false,
           title: "ワークスペースとして開くフォルダを選択",
@@ -1240,9 +1263,11 @@ export default function App() {
           decks={decks}
           deckStates={deckStates}
           activeDeckIds={activeDeckIds}
-          gitFiles={
-            gitState.status?.files ? { [editorWorkspaceId || ""]: gitState.status.files } : {}
-          }
+          gitFiles={(() => {
+            if (!gitState.status?.files) return {};
+            const key = editorWorkspaceId || "";
+            return { [key]: gitState.status.files };
+          })()}
           onToggleDir={(wsId, node) => {
             if (editorWorkspaceId === wsId) {
               handleToggleDir(node);

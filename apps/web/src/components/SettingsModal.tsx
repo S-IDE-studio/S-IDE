@@ -7,6 +7,19 @@ function isTauriApp(): boolean {
   );
 }
 
+// Lazy import cache for Tauri core API (module-level to avoid import expressions in component)
+let tauriCoreCache: typeof import("@tauri-apps/api/core") | null = null;
+let tauriCorePromise: Promise<typeof import("@tauri-apps/api/core")> | null = null;
+
+async function getTauriCore(): Promise<typeof import("@tauri-apps/api/core")> {
+  if (tauriCoreCache) return tauriCoreCache;
+  if (!tauriCorePromise) {
+    tauriCorePromise = import("@tauri-apps/api/core");
+  }
+  tauriCoreCache = await tauriCorePromise;
+  return tauriCoreCache;
+}
+
 import { DEFAULT_SERVER_PORT, DEFAULT_WS_LIMIT, MAX_WS_LIMIT, MIN_WS_LIMIT } from "../constants";
 
 interface Settings {
@@ -106,7 +119,7 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
 
       // Load Remote Access settings from Desktop (best-effort)
       if (typeof window !== "undefined" && isTauriApp()) {
-        import("@tauri-apps/api/core")
+        getTauriCore()
           .then(
             (tauri) =>
               tauri.invoke("get_remote_access_settings") as Promise<{ auto_start?: boolean }>
@@ -176,9 +189,9 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
       const data = await res.json();
       console.log(`Cleared ${data.cleared} connections`);
       loadWsStats();
+      setIsClearing(false);
     } catch (err) {
       console.error("Failed to clear WS connections:", err);
-    } finally {
       setIsClearing(false);
     }
   };
@@ -203,10 +216,10 @@ export function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
         remoteAccessAutoStart,
       });
       onClose();
+      setIsSaving(false);
     } catch (err) {
       console.error("Failed to save settings:", err);
       alert("設定の保存に失敗しました");
-    } finally {
       setIsSaving(false);
     }
   };

@@ -39,26 +39,26 @@ export const useFileOperations = ({
 }: UseFileOperationsProps) => {
   const [savingFileId, setSavingFileId] = useState<string | null>(null);
 
-  const updateTreeNode = useCallback(
-    (
-      nodes: FileTreeNode[],
-      targetPath: string,
-      updater: (node: FileTreeNode) => FileTreeNode
-    ): FileTreeNode[] =>
-      nodes.map((node) => {
-        if (node.path === targetPath) {
-          return updater(node);
-        }
-        if (node.children) {
-          return {
-            ...node,
-            children: updateTreeNode(node.children, targetPath, updater),
-          };
-        }
-        return node;
-      }),
-    []
-  );
+  // Define updateTreeNode as a regular function to avoid React Compiler issues
+  // with recursive references in useCallback
+  function updateTreeNode(
+    nodes: FileTreeNode[],
+    targetPath: string,
+    updater: (node: FileTreeNode) => FileTreeNode
+  ): FileTreeNode[] {
+    return nodes.map((node) => {
+      if (node.path === targetPath) {
+        return updater(node);
+      }
+      if (node.children) {
+        return {
+          ...node,
+          children: updateTreeNode(node.children, targetPath, updater),
+        };
+      }
+      return node;
+    });
+  }
 
   const handleRefreshTree = useCallback(() => {
     if (!editorWorkspaceId) return;
@@ -152,7 +152,7 @@ export const useFileOperations = ({
           }
         });
     },
-    [editorWorkspaceId, updateWorkspaceState, updateTreeNode]
+    [editorWorkspaceId, updateWorkspaceState]
   );
 
   const handleOpenFile = useCallback(
@@ -236,10 +236,10 @@ export const useFileOperations = ({
           files: state.files.map((item) => (item.id === fileId ? { ...item, dirty: false } : item)),
         }));
         setStatusMessage(SAVED_MESSAGE);
-      } catch (error: unknown) {
-        setStatusMessage(`保存に失敗しました: ${getErrorMessage(error)}`);
-      } finally {
         setSavingFileId(null);
+      } catch (error: unknown) {
+        setSavingFileId(null);
+        setStatusMessage(`保存に失敗しました: ${getErrorMessage(error)}`);
       }
     },
     [editorWorkspaceId, activeWorkspaceState.files, updateWorkspaceState, setStatusMessage]

@@ -8,6 +8,19 @@ function isTauriApp(): boolean {
   );
 }
 
+// Lazy import cache for Tauri dialog API (module-level to avoid import expressions in component)
+let dialogApiCache: typeof import("@tauri-apps/plugin-dialog") | null = null;
+let dialogApiPromise: Promise<typeof import("@tauri-apps/plugin-dialog")> | null = null;
+
+async function getDialogApi(): Promise<typeof import("@tauri-apps/plugin-dialog")> {
+  if (dialogApiCache) return dialogApiCache;
+  if (!dialogApiPromise) {
+    dialogApiPromise = import("@tauri-apps/plugin-dialog");
+  }
+  dialogApiCache = await dialogApiPromise;
+  return dialogApiCache;
+}
+
 interface WorkspaceModalProps {
   isOpen: boolean;
   defaultRoot: string;
@@ -32,13 +45,14 @@ export const WorkspaceModal = ({ isOpen, defaultRoot, onSubmit, onClose }: Works
     if (isInTauriApp) {
       // Tauri: Use native dialog
       try {
-        const { open } = await import("@tauri-apps/plugin-dialog");
-        const selected = await open({
+        const api = await getDialogApi();
+        const selected = await api.open({
           directory: true,
           multiple: false,
           title: "ワークスペースとして開くフォルダを選択",
         });
-        if (selected && typeof selected === "string") {
+        const isValidString = selected && typeof selected === "string";
+        if (isValidString) {
           setWorkspacePath(selected);
         }
       } catch (error) {

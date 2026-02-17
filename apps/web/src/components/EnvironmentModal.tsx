@@ -1,4 +1,6 @@
 import { CheckCircle2, Loader2, Network, RefreshCw, Server, Terminal, XCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { COMMON_PORTS_TO_CHECK } from "../constants";
 
 // Check if running in Tauri (Tauri v2 uses __TAURI_INTERNALS__)
 function isTauriApp(): boolean {
@@ -7,8 +9,18 @@ function isTauriApp(): boolean {
   );
 }
 
-import { useEffect, useState } from "react";
-import { COMMON_PORTS_TO_CHECK } from "../constants";
+// Lazy import cache for Tauri core API (module-level to avoid import expressions in component)
+let tauriCoreCache: typeof import("@tauri-apps/api/core") | null = null;
+let tauriCorePromise: Promise<typeof import("@tauri-apps/api/core")> | null = null;
+
+async function getTauriCore(): Promise<typeof import("@tauri-apps/api/core")> {
+  if (tauriCoreCache) return tauriCoreCache;
+  if (!tauriCorePromise) {
+    tauriCorePromise = import("@tauri-apps/api/core");
+  }
+  tauriCoreCache = await tauriCorePromise;
+  return tauriCoreCache;
+}
 
 interface EnvironmentModalProps {
   isOpen: boolean;
@@ -41,33 +53,23 @@ export function EnvironmentModal({ isOpen, onClose }: EnvironmentModalProps) {
 
   const portsToCheck = COMMON_PORTS_TO_CHECK;
 
-  useEffect(() => {
-    setIsTauri(typeof window !== "undefined" && isTauriApp());
-  }, []);
-
-  useEffect(() => {
-    if (isOpen && isTauri) {
-      loadEnvironmentInfo();
-    }
-  }, [isOpen, isTauri]);
-
   const loadEnvironmentInfo = async () => {
     setLoading(true);
     try {
-      const tauri = await import("@tauri-apps/api/core");
+      const api = await getTauriCore();
 
       // Load environment info
-      const envResult = (await tauri.invoke("check_environment")) as EnvironmentInfo;
+      const envResult = (await api.invoke("check_environment")) as EnvironmentInfo;
       setEnvInfo(envResult);
 
       // Check ports
       const portResults = await Promise.all(
-        portsToCheck.map((port) => tauri.invoke("check_port", { port }))
+        portsToCheck.map((port) => api.invoke("check_port", { port }))
       );
       setPorts(portResults as PortStatus[]);
+      setLoading(false);
     } catch (e) {
       console.error("Failed to load environment info:", e);
-    } finally {
       setLoading(false);
     }
   };
@@ -77,6 +79,16 @@ export function EnvironmentModal({ isOpen, onClose }: EnvironmentModalProps) {
     await loadEnvironmentInfo();
     setRefreshing(false);
   };
+
+  useEffect(() => {
+    setIsTauri(typeof window !== "undefined" && isTauriApp());
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && isTauri) {
+      loadEnvironmentInfo();
+    }
+  }, [isOpen, isTauri]);
 
   if (!isOpen) return null;
 
