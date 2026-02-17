@@ -61,9 +61,13 @@
   "plugins": {
     "updater": {
       "active": true,
-      "endpoints": ["https://github.com/S-IDE-studio/S-IDE/releases/latest/download/latest.json"],
+      "endpoints": [
+        "https://github.com/S-IDE-studio/S-IDE/releases/latest/download/latest-windows.json",
+        "https://github.com/S-IDE-studio/S-IDE/releases/latest/download/latest-linux.json",
+        "https://github.com/S-IDE-studio/S-IDE/releases/latest/download/latest-macos.json"
+      ],
       "dialog": true,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk0M0E4OTk3RDkxQTQ1REMKUldUY1JSclpsNGs2bE5mMWdqQ2pKaUhqWCtuWDZlM2tNNG9vdVRBRGZqaGF0cm9LVHRqN2Z1UUEK"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk0M0E4OTk3RDkxQTQ1REMKUldUY1JSclpsNGs2bE5mMWdqQ2pKaUhqWCtuWDZlM2tNNG9wdVRBRGZqaGF0cm9LVHRqN2Z1UUEK"
     }
   }
 }

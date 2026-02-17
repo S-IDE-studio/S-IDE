@@ -191,9 +191,14 @@ jobs:
 
           # Platform-specific signature file patterns and JSON filenames
           if [[ "${{ matrix.platform }}" == "windows-latest" ]]; then
-            SIG_FILE="$(find_sig "*.nsis.zip.sig")"
-            DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/S-IDE_${VERSION}_x64-setup.nsis.zip"
-            BUNDLE_FILE="S-IDE_${VERSION}_x64-setup.nsis.zip"
+            # Windows uses .exe or .msi signature files
+            SIG_FILE="$(find_sig "*.exe.sig")"
+            if [[ -z "$SIG_FILE" ]]; then
+              SIG_FILE="$(find_sig "*.msi.sig")"
+            fi
+            # Use .exe as primary download URL for NSIS setup
+            DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/S-IDE_${VERSION}_x64-setup.exe"
+            BUNDLE_FILE="S-IDE_${VERSION}_x64-setup.exe"
             JSON_FILENAME="latest-windows.json"
           elif [[ "${{ matrix.platform }}" == macos-* ]]; then
             SIG_FILE="$(find_sig "*.app.tar.gz.sig")"
