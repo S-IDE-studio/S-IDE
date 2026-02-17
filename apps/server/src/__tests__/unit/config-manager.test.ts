@@ -14,7 +14,7 @@ describe("ConfigManager", () => {
     mkdirSync(testDir, { recursive: true });
     configManager = new ConfigManager(join(testDir, "config.json"));
 
-    // Save original environment
+    // Save original environment and clear all config-related env vars
     originalEnv = { ...process.env };
     delete process.env.PORT;
     delete process.env.HOST;
@@ -23,6 +23,8 @@ describe("ConfigManager", () => {
     delete process.env.DEFAULT_ROOT;
     delete process.env.BASIC_AUTH_USER;
     delete process.env.BASIC_AUTH_PASS;
+    // Also clear any other potential env vars that might interfere
+    delete process.env.NODE_ENV;
   });
 
   afterEach(() => {
@@ -49,6 +51,10 @@ describe("ConfigManager", () => {
     configManager.set("port", 9000);
     configManager.set("host", "localhost");
     configManager.save();
+
+    // Clear any cached environment variables
+    delete process.env.PORT;
+    delete process.env.HOST;
 
     // Create new instance and load
     const newConfigManager = new ConfigManager(join(testDir, "config.json"));

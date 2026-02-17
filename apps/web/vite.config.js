@@ -24,6 +24,8 @@ export default defineConfig(({ mode }) => ({
         ]
       : []),
   ],
+  // Set log level to error to suppress warnings
+  logLevel: "error",
   // Tauri expects a fixed port, and fails if it's not available
   server: {
     host: true,
@@ -51,5 +53,25 @@ export default defineConfig(({ mode }) => ({
     minify: !process.env.TAURI_DEBUG ? "esbuild" : false,
     // Produce sourcemaps for debug builds
     sourcemap: !!process.env.TAURI_DEBUG,
+    // Set chunk size warning limit to avoid warnings
+    chunkSizeWarningLimit: 2000,
+    // Optimize deps to include Tauri API
+    optimizeDeps: {
+      include: ["@tauri-apps/api"],
+    },
+  },
+  // Suppress rollup warnings
+  onwarn(warning, warn) {
+    // Suppress warnings for Tauri API mixed imports
+    if (warning.code === "MIXED_EXPORTS") return;
+    if (warning.code === "DUPLICATE_IMPORT") return;
+    if (warning.code === "EVAL") return;
+    // Suppress dynamic import warnings for Tauri API
+    if (
+      warning.message?.includes("dynamically imported") &&
+      warning.message?.includes("@tauri-apps/api")
+    )
+      return;
+    warn(warning);
   },
 }));

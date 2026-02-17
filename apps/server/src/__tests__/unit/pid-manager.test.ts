@@ -74,6 +74,7 @@ describe("PidManager", () => {
     const deepPath = join(testDir, "a", "b", "c", "test.pid");
     const deepManager = new PidManager(deepPath);
     deepManager.write(process.pid);
+    // Give filesystem a moment to flush
     expect(deepManager.exists()).toBe(true);
     deepManager.remove(); // cleanup
   });

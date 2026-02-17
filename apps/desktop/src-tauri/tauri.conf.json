@@ -36,7 +36,7 @@
     "icon": ["icons/icon.ico", "icons/icon.icns", "icons/icon.png"],
     "publisher": "S-IDE studio",
     "resources": ["resources/**/*"],
-    "createUpdaterArtifacts": "v1Compatible",
+    "createUpdaterArtifacts": true,
     "windows": {
       "nsis": {
         "displayLanguageSelector": false,
@@ -63,7 +63,7 @@
       "active": true,
       "endpoints": ["https://github.com/S-IDE-studio/S-IDE/releases/latest/download/latest.json"],
       "dialog": true,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk3QTBDMzZFQjBFQ0IyQzUKUldURnN1eXdic09nbDd3UktDTkI0czJsVVZnbEJ6Z3d0T3I5ODRoaW1jOXJLTTN1N0VKMmpjbHMK"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk0M0E4OTk3RDkxQTQ1REMKUldUY1JSclpsNGs2bE5mMWdqQ2pKaUhqWCtuWDZlM2tNNG9vdVRBRGZqaGF0cm9LVHRqN2Z1UUEK"
     }
   }
 }
