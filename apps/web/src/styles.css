@@ -6418,14 +6418,125 @@ input:focus-visible {
 .spinner {
   width: 24px;
   height: 24px;
-  border: 3px solid var(--border);
-  border-top-color: var(--accent);
+  border: 3px solid var(--color-border-dim);
+  border-top-color: var(--color-accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
+/* ========================================
+   Transition Utilities
+   ======================================== */
+
+/* Transition duration classes */
+.transition-none {
+  transition: none;
+}
+
+.transition-all {
+  transition: var(--transition-all);
+}
+
+.transition-colors {
+  transition: var(--transition-colors);
+}
+
+.transition-opacity {
+  transition: var(--transition-opacity);
+}
+
+.transition-transform {
+  transition: var(--transition-transform);
+}
+
+/* Transition duration modifiers */
+.duration-instant {
+  transition-duration: var(--transition-instant);
+}
+
+.duration-fast {
+  transition-duration: var(--transition-fast);
+}
+
+.duration-normal {
+  transition-duration: var(--transition-normal);
+}
+
+.duration-slow {
+  transition-duration: var(--transition-slow);
+}
+
+/* Easing modifiers */
+.ease-default {
+  transition-timing-function: var(--ease-default);
+}
+
+.ease-in {
+  transition-timing-function: var(--ease-in);
+}
+
+.ease-out {
+  transition-timing-function: var(--ease-out);
+}
+
+.ease-bounce {
+  transition-timing-function: var(--ease-bounce);
+}
+
+/* ========================================
+   Focus Ring Utilities
+   ======================================== */
+
+.focus-ring {
+  outline: none;
+}
+
+.focus-ring:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+.focus-ring-inset:focus-visible {
+  box-shadow: inset var(--focus-ring);
+}
+
+/* ========================================
+   Interactive States
+   ======================================== */
+
+/* Hover lift effect */
+.hover-lift {
+  transition: transform var(--transition-fast) var(--ease-default);
+}
+
+.hover-lift:hover {
+  transform: translateY(-1px);
+}
+
+/* Hover glow effect */
+.hover-glow {
+  transition: box-shadow var(--transition-fast) var(--ease-default);
+}
+
+.hover-glow:hover {
+  box-shadow: var(--glow-sm);
+}
+
+/* Active press effect */
+.active-scale {
+  transition: transform var(--transition-instant) var(--ease-default);
+}
+
+.active-scale:active {
+  transform: scale(0.98);
+}
+
+/* ========================================
+   Reduced Motion Support
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .hover-lift:hover,
+  .active-scale:active {
+    transform: none;
   }
 }
