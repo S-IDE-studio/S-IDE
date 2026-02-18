@@ -48,9 +48,112 @@
   /* Title Bar */
   --color-title-bar: #0a0a0a;
 
-  /* Special */
+  /* Status Colors */
+  --color-status-success: #22c55e;
+  --color-status-warning: #f59e0b;
+  --color-status-error: #ef4444;
+  --color-status-info: #3b82f6;
+
+  /* ========================================
+     Transitions & Animations
+     ======================================== */
+
+  /* Durations */
+  --transition-instant: 50ms;
+  --transition-fast: 100ms;
+  --transition-normal: 150ms;
+  --transition-slow: 250ms;
+  --transition-slower: 400ms;
+
+  /* Easing Functions */
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Common Transitions */
+  --transition-colors:
+    color var(--transition-fast) var(--ease-default),
+    background-color var(--transition-fast) var(--ease-default),
+    border-color var(--transition-fast) var(--ease-default);
+  --transition-opacity: opacity var(--transition-fast) var(--ease-default);
+  --transition-transform: transform var(--transition-normal) var(--ease-default);
+  --transition-all: all var(--transition-normal) var(--ease-default);
+
+  /* ========================================
+     Shadows & Glow Effects
+     ======================================== */
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+
+  /* Inset shadows */
+  --shadow-inset-sm: inset 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+  --shadow-inset-md: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5);
+
+  /* Glow effects (subtle white glow) */
+  --glow-sm: 0 0 4px rgba(255, 255, 255, 0.1);
+  --glow-md: 0 0 8px rgba(255, 255, 255, 0.15);
+  --glow-lg: 0 0 16px rgba(255, 255, 255, 0.2);
+  --glow-focus: 0 0 0 2px rgba(255, 255, 255, 0.2);
+
+  /* ========================================
+     Focus Ring
+     ======================================== */
+
+  --focus-ring-width: 2px;
+  --focus-ring-color: rgba(255, 255, 255, 0.5);
+  --focus-ring-offset: 2px;
+  --focus-ring: 0 0 0 var(--focus-ring-width) var(--focus-ring-color);
+
+  /* Legacy focus border */
   --color-focus-border: #666666;
   --color-shadow: rgba(0, 0, 0, 0.3);
+
+  /* ========================================
+     Border Radius
+     ======================================== */
+
+  --radius-none: 0;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 12px;
+  --radius-full: 9999px;
+
+  /* ========================================
+     Spacing Scale
+     ======================================== */
+
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ========================================
+     Z-Index Scale
+     ======================================== */
+
+  --z-base: 0;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal-backdrop: 300;
+  --z-modal: 400;
+  --z-popover: 500;
+  --z-tooltip: 600;
+  --z-notification: 700;
+  --z-top: 9999;
 
   /* ========================================
      Dockview Theme Colors
@@ -117,4 +220,38 @@
   --title-bar: var(--color-title-bar);
   --statusbar: var(--color-statusbar);
   --focus-border: var(--color-focus-border);
+}
+
+/* ========================================
+   Accessibility: Reduced Motion
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transition-instant: 0ms;
+    --transition-fast: 0ms;
+    --transition-normal: 0ms;
+    --transition-slow: 0ms;
+    --transition-slower: 0ms;
+    --transition-colors: none;
+    --transition-opacity: none;
+    --transition-transform: none;
+    --transition-all: none;
+  }
+}
+
+/* ========================================
+   Base Styles
+   ======================================== */
+
+/* Focus visible for keyboard navigation */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Selection color */
+::selection {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: var(--color-fg);
 }
