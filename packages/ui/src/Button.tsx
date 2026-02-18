@@ -65,6 +65,7 @@ export const Button: React.FC<ButtonProps> = ({
     <button
       className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${loadingClasses} ${className}`}
       disabled={disabled || loading}
+      aria-busy={loading || undefined}
       {...props}
     >
       {loading && (
@@ -73,6 +74,8 @@ export const Button: React.FC<ButtonProps> = ({
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
         >
           <title>Loading</title>
           <circle

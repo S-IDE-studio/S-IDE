@@ -20,16 +20,23 @@ export const Modal: React.FC<ModalProps> = ({
   const modalRef = useRef<HTMLDivElement>(null);
   const previousActiveElement = useRef<HTMLElement | null>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [shouldRender, setShouldRender] = useState(isOpen);
 
-  // Handle animation state
+  // Handle animation state - keep mounted during exit animation
   useEffect(() => {
     if (isOpen) {
+      setShouldRender(true);
       // Small delay to trigger enter animation
       requestAnimationFrame(() => {
         setIsVisible(true);
       });
     } else {
       setIsVisible(false);
+      // Delay unmount to allow exit animation to complete
+      const timeout = setTimeout(() => {
+        setShouldRender(false);
+      }, 200);
+      return () => clearTimeout(timeout);
     }
   }, [isOpen]);
 
@@ -62,7 +69,7 @@ export const Modal: React.FC<ModalProps> = ({
     return () => window.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
