@@ -41,49 +41,62 @@ export function SideNav({
 
   return (
     <div className={className}>
-      <div className="activity-bar">
-        <button
-          type="button"
-          className={`activity-item ${sidebarPanel === "files" ? "active" : ""}`}
-          onClick={() => handlePanelChange("files")}
-          title="Files"
-        >
-          <Files size={20} />
-        </button>
-        <button
-          type="button"
-          className={`activity-item ${sidebarPanel === "git" ? "active" : ""}`}
-          onClick={() => handlePanelChange("git")}
-          title="Source Control"
-        >
-          <GitBranch size={20} />
-        </button>
-        <button
-          type="button"
-          className={`activity-item ${sidebarPanel === "ai" ? "active" : ""}`}
-          onClick={() => handlePanelChange("ai")}
-          title="AI Workflow"
-        >
-          <Activity size={20} />
-        </button>
+      <nav className="activity-bar" aria-label="Main navigation">
+        <div className="activity-bar-top">
+          <button
+            type="button"
+            className={`activity-bar-item ${sidebarPanel === "files" ? "active" : ""}`}
+            onClick={() => handlePanelChange("files")}
+            title="Files"
+            aria-label="Files"
+            aria-current={sidebarPanel === "files" ? "page" : undefined}
+          >
+            <Files size={20} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className={`activity-bar-item ${sidebarPanel === "git" ? "active" : ""}`}
+            onClick={() => handlePanelChange("git")}
+            title="Source Control"
+            aria-label="Source Control"
+            aria-current={sidebarPanel === "git" ? "page" : undefined}
+          >
+            <GitBranch size={20} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className={`activity-bar-item ${sidebarPanel === "ai" ? "active" : ""}`}
+            onClick={() => handlePanelChange("ai")}
+            title="AI Workflow"
+            aria-label="AI Workflow"
+            aria-current={sidebarPanel === "ai" ? "page" : undefined}
+          >
+            <Activity size={20} aria-hidden="true" />
+          </button>
+        </div>
         <div className="activity-spacer" />
-        <button
-          type="button"
-          className="activity-item"
-          onClick={handleServerModalClick}
-          title="Server"
-        >
-          <Server size={20} />
-        </button>
-        <button
-          type="button"
-          className={`activity-item ${sidebarPanel === "settings" ? "active" : ""}`}
-          onClick={() => handlePanelChange("settings")}
-          title="Settings"
-        >
-          <Settings size={20} />
-        </button>
-      </div>
+        <div className="activity-bar-bottom">
+          <button
+            type="button"
+            className="activity-bar-item"
+            onClick={handleServerModalClick}
+            title="Server"
+            aria-label="Server settings"
+          >
+            <Server size={20} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className={`activity-bar-item ${sidebarPanel === "settings" ? "active" : ""}`}
+            onClick={() => handlePanelChange("settings")}
+            title="Settings"
+            aria-label="Settings"
+            aria-current={sidebarPanel === "settings" ? "page" : undefined}
+          >
+            <Settings size={20} aria-hidden="true" />
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }
