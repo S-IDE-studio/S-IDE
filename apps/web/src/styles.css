@@ -5662,7 +5662,7 @@ input:focus-visible {
   margin-bottom: var(--space-2);
 }
 
-.mcp-server-name {
+.mcp-server-card .mcp-server-name {
   font-size: 14px;
   font-weight: 500;
   color: var(--color-fg);
@@ -5733,7 +5733,8 @@ input:focus-visible {
   background: var(--color-status-error);
 }
 
-.status-indicator {
+/* Scoped status indicator for toggle button */
+.status-toggle .status-indicator {
   width: 8px;
   height: 8px;
   border-radius: var(--radius-full);
@@ -5880,8 +5881,8 @@ input:focus-visible {
   border-top: 1px solid var(--color-border-dim);
 }
 
-/* Panel Buttons */
-.primary-button {
+/* Panel-specific Buttons (scoped to avoid conflicts with global buttons) */
+.panel-primary-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -5897,20 +5898,20 @@ input:focus-visible {
   transition: var(--transition-colors);
 }
 
-.primary-button:hover {
+.panel-primary-button:hover {
   background: var(--color-fg-dim);
 }
 
-.primary-button:disabled {
+.panel-primary-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.primary-button:focus-visible {
+.panel-primary-button:focus-visible {
   box-shadow: var(--focus-ring);
 }
 
-.ghost-button {
+.panel-ghost-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -5925,17 +5926,17 @@ input:focus-visible {
   transition: var(--transition-colors);
 }
 
-.ghost-button:hover {
+.panel-ghost-button:hover {
   background: var(--color-hover);
   color: var(--color-fg);
   border-color: var(--color-fg-muted);
 }
 
-.ghost-button:focus-visible {
+.panel-ghost-button:focus-visible {
   box-shadow: var(--focus-ring);
 }
 
-.danger-button {
+.panel-danger-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -5951,16 +5952,16 @@ input:focus-visible {
   transition: var(--transition-colors);
 }
 
-.danger-button:hover {
+.panel-danger-button:hover {
   background: #dc2626;
 }
 
-.danger-button:disabled {
+.panel-danger-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.danger-button:focus-visible {
+.panel-danger-button:focus-visible {
   box-shadow: var(--focus-ring);
 }
 
@@ -6036,9 +6037,10 @@ input:focus-visible {
   border-color: var(--color-fg-muted);
 }
 
-.dropdown:focus {
+.dropdown:focus-visible {
   outline: none;
   border-color: var(--color-fg-dim);
+  box-shadow: var(--focus-ring);
 }
 
 .spinning {
