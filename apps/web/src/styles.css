@@ -1590,7 +1590,6 @@ textarea {
   padding: 3px 8px 3px 4px;
   font-size: 13px;
   color: var(--color-fg);
-  width: 100%;
   background: transparent;
   border: none;
   text-align: left;
