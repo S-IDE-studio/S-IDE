@@ -192,15 +192,15 @@ jobs:
           # Platform-specific signature file patterns
           # All platforms use the same 'latest.json' filename
           if [[ "${{ matrix.platform }}" == "windows-latest" ]]; then
-            # Tauri 2 NSIS updater uses .nsis.zip bundle and signature
-            SIG_FILE="$(find_sig "*.nsis.zip.sig")"
+            # Tauri 2 Windows updater uses .exe installer with .sig signature
+            SIG_FILE="$(find_sig "*-setup.exe.sig")"
             if [[ -z "$SIG_FILE" ]]; then
-              # Fallback to .exe.sig for standalone installer
+              # Fallback to any .exe.sig
               SIG_FILE="$(find_sig "*.exe.sig")"
             fi
-            # Use .nsis.zip for Tauri 2 updater (NSIS bundle)
-            DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/S-IDE_${VERSION}_x64.nsis.zip"
-            BUNDLE_FILE="S-IDE_${VERSION}_x64.nsis.zip"
+            # Use .exe for Tauri 2 updater
+            DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/S-IDE_${VERSION}_x64-setup.exe"
+            BUNDLE_FILE="S-IDE_${VERSION}_x64-setup.exe"
           elif [[ "${{ matrix.platform }}" == macos-* ]]; then
             SIG_FILE="$(find_sig "*.app.tar.gz.sig")"
             DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/S-IDE_${VERSION}_aarch64.app.tar.gz"
