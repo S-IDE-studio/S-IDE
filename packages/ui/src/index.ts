@@ -1,3 +1,5 @@
+export type { BadgeProps, BadgeSize, BadgeVariant, StatusBadgeProps } from "./Badge.js";
+export { Badge, StatusBadge } from "./Badge.js";
 export type { ButtonProps } from "./Button.js";
 export { Button } from "./Button.js";
 export type { InputProps } from "./Input.js";
@@ -6,3 +8,5 @@ export type { ModalProps } from "./Modal.js";
 export { Modal } from "./Modal.js";
 export type { SelectOption, SelectProps } from "./Select.js";
 export { Select } from "./Select.js";
+export type { ToastProviderProps } from "./Toast.js";
+export { ToastProvider, useToast } from "./Toast.js";
