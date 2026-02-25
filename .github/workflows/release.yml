@@ -259,26 +259,56 @@ jobs:
           echo "Signature files copied:"
           ls -la dist/release/*.sig 2>&1 || echo "No signature files found"
 
+      - name: Prepare release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/release-final
+          
+          # Find bundle directory
+          BUNDLE_DIR=""
+          if [[ -d "apps/desktop/src-tauri/target/release/bundle" ]]; then
+            BUNDLE_DIR="apps/desktop/src-tauri/target/release/bundle"
+          elif [[ -d "target/release/bundle" ]]; then
+            BUNDLE_DIR="target/release/bundle"
+          fi
+          
+          if [[ -z "$BUNDLE_DIR" ]]; then
+            echo "No bundle directory found"
+            exit 1
+          fi
+          
+          echo "Bundle directory: $BUNDLE_DIR"
+          
+          # Platform-specific file selection
+          if [[ "${{ matrix.platform }}" == "windows-latest" ]]; then
+            # Windows: Copy only installer .exe files (not winpty-agent.exe, OpenConsole.exe, etc.)
+            find "$BUNDLE_DIR" -type f \( -name "*-setup.exe" -o -name "*.msi" -o -name "*.msi.zip" -o -name "*.sig" \) -exec cp {} dist/release-final/ \;
+            # Copy server bundle (Windows only)
+            if [[ -f "server-bundle.zip" ]]; then
+              cp server-bundle.zip dist/release-final/
+            fi
+          elif [[ "${{ matrix.platform }}" == macos-* ]]; then
+            # macOS: Copy .dmg and .app.tar.gz files
+            find "$BUNDLE_DIR" -type f \( -name "*.dmg" -o -name "*.app.tar.gz" -o -name "*.sig" \) -exec cp {} dist/release-final/ \;
+          elif [[ "${{ matrix.platform }}" == "ubuntu-latest" ]]; then
+            # Linux: Copy .AppImage and .deb files
+            find "$BUNDLE_DIR" -type f \( -name "*.AppImage" -o -name "*.deb" -o -name "*.sig" \) -exec cp {} dist/release-final/ \;
+          fi
+          
+          # Copy latest.json if exists
+          if [[ -f "latest.json" ]]; then
+            cp latest.json dist/release-final/
+          fi
+          
+          # List final assets
+          echo "Release assets to upload:"
+          ls -la dist/release-final/
+
       - name: Upload to Release
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            apps/desktop/src-tauri/target/release/bundle/**/*.dmg
-            apps/desktop/src-tauri/target/release/bundle/**/*.app.tar.gz
-            apps/desktop/src-tauri/target/release/bundle/**/*.app.tar.gz.sig
-            apps/desktop/src-tauri/target/release/bundle/**/*.msi
-            apps/desktop/src-tauri/target/release/bundle/**/*.msi.zip
-            apps/desktop/src-tauri/target/release/bundle/**/*.msi.zip.sig
-            apps/desktop/src-tauri/target/release/bundle/**/*.exe
-            apps/desktop/src-tauri/target/release/bundle/**/*.nsis.zip
-            apps/desktop/src-tauri/target/release/bundle/**/*.nsis.zip.sig
-            apps/desktop/src-tauri/target/release/bundle/**/*.deb
-            apps/desktop/src-tauri/target/release/bundle/**/*.deb.sig
-            apps/desktop/src-tauri/target/release/bundle/**/*.AppImage
-            apps/desktop/src-tauri/target/release/bundle/**/*.AppImage.sig
-            dist/release/*
-            server-bundle.zip
-            latest.json
+          files: dist/release-final/*
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
