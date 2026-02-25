@@ -1,0 +1,82 @@
+[package]
+name = "side-core"
+version = "0.1.0"
+edition = "2021"
+authors = ["S-IDE Team"]
+description = "S-IDE Core Daemon - AI-optimized development environment"
+license = "MIT"
+
+[[bin]]
+name = "side-core"
+path = "src/main.rs"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.43", features = ["full"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+
+# HTTP framework
+axum = { version = "0.8", features = ["ws", "macros"] }
+tower = { version = "0.5", features = ["full"] }
+tower-http = { version = "0.6", features = ["cors", "fs", "trace", "limit"] }
+hyper = { version = "1.6", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+
+# Database
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "migrate", "chrono"] }
+
+# Configuration
+config = "0.15"
+dotenvy = "0.15"
+
+# Logging & Tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Error handling
+thiserror = "2.0"
+anyhow = "1.0"
+
+# CLI
+clap = { version = "4.5", features = ["derive", "env"] }
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID
+uuid = { version = "1.15", features = ["v4", "serde"] }
+
+# PTY / Terminal
+portable-pty = "0.9"
+vt100 = "0.16"
+
+# WebSocket
+futures = "0.3"
+futures-util = "0.3"
+
+# Utilities
+parking_lot = "0.12"
+dashmap = "6.1"
+once_cell = "1.20"
+regex = "1.11"
+dirs = "6.0"
+
+# HTTP client (for status check)
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+[dev-dependencies]
+tokio-test = "0.4"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+[profile.dev]
+opt-level = 0
+debug = true

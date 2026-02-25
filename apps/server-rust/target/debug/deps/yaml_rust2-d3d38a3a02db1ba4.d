@@ -1,0 +1,11 @@
+D:\0_inbox\S-IDE\apps\server-rust\target\debug\deps\yaml_rust2-d3d38a3a02db1ba4.d: C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\yaml-rust2-0.10.4\src\lib.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\yaml-rust2-0.10.4\src\char_traits.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\yaml-rust2-0.10.4\src\debug.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\yaml-rust2-0.10.4\src\emitter.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\yaml-rust2-0.10.4\src\parser.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\yaml-rust2-0.10.4\src\scanner.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\yaml-rust2-0.10.4\src\yaml.rs
+
+D:\0_inbox\S-IDE\apps\server-rust\target\debug\deps\libyaml_rust2-d3d38a3a02db1ba4.rmeta: C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\yaml-rust2-0.10.4\src\lib.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\yaml-rust2-0.10.4\src\char_traits.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\yaml-rust2-0.10.4\src\debug.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\yaml-rust2-0.10.4\src\emitter.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\yaml-rust2-0.10.4\src\parser.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\yaml-rust2-0.10.4\src\scanner.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\yaml-rust2-0.10.4\src\yaml.rs
+
+C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\yaml-rust2-0.10.4\src\lib.rs:
+C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\yaml-rust2-0.10.4\src\char_traits.rs:
+C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\yaml-rust2-0.10.4\src\debug.rs:
+C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\yaml-rust2-0.10.4\src\emitter.rs:
+C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\yaml-rust2-0.10.4\src\parser.rs:
+C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\yaml-rust2-0.10.4\src\scanner.rs:
+C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\yaml-rust2-0.10.4\src\yaml.rs:

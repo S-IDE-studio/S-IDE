@@ -536,6 +536,39 @@ export function createAgentRouter() {
     }
   });
 
+  /**
+   * GET /api/agents/:id/usage - Get agent usage statistics
+   */
+  router.get("/:id/usage", async (c) => {
+    try {
+      const agentId = c.req.param("id") as AgentId;
+      const agent = getAgent(agentId);
+
+      if (!agent) {
+        throw createHttpError("Agent not found", 404);
+      }
+
+      // Get period from query params (default to 'day')
+      const periodParam = c.req.query("period");
+      const period: "day" | "week" | "month" = 
+        periodParam === "week" || periodParam === "month" ? periodParam : "day";
+
+      // Import dynamically to avoid circular dependencies
+      const { getAgentUsageSummary } = await import("../utils/usage-tracking.js");
+      const db = c.get("db");
+
+      const summary = getAgentUsageSummary(db, agentId, period);
+
+      return c.json({
+        agentId,
+        period: period || "day",
+        ...summary,
+      });
+    } catch (error) {
+      return handleError(c, error);
+    }
+  });
+
   return router;
 }
 

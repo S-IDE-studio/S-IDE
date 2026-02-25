@@ -135,13 +135,12 @@
       }
     },
     {
-      "includes": ["*.rs"],
+      "includes": ["*.rs", "apps/server-rust/**"],
       "linter": {
-        "rules": {
-          "style": {
-            "useConst": "off"
-          }
-        }
+        "enabled": false
+      },
+      "formatter": {
+        "enabled": false
       }
     },
     {

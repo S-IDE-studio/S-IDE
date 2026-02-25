@@ -325,8 +325,8 @@ export type { SelectProps, SelectOption } from './Select';
 
 ```bash
 cd packages/ui
-npm install
-npm run build
+pnpm install
+pnpm run build
 cd ../..
 git add packages/ui
 git commit -m "feat: add shared UI components package"
@@ -1279,7 +1279,7 @@ mkdir -p apps/mobile/assets
 
 ```bash
 cd apps/mobile
-npm install
+pnpm install
 ```
 
 **Step 15: Commit**
@@ -1361,8 +1361,8 @@ Create: `apps/desktop/src-tauri/tauri.conf.json`
   "version": "2.0.0",
   "identifier": "com.deck.ide",
   "build": {
-    "beforeDevCommand": "npm run dev:web",
-    "beforeBuildCommand": "npm run build:web",
+    "beforeDevCommand": "pnpm run dev:web",
+    "beforeBuildCommand": "pnpm run build:web",
     "frontendDist": "../../web/dist",
     "devUrl": "http://localhost:3000"
   },
@@ -1676,7 +1676,7 @@ Modify: `package.json`
 **Step 2: Install all dependencies**
 
 ```bash
-npm install
+pnpm install
 ```
 
 **Step 3: Commit**

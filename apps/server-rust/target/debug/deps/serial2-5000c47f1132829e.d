@@ -1,0 +1,11 @@
+D:\0_inbox\S-IDE\apps\server-rust\target\debug\deps\serial2-5000c47f1132829e.d: C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serial2-0.2.34\src\lib.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serial2-0.2.34\src\sys\mod.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serial2-0.2.34\src\sys\windows\mod.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serial2-0.2.34\src\into_settings.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serial2-0.2.34\src\serial_port.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serial2-0.2.34\src\settings.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serial2-0.2.34\src\os.rs
+
+D:\0_inbox\S-IDE\apps\server-rust\target\debug\deps\libserial2-5000c47f1132829e.rmeta: C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serial2-0.2.34\src\lib.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serial2-0.2.34\src\sys\mod.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serial2-0.2.34\src\sys\windows\mod.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serial2-0.2.34\src\into_settings.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serial2-0.2.34\src\serial_port.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serial2-0.2.34\src\settings.rs C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serial2-0.2.34\src\os.rs
+
+C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serial2-0.2.34\src\lib.rs:
+C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serial2-0.2.34\src\sys\mod.rs:
+C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serial2-0.2.34\src\sys\windows\mod.rs:
+C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serial2-0.2.34\src\into_settings.rs:
+C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serial2-0.2.34\src\serial_port.rs:
+C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serial2-0.2.34\src\settings.rs:
+C:\Users\rebui\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serial2-0.2.34\src\os.rs:

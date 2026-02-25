@@ -353,3 +353,25 @@ export function resetMCPServer(): void {
   }
   mcpServerInstance = null;
 }
+
+/**
+ * Stop all MCP servers gracefully
+ * Called during shutdown to clean up resources
+ */
+export async function stopAllMCPServers(): Promise<void> {
+  if (mcpServerInstance) {
+    const agents = mcpServerInstance.getRegisteredAgents();
+    console.log(`[MCP] Stopping ${agents.length} registered agent(s)...`);
+
+    // Unregister all agents
+    for (const agentId of agents) {
+      mcpServerInstance.unregisterAgent(agentId);
+    }
+
+    // Dispose the server
+    mcpServerInstance.dispose();
+    mcpServerInstance = null;
+
+    console.log("[MCP] All MCP servers stopped.");
+  }
+}

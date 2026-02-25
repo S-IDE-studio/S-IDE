@@ -30,7 +30,7 @@ import {
 import { getMCPServer } from "./mcp/server.js";
 import { basicAuthMiddleware, generateWsToken, isBasicAuthEnabled } from "./middleware/auth.js";
 import { corsMiddleware } from "./middleware/cors.js";
-import { mediumRateLimit, strictRateLimit } from "./middleware/rate-limiter.js";
+import { looseRateLimit, mediumRateLimit, strictRateLimit } from "./middleware/rate-limiter.js";
 import { csrfProtection, generateCSRFToken, securityHeaders } from "./middleware/security.js";
 import { createAgentBridgeRouter } from "./routes/agent-bridge.js";
 import { getAllAgents, initializeAgentRouter, registerAgent } from "./routes/agents.js";
@@ -47,6 +47,10 @@ import { createShellsRouter } from "./routes/shells.js";
 import { createTabsRouter } from "./routes/tabs.js";
 import { createTerminalRouter } from "./routes/terminals.js";
 import { createTunnelRouter } from "./routes/tunnel.js";
+import { getAgentObserver } from "./agents/observer/AgentObserver.js";
+import { getTaskOrchestrator } from "./agents/orchestrator/TaskOrchestrator.js";
+import { createHealthRouter } from "./routes/health.js";
+import { createOrchestratorRouter } from "./routes/orchestrator.js";
 import { createWorkspaceRouter, getConfigHandler } from "./routes/workspaces.js";
 import type { Deck, TerminalSession, Workspace } from "./types.js";
 import {
@@ -129,6 +133,12 @@ export async function createServer(portOverride?: number): Promise<Server> {
   app.use("*", corsMiddleware);
   app.use("*", requestIdMiddleware);
 
+  // Inject database into context for all API routes
+  app.use("/api/*", async (c, next) => {
+    c.set("db", db);
+    await next();
+  });
+
   // Body size limit for API routes
   app.use(
     "/api/*",
@@ -140,7 +150,10 @@ export async function createServer(portOverride?: number): Promise<Server> {
     })
   );
 
-  // Apply rate limiting to sensitive endpoints
+  // Apply global rate limiting to API routes (excludes health checks)
+  app.use("/api/*", looseRateLimit);
+
+  // Apply rate limiting to sensitive endpoints (stricter limits)
   // Agent execution (prevents abuse)
   app.use("/api/agents/*/execute", strictRateLimit);
   app.use("/api/agents/*/send", mediumRateLimit);
@@ -187,6 +200,17 @@ export async function createServer(portOverride?: number): Promise<Server> {
   const { startPeriodicMetricsCollection } = await import("./utils/agent-metrics.js");
   const metricsInterval = startPeriodicMetricsCollection(db, 30); // Every 30 seconds
 
+  // Initialize Orchestrator and Observer
+  const orchestrator = getTaskOrchestrator();
+  orchestrator.initialize(db);
+
+  const observer = getAgentObserver();
+  observer.initialize(db);
+  observer.start();
+
+  // Register observer to receive metrics
+  const observerUnsubscribe = metricsInterval; // Placeholder for actual metrics wiring
+
   // Mount routers
   app.route("/api/settings", createSettingsRouter());
   app.route("/api/workspaces", createWorkspaceRouter(db, workspaces, workspacePathIndex));
@@ -209,6 +233,8 @@ export async function createServer(portOverride?: number): Promise<Server> {
   app.route("/api/env", createEnvCheckRouter());
   app.route("/api/tunnel", createTunnelRouter(db));
   app.route("/api/tabs", createTabsRouter());
+  app.route("/api/health", createHealthRouter(db));
+  app.route("/api/orchestrator", createOrchestratorRouter());
 
   // Restore persisted terminals
   const persistedTerminals = loadPersistedTerminals(db, decks);
@@ -348,20 +374,59 @@ export async function createServer(portOverride?: number): Promise<Server> {
     console.log(`  - Environment: ${NODE_ENV}`);
   });
 
-  // Graceful shutdown handler - save terminal buffers and close database
-  const saveTerminalBuffersOnShutdown = () => {
+  // Graceful shutdown handler - stop agents, MCP servers, save terminal buffers, and close database
+  const gracefulShutdown = async () => {
+    // Step 1: Stop all agents
+    console.log("[SHUTDOWN] Stopping agents...");
+    const agents = getAllAgents();
+    for (const agent of agents) {
+      try {
+        if (agent.dispose) {
+          await agent.dispose();
+          console.log(`[SHUTDOWN] Agent ${agent.id} stopped.`);
+        }
+      } catch (e) {
+        console.error(`[SHUTDOWN] Error stopping agent ${agent.id}:`, e);
+      }
+    }
+    console.log("[SHUTDOWN] All agents stopped.");
+
+    // Step 2: Stop MCP servers
+    console.log("[SHUTDOWN] Stopping MCP servers...");
+    try {
+      const { stopAllMCPServers } = await import("./mcp/server.js");
+      await stopAllMCPServers();
+      console.log("[SHUTDOWN] MCP servers stopped.");
+    } catch (e) {
+      console.error("[SHUTDOWN] Error stopping MCP servers:", e);
+    }
+
+    // Step 3: Save terminal buffers
     if (terminals.size > 0) {
       console.log(`[SHUTDOWN] Saving ${terminals.size} terminal buffer(s)...`);
       saveAllTerminalBuffers(db, terminals);
       console.log("[SHUTDOWN] Terminal buffers saved.");
     }
-    // Close database connection to prevent corruption
+
+    // Step 4: Flush usage records (placeholder for cost monitoring)
+    console.log("[SHUTDOWN] Flushing usage records...");
+    // Usage records will be implemented with cost monitoring feature
+
+    // Step 5: Close database connection
     try {
       db.close();
       console.log("[SHUTDOWN] Database closed.");
     } catch (e) {
       console.error("[SHUTDOWN] Error closing database:", e);
     }
+
+    // Step 6: Close HTTP server
+    console.log("[SHUTDOWN] HTTP server closing...");
+  };
+
+  // Legacy name for backward compatibility
+  const saveTerminalBuffersOnShutdown = () => {
+    void gracefulShutdown();
   };
 
   // Handle various shutdown signals

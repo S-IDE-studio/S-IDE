@@ -5,6 +5,7 @@ import { spawn } from "node-pty";
 import type { WebSocket as WebSocketType } from "ws";
 import { TERMINAL_BUFFER_LIMIT } from "../config.js";
 import type { Deck, TerminalSession } from "../types.js";
+import { ScreenBuffer } from "../terminal/ScreenBuffer.js";
 import {
   deleteTerminal as deleteTerminalFromDb,
   type PersistedTerminal,
@@ -288,6 +289,7 @@ export function createTerminalRouter(
       buffer: options?.initialBuffer || "",
       lastActive: Date.now(),
       dispose: null,
+      screenBuffer: new ScreenBuffer(32, 120),
     };
 
     // Save to database for persistence across restarts (skip if restoring)
@@ -375,6 +377,11 @@ export function createTerminalRouter(
                 `[TERM ${id}] Escape seq (${strData.length} chars, ${buffer.length} bytes): ${hexDump.slice(0, 200)}`
               );
             }
+          }
+
+          // Update Screen Buffer for agent access (INV-5)
+          if (session.screenBuffer) {
+            session.screenBuffer.processData(strData);
           }
 
           // Send data to all connected websockets as UTF-8 string
@@ -541,6 +548,142 @@ export function createTerminalRouter(
       }
 
       return c.body(null, 204);
+    } catch (error) {
+      return handleError(c, error);
+    }
+  });
+
+  /**
+   * GET /api/terminals/:id/screen - Get current screen state (for agents, INV-5)
+   */
+  router.get("/:id/screen", async (c) => {
+    try {
+      const terminalId = c.req.param("id");
+      const session = terminals.get(terminalId);
+
+      if (!session) {
+        throw createHttpError("Terminal not found", 404);
+      }
+
+      if (!session.screenBuffer) {
+        throw createHttpError("Screen buffer not available", 500);
+      }
+
+      const snapshot = session.screenBuffer.takeSnapshot();
+
+      return c.json({
+        terminalId,
+        screen: snapshot.screen,
+        cursor: snapshot.cursor,
+        scrollback: snapshot.scrollback.slice(-50), // Last 50 lines
+        metadata: snapshot.metadata,
+        timestamp: snapshot.timestamp,
+      });
+    } catch (error) {
+      return handleError(c, error);
+    }
+  });
+
+  /**
+   * GET /api/terminals/:id/diff - Get changes since last read (for agents, INV-5)
+   */
+  router.get("/:id/diff", async (c) => {
+    try {
+      const terminalId = c.req.param("id");
+      const session = terminals.get(terminalId);
+
+      if (!session) {
+        throw createHttpError("Terminal not found", 404);
+      }
+
+      if (!session.screenBuffer) {
+        throw createHttpError("Screen buffer not available", 500);
+      }
+
+      const changes = session.screenBuffer.getChanges();
+
+      return c.json({
+        terminalId,
+        changes,
+        count: changes.length,
+      });
+    } catch (error) {
+      return handleError(c, error);
+    }
+  });
+
+  /**
+   * GET /api/terminals/:id/summary - Get text summary of screen (for agents, INV-5)
+   */
+  router.get("/:id/summary", async (c) => {
+    try {
+      const terminalId = c.req.param("id");
+      const session = terminals.get(terminalId);
+
+      if (!session) {
+        throw createHttpError("Terminal not found", 404);
+      }
+
+      if (!session.screenBuffer) {
+        throw createHttpError("Screen buffer not available", 500);
+      }
+
+      const summary = session.screenBuffer.getSummary();
+
+      return c.json({
+        terminalId,
+        summary,
+        cwd: session.screenBuffer.getMetadata().cwd,
+      });
+    } catch (error) {
+      return handleError(c, error);
+    }
+  });
+
+  /**
+   * POST /api/terminals/:id/write - Write to terminal (for agents, MCP Tool)
+   */
+  router.post("/:id/write", async (c) => {
+    try {
+      const terminalId = c.req.param("id");
+      const body = await readJson<{ command: string; checkSafety?: boolean }>(c);
+
+      if (!body || !body.command) {
+        throw createHttpError("Command is required", 400);
+      }
+
+      const session = terminals.get(terminalId);
+      if (!session) {
+        throw createHttpError("Terminal not found", 404);
+      }
+
+      // Safety check for dangerous commands
+      if (body.checkSafety !== false) {
+        const dangerousPatterns = [
+          /rm\s+-rf\s+\/($|\s)/,
+          /mkfs\.?/,
+          /dd\s+if=\/dev\/zero/,
+          />\s*\/dev\/sda/,
+          /:\(\)\{\s*:\|:&\s*\};/, // fork bomb
+        ];
+
+        for (const pattern of dangerousPatterns) {
+          if (pattern.test(body.command)) {
+            throw createHttpError(`Dangerous command blocked: ${body.command.substring(0, 50)}`, 403);
+          }
+        }
+      }
+
+      // Write to terminal
+      session.term.write(body.command + "\r");
+      session.lastActive = Date.now();
+
+      // Update metadata
+      if (session.screenBuffer) {
+        session.screenBuffer.setMetadata({ lastCommand: body.command });
+      }
+
+      return c.json({ success: true, message: "Command sent to terminal" });
     } catch (error) {
       return handleError(c, error);
     }

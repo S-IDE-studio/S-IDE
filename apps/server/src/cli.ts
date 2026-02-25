@@ -3,7 +3,13 @@ import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
+import { registerAgentCommands } from "./commands/agent.js";
+import { registerConfigCommands } from "./commands/config.js";
+import { registerMCPCommands } from "./commands/mcp.js";
 import { registerStartCommand } from "./commands/start.js";
+import { registerStatusCommand } from "./commands/status.js";
+import { registerTerminalCommands } from "./commands/terminal.js";
+import { registerUsageCommands } from "./commands/usage.js";
 
 // Get package.json version
 const __filename = fileURLToPath(import.meta.url);
@@ -32,6 +38,12 @@ program
 
 // Register commands
 registerStartCommand(program);
+registerStatusCommand(program);
+registerAgentCommands(program);
+registerTerminalCommands(program);
+registerMCPCommands(program);
+registerConfigCommands(program);
+registerUsageCommands(program);
 
 // Only parse args if this file is run directly (not imported)
 // Check if we're the main module by comparing resolved paths

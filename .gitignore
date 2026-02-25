@@ -27,3 +27,5 @@ docs/vscode/
 coverage/
 .tmp-*/
 apps/server/settings.json
+# Ignore compiled JS files in src (source files are TypeScript)
+apps/server/src/**/*.js

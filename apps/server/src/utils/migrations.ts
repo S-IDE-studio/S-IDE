@@ -255,4 +255,80 @@ export const migrations: Migration[] = [
       db.exec("DROP TABLE IF EXISTS tunnel_configs;");
     },
   },
+  {
+    version: 5,
+    name: "Add cost monitoring and usage tracking tables",
+    up: (db) => {
+      // Usage records for each agent execution
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS usage_records (
+          id TEXT PRIMARY KEY,
+          agent_id TEXT NOT NULL,
+          session_id TEXT,
+          timestamp TEXT NOT NULL,
+          input_tokens INTEGER NOT NULL DEFAULT 0,
+          output_tokens INTEGER NOT NULL DEFAULT 0,
+          cost REAL NOT NULL DEFAULT 0,
+          duration_ms INTEGER NOT NULL DEFAULT 0,
+          model TEXT,
+          task_id TEXT
+        );
+      `);
+
+      // Provider pricing information
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS provider_pricing (
+          id TEXT PRIMARY KEY,
+          provider_id TEXT NOT NULL UNIQUE,
+          model TEXT NOT NULL,
+          input_token_cost_per_1m REAL NOT NULL DEFAULT 0,
+          output_token_cost_per_1m REAL NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL
+        );
+      `);
+
+      // Agent subscription/API key management
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS agent_subscriptions (
+          id TEXT PRIMARY KEY,
+          agent_id TEXT NOT NULL UNIQUE,
+          provider_id TEXT NOT NULL,
+          api_key_encrypted TEXT,
+          tier TEXT,
+          expires_at TEXT,
+          remaining_credits REAL,
+          last_checked_at TEXT,
+          status TEXT NOT NULL DEFAULT 'active'
+        );
+      `);
+
+      // Usage thresholds and alerts
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS usage_thresholds (
+          id TEXT PRIMARY KEY,
+          agent_id TEXT,
+          threshold_type TEXT NOT NULL,
+          limit_value REAL NOT NULL,
+          current_value REAL NOT NULL DEFAULT 0,
+          period TEXT NOT NULL,
+          action TEXT NOT NULL DEFAULT 'warn',
+          created_at TEXT NOT NULL
+        );
+      `);
+
+      // Create indexes
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_usage_records_agent_id ON usage_records(agent_id);
+        CREATE INDEX IF NOT EXISTS idx_usage_records_timestamp ON usage_records(timestamp);
+        CREATE INDEX IF NOT EXISTS idx_usage_records_task_id ON usage_records(task_id);
+        CREATE INDEX IF NOT EXISTS idx_usage_thresholds_agent_id ON usage_thresholds(agent_id);
+      `);
+    },
+    down: (db) => {
+      db.exec("DROP TABLE IF EXISTS usage_thresholds;");
+      db.exec("DROP TABLE IF EXISTS agent_subscriptions;");
+      db.exec("DROP TABLE IF EXISTS provider_pricing;");
+      db.exec("DROP TABLE IF EXISTS usage_records;");
+    },
+  },
 ];
