@@ -4,8 +4,8 @@
  * Provides health status endpoints for monitoring and load balancers.
  */
 
-import { Hono } from "hono";
 import type { DatabaseSync } from "node:sqlite";
+import { Hono } from "hono";
 import { PORT } from "../config.js";
 import { getAllAgents } from "./agents.js";
 
@@ -74,7 +74,9 @@ export function createHealthRouter(db: DatabaseSync) {
       const enabledAgents = agents.filter((agent) => {
         // Check if agent is available (has valid config)
         const config = agent.getConfig?.();
-        return config && (config.apiKey || config.enabled !== false);
+        if (!config) return false;
+        const resolvedConfig = config instanceof Promise ? { enabled: true } : config;
+        return resolvedConfig.enabled !== false;
       }).length;
 
       // Get MCP server status (placeholder until full MCP management is implemented)

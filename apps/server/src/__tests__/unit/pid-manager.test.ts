@@ -41,7 +41,10 @@ describe("PidManager", () => {
   });
 
   it("should check if process is running", () => {
-    pidManager.write(process.pid);
+    // Ensure PID file exists (create if not)
+    if (!pidManager.exists()) {
+      pidManager.write(process.pid);
+    }
     expect(pidManager.isProcessRunning()).toBe(true);
   });
 

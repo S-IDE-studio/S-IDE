@@ -25,6 +25,10 @@ pub struct Config {
     #[serde(default = "default_db_path")]
     pub db_path: PathBuf,
     
+    /// Data directory
+    #[serde(skip)]
+    pub data_dir: PathBuf,
+    
     /// Maximum request body size (bytes)
     #[serde(default = "default_max_body_size")]
     pub max_body_size: usize,
@@ -64,10 +68,15 @@ fn default_env() -> String { "development".to_string() }
 
 impl Default for Config {
     fn default() -> Self {
+        let data_dir = dirs::data_dir()
+            .map(|d| d.join("side-ide"))
+            .unwrap_or_else(|| PathBuf::from("./data"));
+        
         Self {
             port: DEFAULT_PORT,
             host: DEFAULT_HOST.to_string(),
-            db_path: PathBuf::from(DEFAULT_DB_PATH),
+            db_path: data_dir.join("side.db"),
+            data_dir: data_dir.clone(),
             max_body_size: default_max_body_size(),
             max_file_size: default_max_file_size(),
             cors_origin: None,
@@ -87,6 +96,10 @@ impl Config {
     /// 3. Default values
     pub fn load() -> crate::error::Result<Self> {
         let mut config = Config::default();
+        
+        // Ensure data directory exists
+        std::fs::create_dir_all(&config.data_dir)
+            .map_err(|e| Error::Config(format!("Failed to create data dir: {}", e)))?;
         
         // Try to load from config file
         if let Ok(file_config) = Self::from_file() {

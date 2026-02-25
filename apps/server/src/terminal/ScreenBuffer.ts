@@ -55,9 +55,9 @@ export class ScreenBuffer {
   private cursor: Cursor;
   private scrollback: string[] = [];
   private scrollbackLimit: number;
-  private lastSnapshot: ScreenSnapshot | null = null;
   private changesSinceLastSnapshot: Change[] = [];
   private metadata: ScreenMetadata = {};
+  private lastSnapshot: ScreenSnapshot | null = null;
 
   private escapeSequence = "";
   private inEscape = false;
@@ -264,7 +264,10 @@ export class ScreenBuffer {
 
   private scrollUp(lines = 1): void {
     for (let i = 0; i < lines; i++) {
-      const topLine = this.buffer[0].map((c) => c.char).join("").trimEnd();
+      const topLine = this.buffer[0]
+        .map((c) => c.char)
+        .join("")
+        .trimEnd();
       if (topLine) {
         this.scrollback.push(topLine);
         if (this.scrollback.length > this.scrollbackLimit) this.scrollback.shift();
@@ -347,7 +350,12 @@ export class ScreenBuffer {
   }
 
   getScreenLines(): string[] {
-    return this.buffer.map((row) => row.map((cell) => cell.char).join("").trimEnd());
+    return this.buffer.map((row) =>
+      row
+        .map((cell) => cell.char)
+        .join("")
+        .trimEnd()
+    );
   }
 
   getCursor(): Cursor {

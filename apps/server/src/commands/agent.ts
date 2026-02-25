@@ -60,7 +60,10 @@ export function registerAgentCommands(program: Command): void {
           console.log("");
         }
       } catch (error) {
-        console.error("Failed to connect to server:", error instanceof Error ? error.message : error);
+        console.error(
+          "Failed to connect to server:",
+          error instanceof Error ? error.message : error
+        );
         process.exit(1);
       }
     });
@@ -111,7 +114,10 @@ export function registerAgentCommands(program: Command): void {
           }
         }
       } catch (error) {
-        console.error("Failed to connect to server:", error instanceof Error ? error.message : error);
+        console.error(
+          "Failed to connect to server:",
+          error instanceof Error ? error.message : error
+        );
         process.exit(1);
       }
     });
@@ -153,7 +159,10 @@ export function registerAgentCommands(program: Command): void {
         }
         console.log(`Agent ${agentId} enabled.`);
       } catch (error) {
-        console.error("Failed to connect to server:", error instanceof Error ? error.message : error);
+        console.error(
+          "Failed to connect to server:",
+          error instanceof Error ? error.message : error
+        );
         process.exit(1);
       }
     });
@@ -176,7 +185,10 @@ export function registerAgentCommands(program: Command): void {
         }
         console.log(`Agent ${agentId} disabled.`);
       } catch (error) {
-        console.error("Failed to connect to server:", error instanceof Error ? error.message : error);
+        console.error(
+          "Failed to connect to server:",
+          error instanceof Error ? error.message : error
+        );
         process.exit(1);
       }
     });

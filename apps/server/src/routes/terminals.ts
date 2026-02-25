@@ -4,8 +4,8 @@ import { Hono } from "hono";
 import { spawn } from "node-pty";
 import type { WebSocket as WebSocketType } from "ws";
 import { TERMINAL_BUFFER_LIMIT } from "../config.js";
-import type { Deck, TerminalSession } from "../types.js";
 import { ScreenBuffer } from "../terminal/ScreenBuffer.js";
+import type { Deck, TerminalSession } from "../types.js";
 import {
   deleteTerminal as deleteTerminalFromDb,
   type PersistedTerminal,
@@ -669,13 +669,16 @@ export function createTerminalRouter(
 
         for (const pattern of dangerousPatterns) {
           if (pattern.test(body.command)) {
-            throw createHttpError(`Dangerous command blocked: ${body.command.substring(0, 50)}`, 403);
+            throw createHttpError(
+              `Dangerous command blocked: ${body.command.substring(0, 50)}`,
+              403
+            );
           }
         }
       }
 
       // Write to terminal
-      session.term.write(body.command + "\r");
+      session.term.write(`${body.command}\r`);
       session.lastActive = Date.now();
 
       // Update metadata

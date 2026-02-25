@@ -72,7 +72,10 @@ export function registerUsageCommands(program: Command): void {
         console.log("");
         console.log("Note: Detailed cost tracking will be implemented with Issue #7.");
       } catch (error) {
-        console.error("Failed to connect to server:", error instanceof Error ? error.message : error);
+        console.error(
+          "Failed to connect to server:",
+          error instanceof Error ? error.message : error
+        );
         process.exit(1);
       }
     });
@@ -108,7 +111,10 @@ export function registerUsageCommands(program: Command): void {
         console.log("");
         console.log("Note: Detailed per-agent usage tracking will be implemented with Issue #7.");
       } catch (error) {
-        console.error("Failed to connect to server:", error instanceof Error ? error.message : error);
+        console.error(
+          "Failed to connect to server:",
+          error instanceof Error ? error.message : error
+        );
         process.exit(1);
       }
     });
@@ -138,7 +144,10 @@ export function registerUsageCommands(program: Command): void {
         writeFileSync(options.output, JSON.stringify(exportData, null, 2));
         console.log(`Usage data exported to: ${options.output}`);
       } catch (error) {
-        console.error("Failed to export usage data:", error instanceof Error ? error.message : error);
+        console.error(
+          "Failed to export usage data:",
+          error instanceof Error ? error.message : error
+        );
         process.exit(1);
       }
     });

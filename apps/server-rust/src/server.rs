@@ -5,7 +5,6 @@ use axum::{
     http::{header, Request},
     middleware::{self, Next},
     response::Response,
-    routing::get,
     Router,
 };
 use std::time::Instant;
@@ -20,19 +19,24 @@ use uuid::Uuid;
 use crate::config::Config;
 use crate::error::Result;
 use crate::routes;
+use crate::terminal::manager::PtyManager;
 
 /// Application state shared across handlers
 #[derive(Clone)]
 pub struct AppState {
     pub config: Config,
     pub start_time: Instant,
+    pub db_pool: sqlx::SqlitePool,
+    pub pty_manager: PtyManager,
 }
 
 /// Create the Axum router with all routes and middleware
-pub async fn create_server(config: Config) -> Result<Router> {
+pub async fn create_server(config: Config, db_pool: sqlx::SqlitePool, pty_manager: PtyManager) -> Result<Router> {
     let state = AppState {
         config: config.clone(),
         start_time: Instant::now(),
+        db_pool,
+        pty_manager,
     };
     
     // CORS layer
@@ -56,6 +60,9 @@ pub async fn create_server(config: Config) -> Result<Router> {
         // Health routes (no auth required)
         .merge(routes::health::routes())
         
+        // WebSocket routes
+        .merge(crate::websocket::routes())
+        
         // API routes
         .nest("/api", api_routes())
         
@@ -76,11 +83,13 @@ pub async fn create_server(config: Config) -> Result<Router> {
 fn api_routes() -> Router<AppState> {
     Router::new()
         .nest("/health", routes::health::api_routes())
-    // TODO: Add more routes as they are implemented
-    // .nest("/workspaces", routes::workspaces::routes())
-    // .nest("/decks", routes::decks::routes())
-    // .nest("/terminals", routes::terminals::routes())
-    // .nest("/agents", routes::agents::routes())
+        .nest("/workspaces", routes::workspaces::routes())
+        .nest("/decks", routes::decks::routes())
+        .nest("/files", routes::files::routes())
+        .nest("/git", routes::git::routes())
+        .nest("/terminals", routes::terminals::routes())
+        .nest("/agents", routes::agents::routes())
+        .nest("/mcp-servers", routes::mcp_servers::routes())
 }
 
 /// Request ID middleware - adds unique request ID to each request

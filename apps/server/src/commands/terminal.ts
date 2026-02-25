@@ -50,7 +50,10 @@ export function registerTerminalCommands(program: Command): void {
           console.log("");
         }
       } catch (error) {
-        console.error("Failed to connect to server:", error instanceof Error ? error.message : error);
+        console.error(
+          "Failed to connect to server:",
+          error instanceof Error ? error.message : error
+        );
         process.exit(1);
       }
     });
@@ -94,7 +97,10 @@ export function registerTerminalCommands(program: Command): void {
           console.log(`  Shell: ${terminal.shell}`);
           if (terminal.title) console.log(`  Title: ${terminal.title}`);
         } catch (error) {
-          console.error("Failed to connect to server:", error instanceof Error ? error.message : error);
+          console.error(
+            "Failed to connect to server:",
+            error instanceof Error ? error.message : error
+          );
           process.exit(1);
         }
       }
@@ -107,35 +113,33 @@ export function registerTerminalCommands(program: Command): void {
     .option("-p, --port <port>", "Server port", "8787")
     .option("-h, --host <host>", "Server host", "localhost")
     .option("-f, --force", "Force kill (SIGKILL)", false)
-    .action(
-      async (
-        sessionId: string,
-        options: { port: string; host: string; force: boolean }
-      ) => {
-        try {
-          const response = await fetch(
-            `http://${options.host}:${options.port}/api/terminals/${sessionId}`,
-            {
-              method: "DELETE",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ force: options.force }),
-            }
-          );
-
-          if (!response.ok) {
-            if (response.status === 404) {
-              console.error(`Terminal session not found: ${sessionId}`);
-            } else {
-              console.error(`Failed to kill terminal: ${response.statusText}`);
-            }
-            process.exit(1);
+    .action(async (sessionId: string, options: { port: string; host: string; force: boolean }) => {
+      try {
+        const response = await fetch(
+          `http://${options.host}:${options.port}/api/terminals/${sessionId}`,
+          {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ force: options.force }),
           }
+        );
 
-          console.log(`Terminal ${sessionId} killed.`);
-        } catch (error) {
-          console.error("Failed to connect to server:", error instanceof Error ? error.message : error);
+        if (!response.ok) {
+          if (response.status === 404) {
+            console.error(`Terminal session not found: ${sessionId}`);
+          } else {
+            console.error(`Failed to kill terminal: ${response.statusText}`);
+          }
           process.exit(1);
         }
+
+        console.log(`Terminal ${sessionId} killed.`);
+      } catch (error) {
+        console.error(
+          "Failed to connect to server:",
+          error instanceof Error ? error.message : error
+        );
+        process.exit(1);
       }
-    );
+    });
 }

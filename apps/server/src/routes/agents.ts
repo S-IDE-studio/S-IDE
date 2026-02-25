@@ -550,7 +550,7 @@ export function createAgentRouter() {
 
       // Get period from query params (default to 'day')
       const periodParam = c.req.query("period");
-      const period: "day" | "week" | "month" = 
+      const period: "day" | "week" | "month" =
         periodParam === "week" || periodParam === "month" ? periodParam : "day";
 
       // Import dynamically to avoid circular dependencies

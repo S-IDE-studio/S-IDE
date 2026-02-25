@@ -13,6 +13,8 @@ import { CodexAgent } from "./agents/codex/CodexAgent.js";
 import { CopilotAgent } from "./agents/copilot/CopilotAgent.js";
 import { CursorAgent } from "./agents/cursor/CursorAgent.js";
 import { KimiAgent } from "./agents/kimi/KimiAgent.js";
+import { getAgentObserver } from "./agents/observer/AgentObserver.js";
+import { getTaskOrchestrator } from "./agents/orchestrator/TaskOrchestrator.js";
 import {
   BASIC_AUTH_PASSWORD,
   BASIC_AUTH_USER,
@@ -39,18 +41,16 @@ import { createDeckRouter } from "./routes/decks.js";
 import { createEnvCheckRouter } from "./routes/env-check.js";
 import { createFileRouter } from "./routes/files.js";
 import { createGitRouter } from "./routes/git.js";
+import { createHealthRouter } from "./routes/health.js";
 import { createLocalServerRouter } from "./routes/local-server.js";
 import { createMCPServerRouter } from "./routes/mcp-servers.js";
+import { createOrchestratorRouter } from "./routes/orchestrator.js";
 import { createSettingsRouter } from "./routes/settings.js";
 import { createSharedResourcesRouter } from "./routes/shared-resources.js";
 import { createShellsRouter } from "./routes/shells.js";
 import { createTabsRouter } from "./routes/tabs.js";
 import { createTerminalRouter } from "./routes/terminals.js";
 import { createTunnelRouter } from "./routes/tunnel.js";
-import { getAgentObserver } from "./agents/observer/AgentObserver.js";
-import { getTaskOrchestrator } from "./agents/orchestrator/TaskOrchestrator.js";
-import { createHealthRouter } from "./routes/health.js";
-import { createOrchestratorRouter } from "./routes/orchestrator.js";
 import { createWorkspaceRouter, getConfigHandler } from "./routes/workspaces.js";
 import type { Deck, TerminalSession, Workspace } from "./types.js";
 import {

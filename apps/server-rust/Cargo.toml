@@ -27,7 +27,7 @@ serde_json = "1.0"
 toml = "0.8"
 
 # Database
-sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "migrate", "chrono"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "migrate", "chrono", "uuid"] }
 
 # Configuration
 config = "0.15"
@@ -67,8 +67,11 @@ dirs = "6.0"
 
 # HTTP client (for status check)
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+git2 = "0.20.4"
+which = "8.0.0"
 
 [dev-dependencies]
+tempfile = "3.0"
 tokio-test = "0.4"
 
 [profile.release]

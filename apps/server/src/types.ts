@@ -2,9 +2,9 @@
 export type { Deck, Workspace } from "@side-ide/shared/types";
 export type { AgentId } from "./agents/types.js";
 
+import type { DatabaseSync } from "node:sqlite";
 // Import WebSocket type explicitly from 'ws' package to avoid conflicts
 import type { WebSocket as WebSocketType } from "ws";
-import type { DatabaseSync } from "node:sqlite";
 
 // Hono Context Variables
 declare module "hono" {

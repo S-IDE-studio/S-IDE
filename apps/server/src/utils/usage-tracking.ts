@@ -4,8 +4,8 @@
  * Tracks token usage, costs, and enforces thresholds.
  */
 
-import type { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
+import type { DatabaseSync } from "node:sqlite";
 
 export interface UsageRecord {
   id: string;
@@ -156,9 +156,7 @@ export function getProviderPricing(
   providerId: string,
   model: string
 ): ProviderPricing | undefined {
-  const stmt = db.prepare(
-    "SELECT * FROM provider_pricing WHERE provider_id = ? AND model = ?"
-  );
+  const stmt = db.prepare("SELECT * FROM provider_pricing WHERE provider_id = ? AND model = ?");
   const row = stmt.get(providerId, model) as
     | {
         id: string;
@@ -229,9 +227,7 @@ export function checkThresholds(
   `);
 
   // Check token threshold
-  const tokenThreshold = stmt.get(agentId, currentUsage.tokens) as
-    | UsageThreshold
-    | undefined;
+  const tokenThreshold = stmt.get(agentId, currentUsage.tokens) as UsageThreshold | undefined;
   if (tokenThreshold) {
     return {
       exceeded: true,
@@ -278,10 +274,7 @@ export function createThreshold(
 /**
  * Default pricing for known providers
  */
-export const DEFAULT_PRICING: Record<
-  string,
-  { input: number; output: number }
-> = {
+export const DEFAULT_PRICING: Record<string, { input: number; output: number }> = {
   "claude:claude-3-opus": { input: 15.0, output: 75.0 },
   "claude:claude-3-sonnet": { input: 3.0, output: 15.0 },
   "claude:claude-3-haiku": { input: 0.25, output: 1.25 },

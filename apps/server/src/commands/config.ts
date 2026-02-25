@@ -52,7 +52,10 @@ export function registerConfigCommands(program: Command): void {
           console.log(JSON.stringify(cfg, null, 2));
         }
       } catch (error) {
-        console.error("Failed to read configuration:", error instanceof Error ? error.message : error);
+        console.error(
+          "Failed to read configuration:",
+          error instanceof Error ? error.message : error
+        );
         process.exit(1);
       }
     });
@@ -62,56 +65,56 @@ export function registerConfigCommands(program: Command): void {
     .command("set <key> <value>")
     .description("Set configuration value")
     .option("--json", "Parse value as JSON")
-    .action(
-      (
-        key: string,
-        value: string,
-        options: { json: boolean }
-      ) => {
-        let cfg: Config = {};
+    .action((key: string, value: string, options: { json: boolean }) => {
+      let cfg: Config = {};
 
-        // Load existing config if exists
-        if (existsSync(CONFIG_FILE)) {
-          try {
-            const content = readFileSync(CONFIG_FILE, "utf-8");
-            cfg = JSON.parse(content);
-          } catch (error) {
-            console.error("Failed to read existing config:", error instanceof Error ? error.message : error);
-            process.exit(1);
-          }
-        }
-
-        // Parse value
-        let parsedValue: unknown;
-        if (options.json) {
-          try {
-            parsedValue = JSON.parse(value);
-          } catch {
-            console.error("Invalid JSON value:", value);
-            process.exit(1);
-          }
-        } else {
-          // Try to infer type
-          if (value === "true") parsedValue = true;
-          else if (value === "false") parsedValue = false;
-          else if (/^\d+$/.test(value)) parsedValue = Number.parseInt(value, 10);
-          else if (/^\d+\.\d+$/.test(value)) parsedValue = Number.parseFloat(value);
-          else parsedValue = value;
-        }
-
-        // Set value
-        setNestedValue(cfg, key, parsedValue);
-
-        // Save config
+      // Load existing config if exists
+      if (existsSync(CONFIG_FILE)) {
         try {
-          writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2));
-          console.log(`Set ${key} = ${JSON.stringify(parsedValue)}`);
+          const content = readFileSync(CONFIG_FILE, "utf-8");
+          cfg = JSON.parse(content);
         } catch (error) {
-          console.error("Failed to save configuration:", error instanceof Error ? error.message : error);
+          console.error(
+            "Failed to read existing config:",
+            error instanceof Error ? error.message : error
+          );
           process.exit(1);
         }
       }
-    );
+
+      // Parse value
+      let parsedValue: unknown;
+      if (options.json) {
+        try {
+          parsedValue = JSON.parse(value);
+        } catch {
+          console.error("Invalid JSON value:", value);
+          process.exit(1);
+        }
+      } else {
+        // Try to infer type
+        if (value === "true") parsedValue = true;
+        else if (value === "false") parsedValue = false;
+        else if (/^\d+$/.test(value)) parsedValue = Number.parseInt(value, 10);
+        else if (/^\d+\.\d+$/.test(value)) parsedValue = Number.parseFloat(value);
+        else parsedValue = value;
+      }
+
+      // Set value
+      setNestedValue(cfg, key, parsedValue);
+
+      // Save config
+      try {
+        writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2));
+        console.log(`Set ${key} = ${JSON.stringify(parsedValue)}`);
+      } catch (error) {
+        console.error(
+          "Failed to save configuration:",
+          error instanceof Error ? error.message : error
+        );
+        process.exit(1);
+      }
+    });
 
   // config validate
   config
@@ -152,7 +155,10 @@ export function registerConfigCommands(program: Command): void {
 
         console.log("Configuration is valid.");
       } catch (error) {
-        console.error("Failed to validate configuration:", error instanceof Error ? error.message : error);
+        console.error(
+          "Failed to validate configuration:",
+          error instanceof Error ? error.message : error
+        );
         process.exit(1);
       }
     });

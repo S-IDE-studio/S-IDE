@@ -5,12 +5,13 @@
  */
 
 import { Hono } from "hono";
+import { getAgentObserver } from "../agents/observer/AgentObserver.js";
 import {
   getTaskOrchestrator,
   type Task,
   type TaskStatus,
 } from "../agents/orchestrator/TaskOrchestrator.js";
-import { getAgentObserver } from "../agents/observer/AgentObserver.js";
+import type { AgentId } from "../agents/types.js";
 import { createHttpError, handleError, readJson } from "../utils/error.js";
 
 /**
@@ -160,7 +161,8 @@ export function createOrchestratorRouter() {
   router.get("/observer/interventions", async (c) => {
     try {
       const observer = getAgentObserver();
-      const agentId = c.req.query("agentId");
+      const agentIdParam = c.req.query("agentId");
+      const agentId = agentIdParam ? (agentIdParam as AgentId) : undefined;
       const interventions = observer.getInterventions(agentId);
 
       return c.json({ interventions });
@@ -210,7 +212,7 @@ export function createOrchestratorRouter() {
       if (body.targetType === "task") {
         success = await observer.overrideOrchestrator(body.targetId, body.reason);
       } else if (body.targetType === "agent") {
-        success = await observer.forceStop(body.targetId, body.reason);
+        success = await observer.forceStop(body.targetId as AgentId, body.reason);
       } else {
         throw createHttpError("Invalid targetType", 400);
       }

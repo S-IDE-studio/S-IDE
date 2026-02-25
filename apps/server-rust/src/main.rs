@@ -5,16 +5,24 @@
 
 use clap::Parser;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tracing::{info, warn};
 
 mod config;
+mod db;
 mod error;
+mod models;
+mod repositories;
 mod routes;
 mod server;
+mod terminal;
 mod utils;
+mod websocket;
 
 use crate::config::Config;
+use crate::db::{create_pool, run_migrations, setup_database};
 use crate::server::create_server;
+use crate::terminal::manager::PtyManager;
 
 /// S-IDE Core Daemon - AI-optimized development environment
 #[derive(Parser, Debug)]
@@ -83,7 +91,17 @@ async fn main() -> anyhow::Result<()> {
             let config = Config::load()?;
             let addr: SocketAddr = format!("{}:{}", host, port).parse()?;
             
-            let server = create_server(config).await?;
+            // Initialize database
+            let db_pool = create_pool(&config).await?;
+            setup_database(&db_pool).await?;
+            run_migrations(&db_pool).await?;
+            info!("Database initialized");
+            
+            // Initialize PTY manager
+            let pty_manager = PtyManager::new()?;
+            info!("PTY manager initialized");
+            
+            let server = create_server(config, db_pool, pty_manager).await?;
             let listener = tokio::net::TcpListener::bind(addr).await?;
             
             info!("Server ready");
@@ -106,7 +124,17 @@ async fn main() -> anyhow::Result<()> {
             
             info!("Starting S-IDE Core Daemon (Rust) v{}", env!("CARGO_PKG_VERSION"));
             
-            let server = create_server(config).await?;
+            // Initialize database
+            let db_pool = create_pool(&config).await?;
+            setup_database(&db_pool).await?;
+            run_migrations(&db_pool).await?;
+            info!("Database initialized");
+            
+            // Initialize PTY manager
+            let pty_manager = PtyManager::new()?;
+            info!("PTY manager initialized");
+            
+            let server = create_server(config, db_pool, pty_manager).await?;
             let listener = tokio::net::TcpListener::bind(addr).await?;
             
             info!("Server ready on http://{}", addr);

@@ -39,7 +39,8 @@ export function registerMCPCommands(program: Command): void {
         console.log("MCP Servers:");
         console.log("------------");
         for (const server of servers) {
-          const statusIcon = server.status === "active" ? "●" : server.status === "error" ? "✗" : "○";
+          const statusIcon =
+            server.status === "active" ? "●" : server.status === "error" ? "✗" : "○";
           console.log(`  ${statusIcon} ${server.name}`);
           console.log(`    Status: ${server.status}`);
           if (server.capabilities?.length) {
@@ -51,7 +52,10 @@ export function registerMCPCommands(program: Command): void {
           console.log("");
         }
       } catch (error) {
-        console.error("Failed to connect to server:", error instanceof Error ? error.message : error);
+        console.error(
+          "Failed to connect to server:",
+          error instanceof Error ? error.message : error
+        );
         process.exit(1);
       }
     });
@@ -87,7 +91,10 @@ export function registerMCPCommands(program: Command): void {
           console.log(`Error: ${server.error}`);
         }
       } catch (error) {
-        console.error("Failed to connect to server:", error instanceof Error ? error.message : error);
+        console.error(
+          "Failed to connect to server:",
+          error instanceof Error ? error.message : error
+        );
         process.exit(1);
       }
     });
@@ -117,7 +124,10 @@ export function registerMCPCommands(program: Command): void {
 
         console.log(`MCP server ${serverName} started.`);
       } catch (error) {
-        console.error("Failed to connect to server:", error instanceof Error ? error.message : error);
+        console.error(
+          "Failed to connect to server:",
+          error instanceof Error ? error.message : error
+        );
         process.exit(1);
       }
     });
@@ -147,7 +157,10 @@ export function registerMCPCommands(program: Command): void {
 
         console.log(`MCP server ${serverName} stopped.`);
       } catch (error) {
-        console.error("Failed to connect to server:", error instanceof Error ? error.message : error);
+        console.error(
+          "Failed to connect to server:",
+          error instanceof Error ? error.message : error
+        );
         process.exit(1);
       }
     });

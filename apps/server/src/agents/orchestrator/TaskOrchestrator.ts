@@ -6,9 +6,9 @@
  */
 
 import { randomUUID } from "node:crypto";
-import type { DatabaseSync } from "node:sqlite";
-import type { AgentId } from "../types.js";
+import type { DatabaseSync, SQLInputValue } from "node:sqlite";
 import { getMCPServer } from "../../mcp/server.js";
+import type { AgentId } from "../types.js";
 
 export type TaskStatus =
   | "pending"
@@ -150,22 +150,132 @@ export class TaskOrchestrator {
     const subtasks: SubTask[] = [];
 
     // Detect task type and create appropriate subtasks
-    if (description.includes("create") || description.includes("make") || description.includes("generate")) {
-      subtasks.push(this.createSubTask(task.id, 1, "analysis", "Analyze requirements", "Understand what needs to be created", "claude", []));
-      subtasks.push(this.createSubTask(task.id, 2, "code", "Generate code/files", task.description, "claude", [subtasks[0].id]));
-      subtasks.push(this.createSubTask(task.id, 3, "command", "Verify creation", "Check that files were created correctly", "codex", [subtasks[1].id]));
-    } else if (description.includes("fix") || description.includes("bug") || description.includes("error")) {
-      subtasks.push(this.createSubTask(task.id, 1, "analysis", "Analyze error", "Understand the error and its cause", "claude", []));
-      subtasks.push(this.createSubTask(task.id, 2, "analysis", "Find relevant code", "Locate the code that needs to be fixed", "codex", [subtasks[0].id]));
-      subtasks.push(this.createSubTask(task.id, 3, "code", "Implement fix", "Fix the bug", "claude", [subtasks[1].id]));
-      subtasks.push(this.createSubTask(task.id, 4, "command", "Test fix", "Run tests to verify the fix", "codex", [subtasks[2].id]));
+    if (
+      description.includes("create") ||
+      description.includes("make") ||
+      description.includes("generate")
+    ) {
+      subtasks.push(
+        this.createSubTask(
+          task.id,
+          1,
+          "analysis",
+          "Analyze requirements",
+          "Understand what needs to be created",
+          "claude",
+          []
+        )
+      );
+      subtasks.push(
+        this.createSubTask(task.id, 2, "code", "Generate code/files", task.description, "claude", [
+          subtasks[0].id,
+        ])
+      );
+      subtasks.push(
+        this.createSubTask(
+          task.id,
+          3,
+          "command",
+          "Verify creation",
+          "Check that files were created correctly",
+          "codex",
+          [subtasks[1].id]
+        )
+      );
+    } else if (
+      description.includes("fix") ||
+      description.includes("bug") ||
+      description.includes("error")
+    ) {
+      subtasks.push(
+        this.createSubTask(
+          task.id,
+          1,
+          "analysis",
+          "Analyze error",
+          "Understand the error and its cause",
+          "claude",
+          []
+        )
+      );
+      subtasks.push(
+        this.createSubTask(
+          task.id,
+          2,
+          "analysis",
+          "Find relevant code",
+          "Locate the code that needs to be fixed",
+          "codex",
+          [subtasks[0].id]
+        )
+      );
+      subtasks.push(
+        this.createSubTask(task.id, 3, "code", "Implement fix", "Fix the bug", "claude", [
+          subtasks[1].id,
+        ])
+      );
+      subtasks.push(
+        this.createSubTask(
+          task.id,
+          4,
+          "command",
+          "Test fix",
+          "Run tests to verify the fix",
+          "codex",
+          [subtasks[2].id]
+        )
+      );
     } else if (description.includes("refactor") || description.includes("clean up")) {
-      subtasks.push(this.createSubTask(task.id, 1, "analysis", "Analyze code", "Understand current code structure", "claude", []));
-      subtasks.push(this.createSubTask(task.id, 2, "code", "Apply refactoring", "Perform the refactoring", "claude", [subtasks[0].id]));
-      subtasks.push(this.createSubTask(task.id, 3, "command", "Verify behavior", "Ensure functionality is preserved", "codex", [subtasks[1].id]));
+      subtasks.push(
+        this.createSubTask(
+          task.id,
+          1,
+          "analysis",
+          "Analyze code",
+          "Understand current code structure",
+          "claude",
+          []
+        )
+      );
+      subtasks.push(
+        this.createSubTask(
+          task.id,
+          2,
+          "code",
+          "Apply refactoring",
+          "Perform the refactoring",
+          "claude",
+          [subtasks[0].id]
+        )
+      );
+      subtasks.push(
+        this.createSubTask(
+          task.id,
+          3,
+          "command",
+          "Verify behavior",
+          "Ensure functionality is preserved",
+          "codex",
+          [subtasks[1].id]
+        )
+      );
     } else {
-      subtasks.push(this.createSubTask(task.id, 1, "analysis", "Analyze task", `Understand: ${task.description}`, "claude", []));
-      subtasks.push(this.createSubTask(task.id, 2, "prompt", "Execute task", task.description, "claude", [subtasks[0].id]));
+      subtasks.push(
+        this.createSubTask(
+          task.id,
+          1,
+          "analysis",
+          "Analyze task",
+          `Understand: ${task.description}`,
+          "claude",
+          []
+        )
+      );
+      subtasks.push(
+        this.createSubTask(task.id, 2, "prompt", "Execute task", task.description, "claude", [
+          subtasks[0].id,
+        ])
+      );
     }
 
     return subtasks;
@@ -221,7 +331,9 @@ export class TaskOrchestrator {
           if (subtask.retryCount < subtask.maxRetries) {
             subtask.retryCount++;
             subtask.status = "retrying";
-            console.log(`[Orchestrator] Retrying subtask ${subtask.id} (attempt ${subtask.retryCount})`);
+            console.log(
+              `[Orchestrator] Retrying subtask ${subtask.id} (attempt ${subtask.retryCount})`
+            );
             const retryResult = await this.executeSubtask(subtask);
             results.set(subtask.id, retryResult);
           }
@@ -229,7 +341,9 @@ export class TaskOrchestrator {
       }
 
       const failedCount = task.subtasks.filter((st) => st.status === "failed").length;
-      task.metadata.completedSubtasks = task.subtasks.filter((st) => st.status === "completed").length;
+      task.metadata.completedSubtasks = task.subtasks.filter(
+        (st) => st.status === "completed"
+      ).length;
       task.metadata.failedSubtasks = failedCount;
 
       if (failedCount === 0) {
@@ -377,8 +491,8 @@ export class TaskOrchestrator {
         task.status,
         JSON.stringify({ description: task.description, subtasks: task.subtasks }),
         null,
-        task.startedAt,
-        task.completedAt,
+        task.startedAt ?? null,
+        task.completedAt ?? null,
         task.createdAt
       );
     } catch (error) {

@@ -8,8 +8,8 @@
  */
 
 import type { DatabaseSync } from "node:sqlite";
-import type { AgentId } from "../types.js";
 import { getTaskOrchestrator } from "../orchestrator/TaskOrchestrator.js";
+import type { AgentId } from "../types.js";
 
 export type InterventionAction = "warn" | "throttle" | "pause" | "stop" | "kill";
 
@@ -199,7 +199,9 @@ export class AgentObserver {
       const orchestrator = getTaskOrchestrator();
       for (const task of orchestrator.getTasksByStatus("running")) {
         // Mark tasks as needing attention
-        this.createAlert("critical", agentId, `Task ${task.id} interrupted by Observer`, { taskId: task.id });
+        this.createAlert("critical", agentId, `Task ${task.id} interrupted by Observer`, {
+          taskId: task.id,
+        });
       }
 
       return true;
