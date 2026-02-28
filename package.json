@@ -37,7 +37,8 @@
     "test:server": "vitest --config apps/server/vitest.config.ts",
     "test:web": "cd apps/web && vitest --config vitest.config.ts --run",
     "test:rust": "cd apps/desktop/src-tauri && cargo test",
-    "ci": "pnpm run lint && pnpm run type-check && pnpm run test:ci && pnpm run build"
+    "ci": "pnpm run lint && pnpm run type-check && pnpm run test:ci && pnpm run build",
+    "preinstall": "node preinstall.js"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.13",

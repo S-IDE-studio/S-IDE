@@ -59,6 +59,7 @@
   height: 100%;
   flex-shrink: 0;
   user-select: none;
+  -webkit-app-region: no-drag;
 }
 
 .title-bar-right-section {
@@ -68,6 +69,7 @@
   margin-left: auto;
   flex-shrink: 0;
   user-select: none;
+  -webkit-app-region: no-drag;
 }
 
 /* Center section - workspace tabs (centered in title bar) */
@@ -129,6 +131,7 @@
   white-space: nowrap;
   user-select: none;
   min-width: 0;
+  -webkit-app-region: no-drag;
 }
 
 .workspace-tab:hover {
@@ -392,6 +395,7 @@
   display: flex;
   height: 100%;
   user-select: none;
+  -webkit-app-region: no-drag;
 }
 
 .title-bar-button {
@@ -404,8 +408,8 @@
   cursor: pointer;
   transition: background 0.15s;
   user-select: none;
-  /* Prevent button from capturing drag events */
   pointer-events: auto;
+  -webkit-app-region: no-drag;
 }
 
 .title-bar-button:hover {
@@ -457,6 +461,7 @@
   cursor: pointer;
   transition: background 0.15s;
   user-select: none;
+  -webkit-app-region: no-drag;
 }
 
 .title-bar-menu-button:hover {

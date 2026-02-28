@@ -79,14 +79,13 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         let server_dir = if is_dev {
             match find_server_directory() {
                 Ok(dir) => {
-                    // In development, use the dist directory
-                    let dist_dir = dir.join("dist");
-                    if dist_dir.exists() && dist_dir.join("index.js").exists() {
-                        dist_dir
+                    // In development, run server directly from source via npm script.
+                    if dir.join("package.json").exists() && dir.join("src").join("index.ts").exists() {
+                        dir
                     } else {
-                        eprintln!("[Desktop] Server dist not found, please build server first (pnpm run build:server)");
+                        eprintln!("[Desktop] Server source not found in apps/server");
                         let _ = app_handle.emit("server-error", serde_json::json!({
-                            "message": "Server not built. Run: pnpm run build:server"
+                            "message": "Server source not found. Expected apps/server/src/index.ts"
                         }));
                         return;
                     }
@@ -218,19 +217,40 @@ fn spawn_server(
     server_dir: &std::path::Path,
     is_dev: bool,
 ) -> Result<tokio::process::Child, String> {
-    let index_js = server_dir.join("index.js");
+    eprintln!("[Desktop] Spawning server (is_dev = {})", is_dev);
 
-    eprintln!("[Desktop] Spawning server: {} {}", node_exe, index_js.display());
-    eprintln!("[Desktop] is_dev = {}", is_dev);
+    let mut cmd = if is_dev {
+        let npm_cmd = common::find_npm_command()?;
+        eprintln!("[Desktop] Dev server command: {} run dev", npm_cmd);
 
-    if !index_js.exists() {
-        return Err(format!("Server index.js not found at: {}", index_js.display()));
-    }
+        #[cfg(target_os = "windows")]
+        {
+            let mut c = tokio::process::Command::new("cmd.exe");
+            c.arg("/c")
+                .arg(&npm_cmd)
+                .arg("run")
+                .arg("dev");
+            c
+        }
 
-    let mut cmd = tokio::process::Command::new(node_exe);
-    cmd.arg(&index_js)
-        .current_dir(server_dir)
-        .kill_on_drop(true);
+        #[cfg(not(target_os = "windows"))]
+        {
+            let mut c = tokio::process::Command::new(&npm_cmd);
+            c.arg("run").arg("dev");
+            c
+        }
+    } else {
+        let index_js = server_dir.join("index.js");
+        eprintln!("[Desktop] Production server command: {} {}", node_exe, index_js.display());
+        if !index_js.exists() {
+            return Err(format!("Server index.js not found at: {}", index_js.display()));
+        }
+        let mut c = tokio::process::Command::new(node_exe);
+        c.arg(&index_js);
+        c
+    };
+
+    cmd.current_dir(server_dir).kill_on_drop(true);
 
     // Configure stdio
     if is_dev {

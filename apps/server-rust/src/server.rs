@@ -90,6 +90,7 @@ fn api_routes() -> Router<AppState> {
         .nest("/terminals", routes::terminals::routes())
         .nest("/agents", routes::agents::routes())
         .nest("/mcp-servers", routes::mcp_servers::routes())
+        .nest("/local-servers", routes::local_servers::routes())
 }
 
 /// Request ID middleware - adds unique request ID to each request

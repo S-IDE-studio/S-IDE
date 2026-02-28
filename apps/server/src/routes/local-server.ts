@@ -5,8 +5,18 @@
  * Provides port scanning, process detection, and server control capabilities.
  */
 
+import { exec as nodeExec } from "node:child_process";
+import { promisify } from "node:util";
 import { Hono } from "hono";
 import { createHttpError, handleError } from "../utils/error.js";
+import {
+  DEFAULT_SCAN_PORTS,
+  detectListeningLocalPorts,
+  inferServerType,
+  PROBE_TIMEOUT_MS,
+} from "../utils/local-server-scan.js";
+
+const execAsync = promisify(nodeExec);
 
 /**
  * Detected server information
@@ -24,21 +34,13 @@ interface DetectedServer {
 /**
  * Scan result for advanced scanning
  */
-interface ScanResult {
-  port: number;
-  status: "open" | "closed" | "filtered";
-  service?: string;
-  version?: string;
-  process?: string;
-}
-
 /**
  * Probe a single port to detect a server
  */
 async function probeServer(port: number, defaultType: string): Promise<DetectedServer | null> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 500);
+    const timeoutId = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
 
     const response = await fetch(`http://127.0.0.1:${port}/health`, {
       signal: controller.signal,
@@ -59,7 +61,7 @@ async function probeServer(port: number, defaultType: string): Promise<DetectedS
     // Try root endpoint as fallback
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 500);
+      const timeoutId = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
 
       const response = await fetch(`http://127.0.0.1:${port}`, {
         signal: controller.signal,
@@ -89,7 +91,12 @@ async function probeServer(port: number, defaultType: string): Promise<DetectedS
  */
 async function detectServerName(port: number): Promise<string | null> {
   try {
-    const response = await fetch(`http://127.0.0.1:${port}`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+    const response = await fetch(`http://127.0.0.1:${port}`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
     const html = await response.text();
     const titleMatch = html.match(/<title>(.*?)<\/title>/i);
     return titleMatch ? titleMatch[1].trim() : null;
@@ -102,33 +109,29 @@ async function detectServerName(port: number): Promise<string | null> {
  * Scan localhost for running servers
  */
 async function scanLocalServers(): Promise<DetectedServer[]> {
-  const servers: DetectedServer[] = [];
+  const detectedPorts = await detectListeningLocalPorts();
+  const portsToScan =
+    detectedPorts.length > 0 ? detectedPorts : DEFAULT_SCAN_PORTS.map(([port]) => port);
 
-  // Common development ports to scan
-  const portsToScan: Array<[number, string]> = [
-    [3000, "dev"],
-    [3001, "dev"],
-    [5173, "vite"],
-    [5174, "vite"],
-    [8000, "dev"],
-    [8080, "dev"],
-    [8787, "side-ide"],
-    [9000, "dev"],
-  ];
-
-  // Scan ports in parallel
-  const scanPromises = portsToScan.map(([port, type]) =>
-    probeServer(port, type).then((result) => ({ result, port }))
-  );
-
-  const results = await Promise.all(scanPromises);
-  for (const { result } of results) {
-    if (result) {
-      servers.push(result);
+  const scanPromises = portsToScan.map(async (port) => {
+    const type = inferServerType(port);
+    const detectedServer = await probeServer(port, type);
+    if (detectedServer) {
+      return detectedServer;
     }
-  }
 
-  return servers;
+    // Non-HTTP services (DB, cache, debug ports, etc.) should still appear in the list.
+    return {
+      name: `Local service on port ${port}`,
+      url: `http://127.0.0.1:${port}`,
+      port,
+      status: "running",
+      type,
+    } satisfies DetectedServer;
+  });
+
+  const servers = await Promise.all(scanPromises);
+  return servers.sort((a, b) => a.port - b.port);
 }
 
 /**
@@ -171,14 +174,14 @@ export function createLocalServerRouter() {
    */
   router.get("/scan/advanced", async (c) => {
     try {
-      const exec = (await import("node:child_process")).exec;
-      const { promisify } = await import("node:util");
-      const execAsync = promisify(exec);
-
       // Check if nmap is available
       let nmapAvailable = false;
       try {
-        await execAsync("which nmap", { timeout: 2000 });
+        if (process.platform === "win32") {
+          await execAsync("where nmap", { timeout: 2000 });
+        } else {
+          await execAsync("which nmap", { timeout: 2000 });
+        }
         nmapAvailable = true;
       } catch {
         nmapAvailable = false;
@@ -233,10 +236,6 @@ export function createLocalServerRouter() {
    */
   router.get("/nmap/available", async (c) => {
     try {
-      const exec = (await import("node:child_process")).exec;
-      const { promisify } = await import("node:util");
-      const execAsync = promisify(exec);
-
       try {
         const { stdout } = await execAsync("nmap --version", { timeout: 2000 });
         const versionMatch = stdout.match(/Nmap version ([\d.]+)/);

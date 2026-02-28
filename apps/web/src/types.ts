@@ -81,7 +81,7 @@ export interface DeckListItem {
 }
 
 // Agent types
-export type AgentId = "claude" | "codex" | "copilot" | "cursor" | "kimi";
+export type AgentId = "claude" | "codex" | "copilot" | "cursor" | "kimi" | "opencode";
 
 export interface Agent {
   id: AgentId;
@@ -169,7 +169,7 @@ export interface UnifiedTab {
     mcp?: { id: string; name: string };
     serverSettings?: {};
     agentStatus?: {};
-    agentConfig?: {};
+    agentConfig?: { selectedAgentId?: string };
     agentConfigLocal?: { workspaceId: string };
     setup?: {};
   };

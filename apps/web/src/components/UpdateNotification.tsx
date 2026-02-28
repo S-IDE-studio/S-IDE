@@ -1,6 +1,6 @@
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface UpdateInfo {
   current_version: string;
@@ -100,7 +100,7 @@ export function useUpdateCheck() {
   const [update, setUpdate] =
     useState<ReturnType<typeof check> extends Promise<infer T> ? T : null>(null);
 
-  const checkForUpdates = async () => {
+  const checkForUpdates = useCallback(async () => {
     console.log("[UpdateCheck] Starting update check...");
     setIsChecking(true);
     try {
@@ -128,9 +128,9 @@ export function useUpdateCheck() {
       console.error("[UpdateCheck] Update check failed:", error);
       setIsChecking(false);
     }
-  };
+  }, []);
 
-  const downloadAndInstall = async () => {
+  const downloadAndInstall = useCallback(async () => {
     if (!update) return;
     setIsDownloading(true);
     try {
@@ -143,13 +143,13 @@ export function useUpdateCheck() {
       setIsDownloading(false);
       throw error;
     }
-  };
+  }, [update]);
 
-  const skipUpdate = () => {
+  const skipUpdate = useCallback(() => {
     setShowNotification(false);
     setUpdateInfo(null);
     setUpdate(null);
-  };
+  }, []);
 
   // Cleanup function to reset state on unmount
   useEffect(() => {
@@ -158,22 +158,6 @@ export function useUpdateCheck() {
       setIsChecking(false);
       setIsDownloading(false);
     };
-  }, []);
-
-  // Check for updates on mount (only in Tauri app)
-  useEffect(() => {
-    // Check if running in Tauri
-    const isTauri =
-      typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window);
-
-    if (isTauri) {
-      // Wait a bit before checking to let the app settle
-      const timer = setTimeout(() => {
-        checkForUpdates();
-      }, 3000); // 3 seconds delay
-
-      return () => clearTimeout(timer);
-    }
   }, []);
 
   return {

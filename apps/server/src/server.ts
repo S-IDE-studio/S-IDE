@@ -230,6 +230,7 @@ export async function createServer(portOverride?: number): Promise<Server> {
   app.route("/api/bridge", createAgentBridgeRouter());
   app.route("/api/mcp", createMCPServerRouter(db));
   app.route("/api/local-server", createLocalServerRouter());
+  app.route("/api/local-servers", createLocalServerRouter());
   app.route("/api/env", createEnvCheckRouter());
   app.route("/api/tunnel", createTunnelRouter(db));
   app.route("/api/tabs", createTabsRouter());

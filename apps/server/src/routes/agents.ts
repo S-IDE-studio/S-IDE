@@ -7,7 +7,12 @@
 
 import { Hono } from "hono";
 import type { AgentInterface } from "../agents/base/AgentInterface.js";
-import type { AgentId } from "../agents/types.js";
+import type { AgentId, MCPConfig, SkillConfig } from "../agents/types.js";
+import {
+  isSupportedAgentConfigViewId,
+  readAgentConfigFiles,
+  readAgentConfigSummary,
+} from "../utils/agent-config-files.js";
 import { getAgentMetrics, startAgentTracking } from "../utils/agent-metrics.js";
 import { createHttpError, handleError, readJson } from "../utils/error.js";
 
@@ -67,6 +72,18 @@ export function getAllAgents(): AgentInterface[] {
  */
 export function createAgentRouter() {
   const router = new Hono();
+
+  const isValidMcpConfig = (value: unknown): value is MCPConfig => {
+    if (!value || typeof value !== "object") return false;
+    const v = value as Record<string, unknown>;
+    return typeof v.id === "string" && typeof v.name === "string" && typeof v.command === "string";
+  };
+
+  const isValidSkillConfig = (value: unknown): value is SkillConfig => {
+    if (!value || typeof value !== "object") return false;
+    const v = value as Record<string, unknown>;
+    return typeof v.id === "string" && typeof v.name === "string";
+  };
 
   /**
    * GET /api/agents - List all available agents
@@ -180,6 +197,120 @@ export function createAgentRouter() {
       capabilities: ["messaging", "broadcast", "task-handoff"],
     }));
     return c.json(servers);
+  });
+
+  /**
+   * GET /api/agents/config-files/:id - Get raw config files for an agent
+   */
+  router.get("/config-files/:id", async (c) => {
+    try {
+      const agentId = c.req.param("id");
+      if (!isSupportedAgentConfigViewId(agentId)) {
+        throw createHttpError("Agent not supported for config file view", 400);
+      }
+
+      const [files, summary] = await Promise.all([
+        readAgentConfigFiles(agentId),
+        readAgentConfigSummary(agentId),
+      ]);
+      return c.json({ agentId, files, summary });
+    } catch (error) {
+      return handleError(c, error);
+    }
+  });
+
+  /**
+   * POST /api/agents/bulk-install - Install MCP/Skills to multiple agents
+   */
+  router.post("/bulk-install", async (c) => {
+    try {
+      const body = await readJson<{
+        targetAgentIds?: string[];
+        mcpServers?: unknown[];
+        skills?: unknown[];
+        replaceExisting?: boolean;
+      }>(c);
+
+      if (!body || !Array.isArray(body.targetAgentIds) || body.targetAgentIds.length === 0) {
+        throw createHttpError("targetAgentIds is required", 400);
+      }
+
+      const mcpServers = Array.isArray(body.mcpServers)
+        ? body.mcpServers.filter(isValidMcpConfig)
+        : [];
+      const skills = Array.isArray(body.skills) ? body.skills.filter(isValidSkillConfig) : [];
+      const replaceExisting = body.replaceExisting === true;
+
+      const result: Array<{
+        agentId: string;
+        installedMcpCount: number;
+        installedSkillCount: number;
+        success: boolean;
+        error?: string;
+      }> = [];
+
+      for (const targetId of body.targetAgentIds) {
+        const agent = getAgent(targetId as AgentId);
+        if (!agent) {
+          result.push({
+            agentId: targetId,
+            installedMcpCount: 0,
+            installedSkillCount: 0,
+            success: false,
+            error: "Agent not found",
+          });
+          continue;
+        }
+
+        try {
+          if (replaceExisting) {
+            const existingMcp = await agent.listMCPs();
+            const existingSkills = await agent.listSkills();
+            for (const mcp of existingMcp) {
+              await agent.removeMCP(mcp.id);
+            }
+            for (const skill of existingSkills) {
+              await agent.removeSkill(skill.id);
+            }
+          }
+
+          let installedMcpCount = 0;
+          let installedSkillCount = 0;
+
+          for (const mcp of mcpServers) {
+            await agent.addMCP(mcp);
+            installedMcpCount += 1;
+          }
+
+          for (const skill of skills) {
+            await agent.addSkill(skill);
+            installedSkillCount += 1;
+          }
+
+          result.push({
+            agentId: targetId,
+            installedMcpCount,
+            installedSkillCount,
+            success: true,
+          });
+        } catch (error) {
+          result.push({
+            agentId: targetId,
+            installedMcpCount: 0,
+            installedSkillCount: 0,
+            success: false,
+            error: error instanceof Error ? error.message : "Installation failed",
+          });
+        }
+      }
+
+      return c.json({
+        success: result.every((entry) => entry.success),
+        results: result,
+      });
+    } catch (error) {
+      return handleError(c, error);
+    }
   });
 
   /**

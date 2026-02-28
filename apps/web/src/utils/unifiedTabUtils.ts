@@ -162,13 +162,13 @@ export function agentStatusToTab(): UnifiedTab {
 /**
  * Create agent config panel tab (global)
  */
-export function agentConfigToTab(): UnifiedTab {
+export function agentConfigToTab(selectedAgentId?: string): UnifiedTab {
   return {
     id: generateTabId(),
     kind: "agentConfig",
     title: "Agent Config",
     // Icon is rendered by DraggableTab based on kind
-    data: { agentConfig: {} },
+    data: { agentConfig: { selectedAgentId } },
   };
 }
 

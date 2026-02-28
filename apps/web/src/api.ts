@@ -17,6 +17,14 @@ export interface TabsPresenceTab {
   data?: unknown;
 }
 
+export interface LocalServerInfo {
+  name: string;
+  url: string;
+  port: number;
+  status: string;
+  type: string;
+}
+
 const HTTP_STATUS_NO_CONTENT = 204;
 
 // Retry configuration
@@ -165,6 +173,15 @@ export function listWorkspaces(): Promise<Workspace[]> {
  */
 export function getConfig(): Promise<{ defaultRoot?: string }> {
   return request<{ defaultRoot?: string }>("/api/config");
+}
+
+/**
+ * Scans localhost and returns currently listening local services.
+ */
+export function listLocalServers(): Promise<LocalServerInfo[]> {
+  return request<LocalServerInfo[]>("/api/local-servers/scan").catch(() =>
+    request<LocalServerInfo[]>("/api/local-server/scan")
+  );
 }
 
 /**

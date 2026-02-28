@@ -6,7 +6,9 @@ import { AgentConfigPanelContent } from "../../panel/AgentConfigPanelContent";
  * Wraps AgentConfigPanelContent (no context needed - self-contained)
  */
 export function AgentConfigPanelAdapter(
-  _props: IDockviewPanelProps<{ tab: import("../../../types").UnifiedTab }>
+  props: IDockviewPanelProps<{ tab: import("../../../types").UnifiedTab }>
 ) {
-  return <AgentConfigPanelContent />;
+  return (
+    <AgentConfigPanelContent initialAgentId={props.params.tab.data.agentConfig?.selectedAgentId} />
+  );
 }

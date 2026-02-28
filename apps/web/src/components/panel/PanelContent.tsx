@@ -174,7 +174,7 @@ export function PanelContent({
     case "agentStatus":
       return <AgentStatusPanelContent />;
     case "agentConfig":
-      return <AgentConfigPanelContent />;
+      return <AgentConfigPanelContent initialAgentId={tab.data.agentConfig?.selectedAgentId} />;
     case "agentConfigLocal":
       return (
         <AgentConfigLocalPanelContent workspaceId={tab.data.agentConfigLocal?.workspaceId || ""} />

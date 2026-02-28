@@ -783,6 +783,15 @@ export function TitleBar({
       action: () => onOpenPanel?.(setupToTab()),
     });
 
+    const agentConfigViewerSubmenu: MenuItem[] = [
+      { label: "Claude", action: () => onOpenPanel?.(agentConfigToTab("claude")) },
+      { label: "Codex", action: () => onOpenPanel?.(agentConfigToTab("codex")) },
+      { label: "Kimi", action: () => onOpenPanel?.(agentConfigToTab("kimi")) },
+      { label: "Copilot", action: () => onOpenPanel?.(agentConfigToTab("copilot")) },
+      { label: "Cursor", action: () => onOpenPanel?.(agentConfigToTab("cursor")) },
+      { label: "OpenCode", action: () => onOpenPanel?.(agentConfigToTab("opencode")) },
+    ];
+
     return [
       {
         label: "File",
@@ -810,7 +819,12 @@ export function TitleBar({
       },
       {
         label: "Agent",
-        children: [{ label: "Create Agent", action: onCreateAgent }],
+        children: [
+          { label: "Create Agent", action: onCreateAgent },
+          { label: "", separator: true },
+          { label: "Agent Status", action: () => onOpenPanel?.(agentStatusToTab()) },
+          { label: "Config Viewer", children: agentConfigViewerSubmenu },
+        ],
       },
       {
         label: "Help",
@@ -864,7 +878,6 @@ export function TitleBar({
               key={workspace.id}
               type="button"
               className={`workspace-tab ${activeWorkspaceId === workspace.id ? "workspace-tab--active" : ""}`}
-              data-tauri-drag-region={false}
               onClick={() => onSelectWorkspace?.(workspace.id)}
               onContextMenu={(e) => handleWorkspaceContextMenu(workspace, e)}
               title={workspace.path}
@@ -885,7 +898,6 @@ export function TitleBar({
                 ref={dropdownTriggerRef}
                 type="button"
                 className={`workspace-tab workspace-dropdown-trigger ${isWorkspaceDropdownOpen ? "workspace-dropdown-trigger--open" : ""}`}
-                data-tauri-drag-region={false}
                 onClick={() => setIsWorkspaceDropdownOpen((prev) => !prev)}
                 title="その他のワークスペース"
               >
@@ -905,7 +917,6 @@ export function TitleBar({
                       key={workspace.id}
                       type="button"
                       className={`workspace-dropdown-item ${activeWorkspaceId === workspace.id ? "workspace-dropdown-item--active" : ""}`}
-                      data-tauri-drag-region={false}
                       onClick={() => {
                         onSelectWorkspace?.(workspace.id);
                         setIsWorkspaceDropdownOpen(false);
@@ -923,7 +934,6 @@ export function TitleBar({
           <button
             type="button"
             className="workspace-tab workspace-tab--add"
-            data-tauri-drag-region={false}
             onClick={onOpenWorkspaceModal}
             title="新しいワークスペースを追加"
           >
@@ -938,7 +948,6 @@ export function TitleBar({
           <button
             type="button"
             className="title-bar-mobile-toggle"
-            data-tauri-drag-region={false}
             onClick={onToggleMobileMode}
             title={isMobileMode ? "デスクトップモード" : "モバイルモード"}
             aria-label="Toggle mobile mode"
@@ -954,7 +963,6 @@ export function TitleBar({
             <button
               type="button"
               className="title-bar-button"
-              data-tauri-drag-region={false}
               onClick={handleMinimize}
               aria-label="Minimize"
             >
@@ -963,7 +971,6 @@ export function TitleBar({
             <button
               type="button"
               className="title-bar-button"
-              data-tauri-drag-region={false}
               onClick={handleMaximize}
               aria-label="Maximize"
             >
@@ -972,7 +979,6 @@ export function TitleBar({
             <button
               type="button"
               className="title-bar-button title-bar-close"
-              data-tauri-drag-region={false}
               onClick={handleClose}
               aria-label="Close"
             >
