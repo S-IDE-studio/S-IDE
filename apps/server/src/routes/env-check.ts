@@ -28,7 +28,7 @@ interface ToolVersion {
 interface EnvironmentCheck {
   node: ToolVersion;
   npm: ToolVersion;
-  pnpm: ToolVersion;
+  bun: ToolVersion;
   git: ToolVersion;
   python: ToolVersion;
   agents: {
@@ -104,10 +104,10 @@ export function createEnvCheckRouter() {
       const os = await import("node:os");
 
       // Check core tools in parallel
-      const [node, npm, pnpm, git, python] = await Promise.all([
+      const [node, npm, bun, git, python] = await Promise.all([
         checkToolVersion("node"),
         checkToolVersion("npm"),
-        checkToolVersion("pnpm"),
+        checkToolVersion("bun"),
         checkToolVersion("git"),
         checkToolVersion("python3", "--version"),
       ]);
@@ -124,7 +124,7 @@ export function createEnvCheckRouter() {
       const result: EnvironmentCheck = {
         node,
         npm,
-        pnpm,
+        bun,
         git,
         python,
         agents: {

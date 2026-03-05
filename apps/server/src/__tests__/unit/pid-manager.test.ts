@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -9,8 +9,7 @@ describe("PidManager", () => {
   let pidManager: PidManager;
 
   beforeEach(() => {
-    testDir = join(tmpdir(), `side-ide-test-${Date.now()}`);
-    mkdirSync(testDir, { recursive: true });
+    testDir = mkdtempSync(join(tmpdir(), "side-ide-test-"));
     pidManager = new PidManager(join(testDir, "test.pid"));
   });
 

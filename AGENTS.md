@@ -129,9 +129,9 @@ Desktop Shell 変更 → 波及なし（末端）
 
 | # | チェック項目 |
 |---|---|
-| T-1 | `pnpm run type-check` が通るか？ |
-| T-2 | `pnpm run lint` がエラーなしか？ |
-| T-3 | `pnpm run test` が全パスか？ |
+| T-1 | `bun run type-check` が通るか？ |
+| T-2 | `bun run lint` がエラーなしか？ |
+| T-3 | `bun run test` が全パスか？ |
 | T-4 | `any` 型を使っていないか？（`unknown` + 型ガードを使え） |
 | T-5 | すべての非同期処理に明示的エラーハンドリングがあるか？ |
 | T-6 | ファイル操作にパストラバーサル検証があるか？ |

@@ -21,6 +21,8 @@ mod server_tests;
 #[cfg(test)]
 mod tailscale_tests;
 #[cfg(test)]
+mod remote_access_tests;
+#[cfg(test)]
 mod tunnel_tests;
 
 use tokio::sync::Mutex as TokioMutex;

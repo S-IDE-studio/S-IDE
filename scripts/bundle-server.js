@@ -34,25 +34,28 @@ copyDirectory(serverDistDir, bundleDir);
 // Create package.json FIRST (before copying shared package)
 console.log("[Bundle] Creating production package.json...");
 const serverPackageJson = JSON.parse(fs.readFileSync(path.join(serverDir, "package.json"), "utf8"));
+const prodDependencies = { ...(serverPackageJson.dependencies ?? {}) };
+// @side-ide/shared is bundled manually below. Keep it out of install step to avoid broken file: path resolution.
+delete prodDependencies["@side-ide/shared"];
 const prodPackageJson = {
   name: serverPackageJson.name,
   version: serverPackageJson.version,
   type: "module",
-  dependencies: serverPackageJson.dependencies,
+  dependencies: prodDependencies,
 };
 fs.writeFileSync(path.join(bundleDir, "package.json"), JSON.stringify(prodPackageJson, null, 2));
 
-// Use npm to install production dependencies FIRST
+// Use bun to install production dependencies FIRST
 console.log("[Bundle] Installing production dependencies...");
 try {
-  execSync("npm install --production --no-package-lock --omit=dev", {
+  execSync("bun install --production", {
     cwd: bundleDir,
     stdio: "inherit",
     shell: true,
   });
   console.log("[Bundle] Production dependencies installed!");
 } catch (error) {
-  throw new Error(`npm install failed: ${error.message}`);
+  throw new Error(`bun install failed: ${error.message}`);
 }
 
 // NOW copy shared package AFTER npm install (to override any symlink)

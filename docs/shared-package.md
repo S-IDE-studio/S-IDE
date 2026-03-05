@@ -162,13 +162,13 @@ export type { Workspace, Deck } from '@side-ide/shared/types';
 
 ### Webアプリケーション
 ```bash
-cd apps/web && pnpm run build
+cd apps/web && bun run build
 # ✓ built in 1.05s (警告なし)
 ```
 
 ### サーバー
 ```bash
-cd apps/server && pnpm run build
+cd apps/server && bun run build
 # ✓ ビルド成功
 ```
 

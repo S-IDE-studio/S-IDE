@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "sync:vscode-icons": "node ./scripts/sync-vscode-icons.mjs",
-    "predev": "pnpm sync:vscode-icons",
+    "predev": "node ./scripts/sync-vscode-icons.mjs",
     "dev": "vite",
-    "prebuild": "pnpm sync:vscode-icons",
+    "prebuild": "node ./scripts/sync-vscode-icons.mjs",
     "build": "vite build",
     "type-check": "tsc --noEmit",
     "preview": "vite preview",

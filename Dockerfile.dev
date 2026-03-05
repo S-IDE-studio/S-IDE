@@ -1,7 +1,7 @@
 FROM node:20-slim
 
-# Install pnpm
-RUN npm install -g pnpm
+# Install bun
+RUN npm install -g bun
 
 # Install git and other dependencies
 RUN apt-get update && apt-get install -y \
@@ -14,17 +14,17 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy package files
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
+COPY package.json bun.lock* ./
 COPY packages/shared/package.json ./packages/shared/
 COPY apps/server/package.json ./apps/server/
 COPY apps/web/package.json ./apps/web/
 
 # Install dependencies
-RUN pnpm install
+RUN bun install --frozen-lockfile
 
 # Copy source code
 COPY . .
 
 EXPOSE 3210 8787
 
-CMD ["pnpm", "run", "dev"]
+CMD ["bun", "run", "dev"]

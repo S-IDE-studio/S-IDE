@@ -4,6 +4,9 @@
 
 use crate::tailscale;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
+
+const DEV_WEB_PORTS: [u16; 3] = [5173, 1420, 4173];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RemoteAccessSettings {
@@ -166,16 +169,65 @@ pub async fn get_serve_status() -> Result<(bool, Option<String>), String> {
     Ok((is_serve_enabled_from_text(&combined), pick_serve_url_from_text(&combined)))
 }
 
+pub(crate) fn select_remote_access_target_port(
+    server_port: u16,
+    server_serves_ui: bool,
+    dev_ports_with_ui: &[u16],
+) -> Result<u16, String> {
+    if server_serves_ui {
+        return Ok(server_port);
+    }
+
+    if let Some(port) = dev_ports_with_ui.iter().find(|&&p| p != server_port) {
+        return Ok(*port);
+    }
+
+    Err(
+        "No Web UI endpoint found. Start the web UI (e.g. `bun run dev:web`) or build static files (`bun run build:web`)."
+            .to_string(),
+    )
+}
+
+async fn serves_ui_root(port: u16) -> bool {
+    let url = format!("http://127.0.0.1:{port}/");
+    let client = match reqwest::Client::builder()
+        .timeout(Duration::from_millis(1200))
+        .build()
+    {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+
+    match client.get(url).send().await {
+        Ok(response) => response.status().is_success() || response.status().is_redirection(),
+        Err(_) => false,
+    }
+}
+
 pub async fn start_https(local_port: u16) -> Result<(), String> {
+    // Ensure we replace stale serve mappings deterministically.
+    // Older mappings (e.g. 443 -> 8787) can survive between runs.
+    let _ = run_tailscale(&["serve", "reset"]).await;
+
     // Newer Tailscale CLI uses: `tailscale serve --bg --https <port> <target>`
     // where <target> can be a port number (e.g. 8787) for http://127.0.0.1:<target>.
     //
     // Prefer 443 (no port in URL). If it is already taken, fall back to 8443.
     let candidates = [443u16, 8443u16];
 
+    let server_serves_ui = serves_ui_root(local_port).await;
+    let mut dev_ports_with_ui = Vec::new();
+    for dev_port in DEV_WEB_PORTS {
+        if serves_ui_root(dev_port).await {
+            dev_ports_with_ui.push(dev_port);
+        }
+    }
+    let target_port =
+        select_remote_access_target_port(local_port, server_serves_ui, &dev_ports_with_ui)?;
+
     for serve_port in candidates {
         let serve_port_s = serve_port.to_string();
-        let target_s = local_port.to_string();
+        let target_s = target_port.to_string();
         let output =
             run_tailscale(&["serve", "--yes", "--bg", "--https", &serve_port_s, &target_s]).await?;
         if output.status.success() {

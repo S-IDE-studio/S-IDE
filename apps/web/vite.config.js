@@ -31,6 +31,9 @@ export default defineConfig(({ mode }) => ({
     host: true,
     port: 5173,
     strictPort: true,
+    // Trust access control to Tailscale in Remote Access mode.
+    // Accept any Host header to avoid MagicDNS/host mismatch blocking.
+    allowedHosts: true,
     proxy: {
       "/api": {
         target: "http://localhost:8787",

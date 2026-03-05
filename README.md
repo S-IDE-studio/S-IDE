@@ -66,13 +66,13 @@ git clone https://github.com/rebuildup/side.git
 cd side
 
 # Install dependencies
-pnpm install
+bun install
 
 # Build for production
-pnpm run build:desktop
+bun run build:desktop
 
 # Or run in development mode
-pnpm run dev:desktop
+bun run dev:desktop
 ```
 
 **Important:** The desktop app automatically starts the backend server when launched. No manual server startup required.
@@ -81,13 +81,13 @@ pnpm run dev:desktop
 
 ```bash
 # Install dependencies
-pnpm install
+bun install
 
 # Run development server
-pnpm run dev
+bun run dev
 
 # Build for production
-pnpm run build
+bun run build
 ```
 
 ---
@@ -263,25 +263,25 @@ npm run dev:web        # Start web dev server
 npm run dev:server     # Start server in dev mode (manual)
 
 # Building
-pnpm run build:web     # Build web frontend
-pnpm run build:server  # Build server
-pnpm run build:desktop # Build all components for desktop
+bun run build:web     # Build web frontend
+bun run build:server  # Build server
+bun run build:desktop # Build all components for desktop
 
 # Production
-pnpm run build         # Build web only
-pnpm run serve         # Build and serve production
+bun run build         # Build web only
+bun run serve         # Build and serve production
 ```
 
 ### Project Setup
 
 ```bash
 # Install all dependencies
-pnpm install
+bun install
 
 # Install workspace-specific dependencies
-pnpm --filter apps/web install
-pnpm --filter apps/server install
-pnpm --filter apps/desktop install
+bun run --filter apps/web install
+bun run --filter apps/server install
+bun run --filter apps/desktop install
 ```
 
 ---

@@ -43,5 +43,5 @@ Set-Location -Path "..\.."
 Write-Host "Installation complete!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Cyan
-Write-Host "  pnpm run dev:server  # Start server"
-Write-Host "  pnpm run dev:web     # Start web (in another terminal)"
+Write-Host "  bun run dev:server  # Start server"
+Write-Host "  bun run dev:web     # Start web (in another terminal)"

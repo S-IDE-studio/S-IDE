@@ -42,14 +42,14 @@ git clone https://github.com/tako0614/ide.git
 cd ide
 
 # 依存関係をインストール
-pnpm install
+bun install
 
 # 開発モードで起動（Web + Server）
-pnpm run dev:server  # ターミナル1
-pnpm run dev:web     # ターミナル2
+bun run dev:server  # ターミナル1
+bun run dev:web     # ターミナル2
 
 # またはビルドして起動
-pnpm run serve
+bun run serve
 ```
 
 ブラウザで http://localhost:3210 を開く。
@@ -394,19 +394,19 @@ xterm.jsは一般的なターミナルショートカットをサポートして
 
 ```bash
 # 依存関係のインストール
-pnpm install
+bun install
 
 # 開発サーバー起動
-pnpm run dev:server  # サーバー (port 3210)
-pnpm run dev:web     # Web (port 5173)
+bun run dev:server  # サーバー (port 3210)
+bun run dev:web     # Web (port 5173)
 
 # ビルド
-pnpm run build:web   # Webのみ
-pnpm run build:server # サーバーのみ
-pnpm run build:desktop # デスクトップアプリ
+bun run build:web   # Webのみ
+bun run build:server # サーバーのみ
+bun run build:desktop # デスクトップアプリ
 
 # デスクトップアプリの開発
-pnpm run dev:desktop
+bun run dev:desktop
 ```
 
 ## 環境変数

@@ -158,7 +158,7 @@ export function ServerStartupScreen({ onComplete }: ServerStartupScreenProps) {
 
         if (progressInterval) clearInterval(progressInterval);
         const message = tauriError instanceof Error ? tauriError.message : "Unknown error";
-        setErrorMessage("Server not available. Please start the server with `pnpm run dev:server`");
+        setErrorMessage("Server not available. Please start the server with `bun run dev:server`");
         setStatus("failed");
         setProgress(0);
       }

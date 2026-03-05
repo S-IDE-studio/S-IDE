@@ -87,23 +87,23 @@ mod tests {
             version: None,
         };
 
-        let pnpm_info = CommandInfo {
+        let bun_info = CommandInfo {
             available: true,
-            version: Some("v9.0.0".to_string()),
+            version: Some("1.3.10".to_string()),
         };
 
         let env_info = EnvironmentInfo {
             node: node_info.clone(),
             npm: npm_info.clone(),
-            pnpm: pnpm_info.clone(),
+            bun: bun_info.clone(),
         };
 
         assert_eq!(env_info.node.available, true);
         assert_eq!(env_info.node.version.as_ref().unwrap(), "v20.0.0");
         assert_eq!(env_info.npm.available, false);
         assert!(env_info.npm.version.is_none());
-        assert_eq!(env_info.pnpm.available, true);
-        assert_eq!(env_info.pnpm.version.as_ref().unwrap(), "v9.0.0");
+        assert_eq!(env_info.bun.available, true);
+        assert_eq!(env_info.bun.version.as_ref().unwrap(), "1.3.10");
 
         // Test serialization
         let json = serde_json::to_string(&env_info).unwrap();

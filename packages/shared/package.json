@@ -28,7 +28,7 @@
   "scripts": {
     "build": "tsc",
     "type-check": "tsc --noEmit",
-    "prepublishOnly": "pnpm run build"
+    "prepublishOnly": "bun run build"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

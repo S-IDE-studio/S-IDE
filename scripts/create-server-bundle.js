@@ -15,7 +15,7 @@ console.log("[Bundle] Creating server bundle for GitHub Releases...");
 
 // Check if server directory exists
 if (!fs.existsSync(serverDir)) {
-  console.error("[Bundle] Server directory not found. Run 'pnpm run bundle:server' first.");
+  console.error("[Bundle] Server directory not found. Run 'bun run bundle:server' first.");
   process.exit(1);
 }
 

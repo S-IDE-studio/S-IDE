@@ -266,7 +266,7 @@ pub async fn stop_remote_access() -> CommandResult<String> {
 
 // Environment check commands
 
-/// Checks the environment for required tools (Node.js, npm, pnpm)
+/// Checks the environment for required tools (Node.js, npm, bun)
 ///
 /// # Errors
 ///
@@ -275,12 +275,12 @@ pub async fn stop_remote_access() -> CommandResult<String> {
 pub async fn check_environment() -> CommandResult<EnvironmentInfo> {
     let node_info = check_command_version("node", &["--version"]).await;
     let npm_info = check_command_version("npm", &["--version"]).await;
-    let pnpm_info = check_command_version("pnpm", &["--version"]).await;
+    let bun_info = check_command_version("bun", &["--version"]).await;
 
     Ok(EnvironmentInfo {
         node: node_info,
         npm: npm_info,
-        pnpm: pnpm_info,
+        bun: bun_info,
     })
 }
 
@@ -311,8 +311,8 @@ pub struct EnvironmentInfo {
     pub node: CommandInfo,
     /// npm availability and version
     pub npm: CommandInfo,
-    /// pnpm availability and version
-    pub pnpm: CommandInfo,
+    /// bun availability and version
+    pub bun: CommandInfo,
 }
 
 /// Information about a command-line tool

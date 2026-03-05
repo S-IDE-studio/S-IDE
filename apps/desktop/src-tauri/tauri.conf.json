@@ -4,8 +4,8 @@
   "version": "3.1.0",
   "identifier": "com.side.ide",
   "build": {
-    "beforeDevCommand": "cd ../.. && pnpm run dev:web",
-    "beforeBuildCommand": "cd ../.. && pnpm run build:web && pnpm run build:server && pnpm run bundle:server",
+    "beforeDevCommand": "cd ../.. && bun run dev:web:bun",
+    "beforeBuildCommand": "cd ../.. && bun run build:web && bun run build:server && bun run bundle:server",
     "frontendDist": "../../web/dist",
     "devUrl": "http://localhost:5173"
   },

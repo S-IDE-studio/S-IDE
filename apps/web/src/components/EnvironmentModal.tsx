@@ -30,7 +30,7 @@ interface EnvironmentModalProps {
 interface EnvironmentInfo {
   node: CommandInfo;
   npm: CommandInfo;
-  pnpm: CommandInfo;
+  bun: CommandInfo;
 }
 
 interface CommandInfo {
@@ -136,7 +136,7 @@ export function EnvironmentModal({ isOpen, onClose }: EnvironmentModalProps) {
                 <div className="env-items">
                   <CommandItem name="Node.js" info={envInfo?.node ?? null} />
                   <CommandItem name="npm" info={envInfo?.npm ?? null} />
-                  <CommandItem name="pnpm" info={envInfo?.pnpm ?? null} optional />
+                  <CommandItem name="bun" info={envInfo?.bun ?? null} optional />
                 </div>
               </section>
 
@@ -182,9 +182,9 @@ export function EnvironmentModal({ isOpen, onClose }: EnvironmentModalProps) {
                   <button
                     type="button"
                     className="env-action-btn"
-                    onClick={() => window.open("https://pnpm.io/installation", "_blank")}
+                    onClick={() => window.open("https://bun.sh/docs/installation", "_blank")}
                   >
-                    Install pnpm
+                    Install Bun
                   </button>
                 </div>
               </section>

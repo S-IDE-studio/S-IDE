@@ -19,7 +19,7 @@ The Mobile Release workflow (`mobile-release.yml`) is now **working correctly**.
 ## What's Working
 
 1. **GitHub Actions Workflow**: Successfully configured and running
-2. **Dependencies**: Correctly installed via pnpm with `@babel/runtime` fix
+2. **Dependencies**: Correctly installed via Bun with `@babel/runtime` fix
 3. **Configuration**: eas.json and app.json properly set up
 4. **Metro Bundler**: Fixed with `@babel/runtime` dependency
 5. **Android Setup**: Keystore generation script ready to use
@@ -58,7 +58,7 @@ This appears to be a compatibility issue between:
 **Workaround**: Use Expo Go for iOS testing:
 ```bash
 cd apps/mobile
-pnpm start
+bun run start
 # Scan QR code with Expo Go app
 ```
 
@@ -81,7 +81,7 @@ pnpm start
 1. **For immediate testing**: Use Expo Go app to test the mobile app without building
    ```bash
    cd apps/mobile
-   pnpm start
+   bun run start
    ```
 
 2. **For iOS**:
@@ -117,7 +117,7 @@ To test the mobile app without building:
 2. Run development server:
    ```bash
    cd apps/mobile
-   pnpm start
+   bun run start
    ```
 3. Scan QR code with Expo Go app
 4. App will load in Expo Go

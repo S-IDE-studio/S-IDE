@@ -119,9 +119,9 @@ DaemonState = Some(handle)
 ## 8. ビルドチェーン
 
 ```
-pnpm run build:desktop
+bun run build:desktop
     │
-    ├── 1. pnpm run build:web          (Vite → Web Client dist/)
+    ├── 1. bun run build:web          (Vite → Web Client dist/)
     ├── 2. cargo build --release       (Core Daemon → バイナリ)
     └── 3. cargo tauri build           (Rust → インストーラ)
 ```
