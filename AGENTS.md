@@ -186,3 +186,10 @@ conventions.md                            ← 規約に記載があるならそ�
     ↓
 エージェント自身の判断                     ← 上記すべてに該当しない場合のみ
 ```
+
+
+## Constitution / operating profile
+
+- 最上位 contract: [`constitution/CONSTITUTION.md`](constitution/CONSTITUTION.md)
+- current Operating Model: [`organization/profiles/release-driven-solo.md`](organization/profiles/release-driven-solo.md)
+- 既存の project-specific spec / architecture / ADR は、Constitution と両立する限り generic upstream Practice より具体的な authority として維持する。
